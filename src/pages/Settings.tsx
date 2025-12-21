@@ -6,32 +6,98 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Webhook, 
-  CheckCircle2, 
-  XCircle, 
-  Copy, 
-  RefreshCw, 
+import {
+  Webhook,
+  CheckCircle2,
+  XCircle,
+  Copy,
+  RefreshCw,
   Bell,
   Shield,
   Globe,
   Zap,
   MessageSquare,
-  Settings2
+  Settings2,
+  Loader2
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
+// Default settings
+const DEFAULT_SETTINGS = {
+  verifyToken: "paytrack_verify_2024",
+  phoneId: "",
+  businessId: "",
+  autoProcess: true,
+  notifications: true,
+  lowConfidenceAlert: true,
+  confidenceThreshold: 70,
+  timezone: "America/Lima",
+  defaultCurrency: "PEN",
+  language: "Español",
+  notifyNewPayments: true,
+  notifyPromises: true,
+  notifyErrors: true,
+};
+
+// Load settings from localStorage
+const loadSettings = () => {
+  try {
+    const saved = localStorage.getItem("paytrack_settings");
+    if (saved) {
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+    }
+  } catch (e) {
+    console.error("Error loading settings:", e);
+  }
+  return DEFAULT_SETTINGS;
+};
+
 export default function Settings() {
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [verifyToken, setVerifyToken] = useState("paytrack_verify_2024");
+  const [settings, setSettings] = useState(loadSettings);
   const [isConnected, setIsConnected] = useState(true);
-  const [autoProcess, setAutoProcess] = useState(true);
-  const [notifications, setNotifications] = useState(true);
-  const [lowConfidenceAlert, setLowConfidenceAlert] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [originalSettings, setOriginalSettings] = useState(loadSettings);
 
   // Generate the webhook URL for this project
   const projectWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+
+  // Track changes
+  useEffect(() => {
+    const changed = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+    setHasChanges(changed);
+  }, [settings, originalSettings]);
+
+  // Update setting helper
+  const updateSetting = <K extends keyof typeof DEFAULT_SETTINGS>(
+    key: K,
+    value: typeof DEFAULT_SETTINGS[K]
+  ) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // Save settings
+  const saveSettings = async () => {
+    setIsSaving(true);
+    try {
+      localStorage.setItem("paytrack_settings", JSON.stringify(settings));
+      setOriginalSettings({ ...settings });
+      setHasChanges(false);
+      toast.success("Configuración guardada correctamente");
+    } catch (error) {
+      toast.error("Error al guardar la configuración");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Cancel changes
+  const cancelChanges = () => {
+    setSettings({ ...originalSettings });
+    setHasChanges(false);
+    toast.info("Cambios descartados");
+  };
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -102,14 +168,14 @@ export default function Settings() {
                 <div className="flex gap-2">
                   <Input
                     id="verify-token"
-                    value={verifyToken}
-                    onChange={(e) => setVerifyToken(e.target.value)}
+                    value={settings.verifyToken}
+                    onChange={(e) => updateSetting("verifyToken", e.target.value)}
                     className="font-mono text-sm"
                   />
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => copyToClipboard(verifyToken, "Token")}
+                    onClick={() => copyToClipboard(settings.verifyToken, "Token")}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -126,6 +192,8 @@ export default function Settings() {
                 <Input
                   id="phone-id"
                   placeholder="Ej: 123456789012345"
+                  value={settings.phoneId}
+                  onChange={(e) => updateSetting("phoneId", e.target.value)}
                   className="font-mono text-sm"
                 />
               </div>
@@ -135,6 +203,8 @@ export default function Settings() {
                 <Input
                   id="business-id"
                   placeholder="Ej: 123456789012345"
+                  value={settings.businessId}
+                  onChange={(e) => updateSetting("businessId", e.target.value)}
                   className="font-mono text-sm"
                 />
               </div>
@@ -222,8 +292,8 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={autoProcess}
-                  onCheckedChange={setAutoProcess}
+                  checked={settings.autoProcess}
+                  onCheckedChange={(checked) => updateSetting("autoProcess", checked)}
                 />
               </div>
 
@@ -233,12 +303,12 @@ export default function Settings() {
                 <div className="space-y-0.5">
                   <Label>Alerta de baja confianza</Label>
                   <p className="text-xs text-muted-foreground">
-                    Notificar cuando confianza {"<"} 70%
+                    Notificar cuando confianza {"<"} {settings.confidenceThreshold}%
                   </p>
                 </div>
                 <Switch
-                  checked={lowConfidenceAlert}
-                  onCheckedChange={setLowConfidenceAlert}
+                  checked={settings.lowConfidenceAlert}
+                  onCheckedChange={(checked) => updateSetting("lowConfidenceAlert", checked)}
                 />
               </div>
 
@@ -251,7 +321,8 @@ export default function Settings() {
                     type="number"
                     min="0"
                     max="100"
-                    defaultValue="70"
+                    value={settings.confidenceThreshold}
+                    onChange={(e) => updateSetting("confidenceThreshold", parseInt(e.target.value) || 70)}
                     className="w-24"
                   />
                   <span className="text-sm text-muted-foreground">%</span>
@@ -297,8 +368,8 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={notifications}
-                  onCheckedChange={setNotifications}
+                  checked={settings.notifications}
+                  onCheckedChange={(checked) => updateSetting("notifications", checked)}
                 />
               </div>
 
@@ -311,7 +382,10 @@ export default function Settings() {
                     Notificar cada pago confirmado
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.notifyNewPayments}
+                  onCheckedChange={(checked) => updateSetting("notifyNewPayments", checked)}
+                />
               </div>
 
               <Separator />
@@ -323,7 +397,10 @@ export default function Settings() {
                     Alertar sobre promesas próximas a vencer
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.notifyPromises}
+                  onCheckedChange={(checked) => updateSetting("notifyPromises", checked)}
+                />
               </div>
 
               <Separator />
@@ -335,7 +412,10 @@ export default function Settings() {
                     Alertar sobre fallos de conexión
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.notifyErrors}
+                  onCheckedChange={(checked) => updateSetting("notifyErrors", checked)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -358,15 +438,27 @@ export default function Settings() {
             <div className="grid gap-6 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Zona horaria</Label>
-                <Input defaultValue="America/Lima" className="font-mono text-sm" />
+                <Input
+                  value={settings.timezone}
+                  onChange={(e) => updateSetting("timezone", e.target.value)}
+                  className="font-mono text-sm"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Moneda predeterminada</Label>
-                <Input defaultValue="PEN" className="font-mono text-sm" />
+                <Input
+                  value={settings.defaultCurrency}
+                  onChange={(e) => updateSetting("defaultCurrency", e.target.value)}
+                  className="font-mono text-sm"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Idioma</Label>
-                <Input defaultValue="Español" className="font-mono text-sm" />
+                <Input
+                  value={settings.language}
+                  onChange={(e) => updateSetting("language", e.target.value)}
+                  className="font-mono text-sm"
+                />
               </div>
             </div>
 
@@ -388,8 +480,19 @@ export default function Settings() {
             <Separator className="my-6" />
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline">Cancelar cambios</Button>
-              <Button className="gradient-primary text-primary-foreground">
+              <Button
+                variant="outline"
+                onClick={cancelChanges}
+                disabled={!hasChanges}
+              >
+                Cancelar cambios
+              </Button>
+              <Button
+                className="gradient-primary text-primary-foreground"
+                onClick={saveSettings}
+                disabled={!hasChanges || isSaving}
+              >
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Guardar configuración
               </Button>
             </div>
