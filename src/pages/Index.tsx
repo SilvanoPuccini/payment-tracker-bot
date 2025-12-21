@@ -5,10 +5,15 @@ import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PendingPayments } from "@/components/dashboard/PendingPayments";
 import { useDashboardStats } from "@/hooks/useSupabaseData";
-import { CreditCard, DollarSign, Clock, CheckCircle2 } from "lucide-react";
+import { DashboardFilterProvider, useDashboardFilters } from "@/contexts/DashboardFilterContext";
+import { CreditCard, DollarSign, Clock, CheckCircle2, Calendar } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 
-const Index = () => {
-  const { data: stats, isLoading } = useDashboardStats();
+function DashboardContent() {
+  const { filters } = useDashboardFilters();
+  const { data: stats, isLoading } = useDashboardStats(filters);
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
@@ -20,9 +25,19 @@ const Index = () => {
     return `S/ ${amount.toFixed(0)}`;
   };
 
+  const formatDateRange = () => {
+    try {
+      const start = format(parseISO(filters.startDate), "d MMM", { locale: es });
+      const end = format(parseISO(filters.endDate), "d MMM yyyy", { locale: es });
+      return `${start} - ${end}`;
+    } catch {
+      return "Este mes";
+    }
+  };
+
   const statsData = [
     {
-      title: "Pagos Este Mes",
+      title: "Total Pagos",
       value: isLoading ? "..." : formatCurrency(stats?.totalPaymentsAmount || 0),
       change: "+12.5%",
       changeType: "positive" as const,
@@ -57,9 +72,15 @@ const Index = () => {
         {/* Page Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+              <Badge variant="outline" className="gap-1 font-normal">
+                <Calendar className="h-3 w-3" />
+                {formatDateRange()}
+              </Badge>
+            </div>
             <p className="text-muted-foreground">
-              Bienvenido de vuelta. Aquí está el resumen de hoy.
+              Bienvenido de vuelta. Aquí está el resumen del período seleccionado.
             </p>
           </div>
           <QuickActions />
@@ -86,6 +107,14 @@ const Index = () => {
         <RecentTransactions />
       </div>
     </DashboardLayout>
+  );
+}
+
+const Index = () => {
+  return (
+    <DashboardFilterProvider>
+      <DashboardContent />
+    </DashboardFilterProvider>
   );
 };
 

@@ -1,12 +1,13 @@
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  CreditCard, 
-  Users, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  CreditCard,
+  Users,
+  BarChart3,
   Settings,
-  Zap
+  Zap,
+  CalendarClock
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -14,6 +15,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Mensajes", href: "/messages", icon: MessageSquare },
   { name: "Pagos", href: "/payments", icon: CreditCard },
+  { name: "Promesas", href: "/promises", icon: CalendarClock },
   { name: "Contactos", href: "/contacts", icon: Users },
   { name: "Reportes", href: "/reports", icon: BarChart3 },
   { name: "Configuración", href: "/settings", icon: Settings },

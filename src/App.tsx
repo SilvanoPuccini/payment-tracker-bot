@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Messages from "./pages/Messages";
 import Payments from "./pages/Payments";
 import Contacts from "./pages/Contacts";
+import Promises from "./pages/Promises";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/messages" element={<Messages />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/contacts" element={<Contacts />} />
+          <Route path="/promises" element={<Promises />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

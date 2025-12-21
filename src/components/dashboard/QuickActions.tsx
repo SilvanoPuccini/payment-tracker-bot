@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Download, RefreshCw, Filter, Plus, X, Calendar } from "lucide-react";
+import { Download, RefreshCw, Filter, Plus, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/popover";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreatePayment, useContacts, usePayments } from "@/hooks/useSupabaseData";
+import { useDashboardFilters } from "@/contexts/DashboardFilterContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -33,6 +35,12 @@ export function QuickActions() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Filter context
+  const { filters, updateFilter, resetFilters, applyPreset } = useDashboardFilters();
+
+  // Local filter state (before applying)
+  const [localFilters, setLocalFilters] = useState(filters);
 
   // Payment form state
   const [paymentForm, setPaymentForm] = useState({
@@ -48,7 +56,48 @@ export function QuickActions() {
   const queryClient = useQueryClient();
   const createPayment = useCreatePayment();
   const { data: contacts } = useContacts({ limit: 100 });
-  const { data: payments } = usePayments({ limit: 1000 });
+  const { data: payments } = usePayments({
+    limit: 1000,
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    status: filters.status !== "all" ? filters.status : undefined,
+  });
+
+  // Count active filters
+  const activeFilterCount = [
+    filters.status !== "all",
+    filters.minAmount !== null && filters.minAmount > 0,
+  ].filter(Boolean).length;
+
+  // Sync local filters when popover opens
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      setLocalFilters(filters);
+    }
+    setIsFilterOpen(open);
+  };
+
+  // Apply filters
+  const handleApplyFilters = () => {
+    updateFilter("startDate", localFilters.startDate);
+    updateFilter("endDate", localFilters.endDate);
+    updateFilter("status", localFilters.status);
+    updateFilter("minAmount", localFilters.minAmount);
+    setIsFilterOpen(false);
+    toast.success("Filtros aplicados");
+  };
+
+  // Reset filters
+  const handleResetFilters = () => {
+    resetFilters();
+    setLocalFilters({
+      startDate: format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd"),
+      endDate: format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), "yyyy-MM-dd"),
+      status: "all",
+      minAmount: null,
+    });
+    toast.info("Filtros reiniciados");
+  };
 
   // Handle sync
   const handleSync = async () => {
@@ -135,7 +184,6 @@ export function QuickActions() {
     }
 
     try {
-      // Get user_id from contacts (they all belong to the same user)
       const contact = contacts?.find((c) => c.id === paymentForm.contactId);
       if (!contact) {
         toast.error("Contacto no encontrado");
@@ -184,17 +232,22 @@ export function QuickActions() {
           Registrar Pago
         </Button>
 
-        <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+        <Popover open={isFilterOpen} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2 relative">
               <Filter className="h-4 w-4" />
               Filtros
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {activeFilterCount}
+                </Badge>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80" align="end">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium">Filtros Rápidos</h4>
+                <h4 className="font-medium">Filtros del Dashboard</h4>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -203,16 +256,70 @@ export function QuickActions() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
+
+              {/* Quick presets */}
+              <div className="flex flex-wrap gap-1">
+                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+                  applyPreset("today");
+                  setLocalFilters(prev => ({ ...prev, startDate: format(new Date(), "yyyy-MM-dd"), endDate: format(new Date(), "yyyy-MM-dd") }));
+                }}>
+                  Hoy
+                </Button>
+                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+                  applyPreset("7d");
+                  const end = new Date();
+                  const start = new Date();
+                  start.setDate(start.getDate() - 7);
+                  setLocalFilters(prev => ({ ...prev, startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") }));
+                }}>
+                  7 días
+                </Button>
+                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+                  applyPreset("30d");
+                  const end = new Date();
+                  const start = new Date();
+                  start.setDate(start.getDate() - 30);
+                  setLocalFilters(prev => ({ ...prev, startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") }));
+                }}>
+                  30 días
+                </Button>
+                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+                  applyPreset("thisMonth");
+                  const now = new Date();
+                  setLocalFilters(prev => ({
+                    ...prev,
+                    startDate: format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"),
+                    endDate: format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd")
+                  }));
+                }}>
+                  Este mes
+                </Button>
+              </div>
+
               <div className="space-y-2">
                 <Label>Rango de fechas</Label>
                 <div className="flex gap-2">
-                  <Input type="date" className="flex-1" />
-                  <Input type="date" className="flex-1" />
+                  <Input
+                    type="date"
+                    className="flex-1"
+                    value={localFilters.startDate}
+                    onChange={(e) => setLocalFilters({ ...localFilters, startDate: e.target.value })}
+                  />
+                  <Input
+                    type="date"
+                    className="flex-1"
+                    value={localFilters.endDate}
+                    onChange={(e) => setLocalFilters({ ...localFilters, endDate: e.target.value })}
+                  />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label>Estado</Label>
-                <Select>
+                <Select
+                  value={localFilters.status}
+                  onValueChange={(value) => setLocalFilters({ ...localFilters, status: value })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
@@ -224,20 +331,33 @@ export function QuickActions() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
                 <Label>Monto mínimo</Label>
-                <Input type="number" placeholder="0" />
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={localFilters.minAmount || ""}
+                  onChange={(e) => setLocalFilters({
+                    ...localFilters,
+                    minAmount: e.target.value ? parseFloat(e.target.value) : null
+                  })}
+                />
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setIsFilterOpen(false)}>
-                  Cancelar
+
+              <div className="flex justify-between gap-2">
+                <Button variant="ghost" size="sm" onClick={handleResetFilters} className="gap-1">
+                  <RotateCcw className="h-3 w-3" />
+                  Reiniciar
                 </Button>
-                <Button size="sm" onClick={() => {
-                  toast.success("Filtros aplicados");
-                  setIsFilterOpen(false);
-                }}>
-                  Aplicar
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsFilterOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={handleApplyFilters}>
+                    Aplicar
+                  </Button>
+                </div>
               </div>
             </div>
           </PopoverContent>

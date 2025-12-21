@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useContacts, useContactMessages, useContactPayments } from "@/hooks/useSupabaseData";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useContacts, useContactMessages, useContactPayments, useUpdateContact } from "@/hooks/useSupabaseData";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -27,20 +29,30 @@ import {
   RefreshCw,
   MessageSquare,
   CreditCard,
-  Phone,
   Mail,
   Calendar,
   TrendingUp,
   TrendingDown,
   DollarSign,
   ChevronRight,
+  Pencil,
+  Save,
+  X,
+  User,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
+import { toast } from "sonner";
 
 const Contacts = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    notes: "",
+  });
 
   const { data: contacts, isLoading, refetch } = useContacts({
     search: searchQuery || undefined,
@@ -49,6 +61,19 @@ const Contacts = () => {
 
   const { data: contactMessages } = useContactMessages(selectedContact?.id);
   const { data: contactPayments } = useContactPayments(selectedContact?.id);
+  const updateContact = useUpdateContact();
+
+  // Sync edit form when contact is selected
+  useEffect(() => {
+    if (selectedContact) {
+      setEditForm({
+        name: selectedContact.name || "",
+        email: selectedContact.email || "",
+        notes: selectedContact.notes || "",
+      });
+      setIsEditing(false);
+    }
+  }, [selectedContact]);
 
   const formatCurrency = (amount: number, currency: string = "PEN") => {
     const symbols: Record<string, string> = {
@@ -80,6 +105,46 @@ const Contacts = () => {
     } catch {
       return dateStr;
     }
+  };
+
+  // Handle save contact
+  const handleSaveContact = async () => {
+    if (!selectedContact) return;
+
+    try {
+      await updateContact.mutateAsync({
+        id: selectedContact.id,
+        updates: {
+          name: editForm.name || null,
+          email: editForm.email || null,
+          notes: editForm.notes || null,
+        },
+      });
+
+      // Update local state
+      setSelectedContact({
+        ...selectedContact,
+        name: editForm.name || null,
+        email: editForm.email || null,
+        notes: editForm.notes || null,
+      });
+
+      setIsEditing(false);
+      toast.success("Contacto actualizado");
+      refetch();
+    } catch (error) {
+      toast.error("Error al actualizar el contacto");
+    }
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditForm({
+      name: selectedContact?.name || "",
+      email: selectedContact?.email || "",
+      notes: selectedContact?.notes || "",
+    });
+    setIsEditing(false);
   };
 
   return (
@@ -204,21 +269,48 @@ const Contacts = () => {
         <Dialog open={!!selectedContact} onOpenChange={() => setSelectedContact(null)}>
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedContact?.profile_picture_url || undefined} />
-                  <AvatarFallback className="bg-primary/20 text-primary">
-                    {getInitials(selectedContact?.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-semibold">
-                    {selectedContact?.name || "Sin nombre"}
-                  </p>
-                  <p className="text-sm text-muted-foreground font-normal">
-                    {selectedContact?.phone}
-                  </p>
+              <DialogTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={selectedContact?.profile_picture_url || undefined} />
+                    <AvatarFallback className="bg-primary/20 text-primary">
+                      {getInitials(selectedContact?.name || editForm.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold">
+                      {selectedContact?.name || editForm.name || "Sin nombre"}
+                    </p>
+                    <p className="text-sm text-muted-foreground font-normal">
+                      {selectedContact?.phone}
+                    </p>
+                  </div>
                 </div>
+                {!isEditing ? (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                      <X className="mr-1 h-4 w-4" />
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveContact}
+                      disabled={updateContact.isPending}
+                    >
+                      {updateContact.isPending ? (
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
+                      Guardar
+                    </Button>
+                  </div>
+                )}
               </DialogTitle>
             </DialogHeader>
 
@@ -251,8 +343,8 @@ const Contacts = () => {
                 </div>
 
                 {/* Tabs */}
-                <Tabs defaultValue="messages" className="flex-1">
-                  <TabsList className="grid w-full grid-cols-2">
+                <Tabs defaultValue={isEditing ? "info" : "messages"} className="flex-1">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="messages">
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Mensajes
@@ -260,6 +352,10 @@ const Contacts = () => {
                     <TabsTrigger value="payments">
                       <CreditCard className="mr-2 h-4 w-4" />
                       Pagos
+                    </TabsTrigger>
+                    <TabsTrigger value="info">
+                      <User className="mr-2 h-4 w-4" />
+                      Información
                     </TabsTrigger>
                   </TabsList>
 
@@ -351,25 +447,59 @@ const Contacts = () => {
                       </Table>
                     )}
                   </TabsContent>
-                </Tabs>
 
-                {/* Contact Info */}
-                {(selectedContact.email || selectedContact.notes) && (
-                  <div className="mt-4 pt-4 border-t border-border space-y-2">
-                    {selectedContact.email && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span>{selectedContact.email}</span>
+                  <TabsContent value="info" className="mt-4">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Nombre</Label>
+                        <Input
+                          id="name"
+                          placeholder="Nombre del contacto"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          disabled={!isEditing}
+                        />
                       </div>
-                    )}
-                    {selectedContact.notes && (
-                      <div className="text-sm">
-                        <p className="text-muted-foreground mb-1">Notas:</p>
-                        <p>{selectedContact.notes}</p>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="correo@ejemplo.com"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                          disabled={!isEditing}
+                        />
                       </div>
-                    )}
-                  </div>
-                )}
+
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Notas</Label>
+                        <Textarea
+                          id="notes"
+                          placeholder="Notas sobre este contacto..."
+                          value={editForm.notes}
+                          onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                          disabled={!isEditing}
+                          rows={4}
+                        />
+                      </div>
+
+                      <div className="pt-4 border-t border-border">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="h-4 w-4" />
+                          <span>Teléfono: {selectedContact.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            Registrado: {format(new Date(selectedContact.created_at), "d MMM yyyy", { locale: es })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </DialogContent>

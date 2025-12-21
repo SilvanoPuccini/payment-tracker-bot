@@ -377,7 +377,7 @@ export function useCreateDebt() {
 // Payment Promises Hooks
 // ============================================
 
-export function usePaymentPromises(options?: { status?: string }) {
+export function usePaymentPromises(options?: { status?: string; contactId?: string }) {
   return useQuery({
     queryKey: ["payment-promises", options],
     queryFn: async () => {
@@ -389,6 +389,9 @@ export function usePaymentPromises(options?: { status?: string }) {
       if (options?.status) {
         query = query.eq("status", options.status);
       }
+      if (options?.contactId) {
+        query = query.eq("contact_id", options.contactId);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -397,33 +400,124 @@ export function usePaymentPromises(options?: { status?: string }) {
   });
 }
 
+export function useCreatePaymentPromise() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (promise: TablesInsert<"payment_promises">) => {
+      const { data, error } = await supabase
+        .from("payment_promises")
+        .insert(promise)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payment-promises"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-promises"] });
+    },
+  });
+}
+
+export function useUpdatePaymentPromise() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: TablesUpdate<"payment_promises"> }) => {
+      const { data, error } = await supabase
+        .from("payment_promises")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payment-promises"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-promises"] });
+    },
+  });
+}
+
+export function useMarkPromiseFulfilled() {
+  const updatePromise = useUpdatePaymentPromise();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return updatePromise.mutateAsync({
+        id,
+        updates: {
+          status: "fulfilled",
+          fulfilled_at: new Date().toISOString(),
+        },
+      });
+    },
+  });
+}
+
+export function useMarkPromiseExpired() {
+  const updatePromise = useUpdatePaymentPromise();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return updatePromise.mutateAsync({
+        id,
+        updates: {
+          status: "expired",
+        },
+      });
+    },
+  });
+}
+
 // ============================================
 // Dashboard Stats Hook
 // ============================================
 
-export function useDashboardStats() {
+export interface DashboardFiltersParam {
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  minAmount?: number | null;
+}
+
+export function useDashboardStats(filters?: DashboardFiltersParam) {
   return useQuery({
-    queryKey: ["dashboard-stats"],
+    queryKey: ["dashboard-stats", filters],
     queryFn: async () => {
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+      const startDate = filters?.startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      const endDate = filters?.endDate || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
 
-      // Get payments this month
-      const { data: payments, error: paymentsError } = await supabase
+      // Get payments in date range
+      let paymentsQuery = supabase
         .from("payments")
         .select("amount, status, currency")
-        .gte("payment_date", startOfMonth)
-        .lte("payment_date", endOfMonth);
+        .gte("payment_date", startDate)
+        .lte("payment_date", endDate);
+
+      // Apply status filter
+      if (filters?.status && filters.status !== "all") {
+        paymentsQuery = paymentsQuery.eq("status", filters.status);
+      }
+
+      // Apply min amount filter
+      if (filters?.minAmount && filters.minAmount > 0) {
+        paymentsQuery = paymentsQuery.gte("amount", filters.minAmount);
+      }
+
+      const { data: payments, error: paymentsError } = await paymentsQuery;
 
       if (paymentsError) throw paymentsError;
 
-      // Get messages this month
+      // Get messages in date range
       const { count: messagesCount, error: messagesError } = await supabase
         .from("messages")
         .select("*", { count: "exact", head: true })
-        .gte("wa_timestamp", `${startOfMonth}T00:00:00`)
-        .lte("wa_timestamp", `${endOfMonth}T23:59:59`);
+        .gte("wa_timestamp", `${startDate}T00:00:00`)
+        .lte("wa_timestamp", `${endDate}T23:59:59`);
 
       if (messagesError) throw messagesError;
 
@@ -432,14 +526,15 @@ export function useDashboardStats() {
         .from("messages")
         .select("*", { count: "exact", head: true })
         .eq("status", "processed")
-        .gte("wa_timestamp", `${startOfMonth}T00:00:00`);
+        .gte("wa_timestamp", `${startDate}T00:00:00`);
 
       if (processedError) throw processedError;
 
-      // Calculate stats
-      const totalPaymentsAmount = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
-      const confirmedPayments = payments?.filter(p => p.status === "confirmed") || [];
-      const pendingPayments = payments?.filter(p => p.status === "detected") || [];
+      // Calculate stats - when filtering by specific status, show all amounts
+      const allPayments = payments || [];
+      const totalPaymentsAmount = allPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const confirmedPayments = allPayments.filter(p => p.status === "confirmed");
+      const pendingPayments = allPayments.filter(p => p.status === "detected");
       const detectionRate = messagesCount && processedCount
         ? Math.round((processedCount / messagesCount) * 100 * 10) / 10
         : 0;
@@ -450,7 +545,7 @@ export function useDashboardStats() {
         pendingPaymentsCount: pendingPayments.length,
         detectionRate,
         messagesThisMonth: messagesCount || 0,
-        paymentsThisMonth: payments?.length || 0,
+        paymentsThisMonth: allPayments.length,
       } as DashboardStats;
     },
     staleTime: 30000, // Cache for 30 seconds
@@ -461,13 +556,26 @@ export function useDashboardStats() {
 // Activity Chart Data Hook
 // ============================================
 
-export function useActivityData(days: number = 7) {
+export function useActivityData(filters?: DashboardFiltersParam) {
   return useQuery({
-    queryKey: ["activity-data", days],
+    queryKey: ["activity-data", filters],
     queryFn: async () => {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      // Calculate date range from filters or default to 7 days
+      let startDate: Date;
+      let endDate: Date;
+
+      if (filters?.startDate && filters?.endDate) {
+        startDate = new Date(filters.startDate);
+        endDate = new Date(filters.endDate);
+      } else {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+      }
+
+      // Calculate number of days to show
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+      const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
       // Get messages by day
       const { data: messages, error: messagesError } = await supabase
@@ -478,12 +586,21 @@ export function useActivityData(days: number = 7) {
 
       if (messagesError) throw messagesError;
 
-      // Get payments by day
-      const { data: payments, error: paymentsError } = await supabase
+      // Get payments by day with filters
+      let paymentsQuery = supabase
         .from("payments")
-        .select("payment_date, amount")
+        .select("payment_date, amount, status")
         .gte("payment_date", startDate.toISOString().split("T")[0])
         .lte("payment_date", endDate.toISOString().split("T")[0]);
+
+      if (filters?.status && filters.status !== "all") {
+        paymentsQuery = paymentsQuery.eq("status", filters.status);
+      }
+      if (filters?.minAmount && filters.minAmount > 0) {
+        paymentsQuery = paymentsQuery.gte("amount", filters.minAmount);
+      }
+
+      const { data: payments, error: paymentsError } = await paymentsQuery;
 
       if (paymentsError) throw paymentsError;
 
@@ -491,9 +608,9 @@ export function useActivityData(days: number = 7) {
       const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
       const activityData = [];
 
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
+      for (let i = 0; i < days; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
         const dateStr = date.toISOString().split("T")[0];
         const dayName = dayNames[date.getDay()];
 
@@ -524,15 +641,36 @@ export function useActivityData(days: number = 7) {
 // Recent Transactions Hook
 // ============================================
 
-export function useRecentTransactions(limit: number = 5) {
+export function useRecentTransactions(limit: number = 5, filters?: DashboardFiltersParam) {
   return useQuery({
-    queryKey: ["recent-transactions", limit],
+    queryKey: ["recent-transactions", limit, filters],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("payments")
         .select("*, contacts(*)")
-        .order("created_at", { ascending: false })
-        .limit(limit);
+        .order("created_at", { ascending: false });
+
+      // Apply date filters
+      if (filters?.startDate) {
+        query = query.gte("payment_date", filters.startDate);
+      }
+      if (filters?.endDate) {
+        query = query.lte("payment_date", filters.endDate);
+      }
+
+      // Apply status filter
+      if (filters?.status && filters.status !== "all") {
+        query = query.eq("status", filters.status);
+      }
+
+      // Apply min amount filter
+      if (filters?.minAmount && filters.minAmount > 0) {
+        query = query.gte("amount", filters.minAmount);
+      }
+
+      query = query.limit(limit);
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data as PaymentWithContact[];

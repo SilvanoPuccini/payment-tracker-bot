@@ -1,9 +1,11 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useActivityData } from '@/hooks/useSupabaseData';
+import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { RefreshCw } from 'lucide-react';
 
 export function ActivityChart() {
-  const { data: activityData, isLoading } = useActivityData(7);
+  const { filters } = useDashboardFilters();
+  const { data: activityData, isLoading } = useActivityData(filters);
 
   // Transform data for chart
   const chartData = activityData?.map(d => ({
@@ -12,10 +14,18 @@ export function ActivityChart() {
     mensajes: d.mensajes,
   })) || [];
 
+  // Calculate period description
+  const getPeriodDescription = () => {
+    if (!activityData || activityData.length === 0) return "Actividad del período";
+    if (activityData.length <= 7) return "Actividad de los últimos días";
+    if (activityData.length <= 31) return "Actividad del mes";
+    return "Actividad del período seleccionado";
+  };
+
   return (
     <div className="rounded-xl bg-card border border-border p-6 shadow-card animate-slide-up" style={{ animationDelay: "150ms" }}>
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground">Actividad Semanal</h3>
+        <h3 className="text-lg font-semibold text-foreground">{getPeriodDescription()}</h3>
         <p className="text-sm text-muted-foreground">Pagos detectados vs mensajes recibidos</p>
       </div>
 
@@ -23,6 +33,10 @@ export function ActivityChart() {
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
+            No hay datos para el período seleccionado
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

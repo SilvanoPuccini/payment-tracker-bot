@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { CheckCircle2, Clock, XCircle, MessageSquare, ImageIcon, RefreshCw, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useRecentTransactions } from "@/hooks/useSupabaseData";
+import { useDashboardFilters } from "@/contexts/DashboardFilterContext";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { Link } from "react-router-dom";
@@ -30,7 +31,8 @@ const statusConfig = {
 };
 
 export function RecentTransactions() {
-  const { data: transactions, isLoading } = useRecentTransactions(5);
+  const { filters } = useDashboardFilters();
+  const { data: transactions, isLoading } = useRecentTransactions(5, filters);
 
   const formatCurrency = (amount: number, currency: string = "PEN") => {
     const symbols: Record<string, string> = {
