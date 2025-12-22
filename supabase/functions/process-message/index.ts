@@ -1,13 +1,20 @@
 /**
  * Message Processor with AI Analysis and Business Rules
  *
+ * UPDATED: Now uses Gemini 2.0 Flash (free tier) as primary AI model
+ *
  * This function:
  * 1. Receives a message ID or content directly
  * 2. Downloads media if needed (images, documents)
- * 3. Runs AI analysis (classification + extraction)
+ * 3. Runs AI analysis (classification + extraction) with Gemini
  * 4. Applies business rules (matching, validation)
  * 5. Creates payments/promises if detected
  * 6. Updates message status
+ *
+ * Security:
+ * - Rate limiting per user
+ * - Input validation and sanitization
+ * - Secure API key handling
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -18,6 +25,11 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Rate limiting store (in-memory, resets on function restart)
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 100; // requests per window
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 
 // ============================================
 // Types
@@ -122,6 +134,55 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown):
 }`;
 
 // ============================================
+// Security Functions
+// ============================================
+
+function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const entry = rateLimitStore.get(identifier);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitStore.set(identifier, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return { allowed: true, remaining: RATE_LIMIT_MAX - 1 };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX - entry.count };
+}
+
+function sanitizeInput(input: string): string {
+  if (!input) return '';
+  // Remove potential injection attempts and limit length
+  return input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/javascript:/gi, '')
+    .slice(0, 10000); // Max 10KB of text
+}
+
+function validatePayload(payload: MessagePayload): { valid: boolean; error?: string } {
+  // Must have either messageId or content
+  if (!payload.messageId && !payload.message && !payload.content && !payload.imageBase64) {
+    return { valid: false, error: 'Se requiere messageId, message, content o imageBase64' };
+  }
+
+  // Validate UUID format if messageId provided
+  if (payload.messageId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.messageId)) {
+    return { valid: false, error: 'messageId debe ser un UUID válido' };
+  }
+
+  // Validate image base64 if provided
+  if (payload.imageBase64 && payload.imageBase64.length > 10 * 1024 * 1024) { // 10MB limit
+    return { valid: false, error: 'Imagen demasiado grande (máximo 10MB)' };
+  }
+
+  return { valid: true };
+}
+
+// ============================================
 // Main Handler
 // ============================================
 
@@ -139,10 +200,38 @@ serve(async (req) => {
     : null;
 
   try {
+    // Get client identifier for rate limiting
+    const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const rateLimitResult = checkRateLimit(clientIP);
+
+    if (!rateLimitResult.allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Límite de solicitudes excedido. Intente en 1 minuto.' }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': '60'
+          }
+        }
+      );
+    }
+
     const payload: MessagePayload = await req.json();
 
-    // Determine content source
-    let messageContent = payload.message || payload.content || '';
+    // Validate payload
+    const validation = validatePayload(payload);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Sanitize inputs
+    let messageContent = sanitizeInput(payload.message || payload.content || '');
     let imageBase64 = payload.imageBase64;
     let messageId = payload.messageId;
     let userId: string | null = null;
@@ -164,7 +253,7 @@ serve(async (req) => {
         );
       }
 
-      messageContent = message.content || '';
+      messageContent = sanitizeInput(message.content || '');
       userId = message.user_id;
       contactId = message.contact_id;
 
@@ -180,7 +269,7 @@ serve(async (req) => {
     } else {
       // Direct call (from frontend testing)
       if (payload.contactName) {
-        messageContent = `[Mensaje de: ${payload.contactName}${payload.contactPhone ? ` (${payload.contactPhone})` : ''}]\n\n${messageContent}`;
+        messageContent = `[Mensaje de: ${sanitizeInput(payload.contactName)}${payload.contactPhone ? ` (${sanitizeInput(payload.contactPhone)})` : ''}]\n\n${messageContent}`;
       }
     }
 
@@ -194,7 +283,7 @@ serve(async (req) => {
     console.log('Processing message:', messageId || 'direct', 'Content length:', messageContent.length, 'Has image:', !!imageBase64);
 
     // ========================================
-    // Step 1: AI Analysis
+    // Step 1: AI Analysis with Gemini 2.0 Flash
     // ========================================
     const analysis = await runAIAnalysis(messageContent, imageBase64);
 
@@ -269,7 +358,13 @@ serve(async (req) => {
         promiseId,
         timestamp: new Date().toISOString(),
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': String(rateLimitResult.remaining)
+        }
+      }
     );
 
   } catch (error) {
@@ -282,44 +377,120 @@ serve(async (req) => {
 });
 
 // ============================================
-// AI Analysis
+// AI Analysis with Gemini 2.0 Flash
 // ============================================
 
 async function runAIAnalysis(content: string, imageBase64?: string): Promise<PaymentAnalysis> {
+  // Priority order for API keys:
+  // 1. GEMINI_API_KEY (direct Gemini access - FREE)
+  // 2. GOOGLE_AI_API_KEY (alternative naming)
+  // 3. LOVABLE_API_KEY (Lovable gateway)
+  // 4. OPENAI_API_KEY (fallback)
+
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_AI_API_KEY');
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
   // Build user content
-  const userContent: any[] = [];
-
-  if (content) {
-    userContent.push({ type: 'text', text: content });
-  }
-
-  if (imageBase64) {
-    userContent.push({
-      type: 'image_url',
-      image_url: {
-        url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`
-      }
-    });
-    userContent.push({
-      type: 'text',
-      text: 'Analiza también la imagen adjunta. Si es un comprobante de pago, extrae todos los datos visibles: monto, fecha, banco, número de operación, etc.'
-    });
-  }
-
-  // Add current date context for relative dates
   const today = new Date().toISOString().split('T')[0];
-  userContent.push({
-    type: 'text',
-    text: `[Fecha actual: ${today}]`
-  });
+  let userMessage = content ? `${content}\n\n[Fecha actual: ${today}]` : `[Fecha actual: ${today}]`;
 
   let response;
 
-  // Try Lovable AI Gateway first (has Gemini with vision)
+  // Try Gemini 2.0 Flash first (FREE and best for this use case)
+  if (GEMINI_API_KEY) {
+    console.log('Using Gemini 2.0 Flash API');
+
+    // Build parts array for Gemini
+    const parts: any[] = [{ text: userMessage }];
+
+    if (imageBase64) {
+      // Extract base64 data
+      const base64Data = imageBase64.includes(',')
+        ? imageBase64.split(',')[1]
+        : imageBase64;
+
+      parts.push({
+        inline_data: {
+          mime_type: 'image/jpeg',
+          data: base64Data
+        }
+      });
+      parts.push({
+        text: 'Analiza también la imagen adjunta. Si es un comprobante de pago, extrae todos los datos visibles: monto, fecha, banco, número de operación, etc.'
+      });
+    }
+
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: systemPrompt }],
+              role: 'user'
+            },
+            {
+              parts: [{ text: 'Entendido. Analizaré los mensajes y responderé únicamente con JSON válido.' }],
+              role: 'model'
+            },
+            {
+              parts: parts,
+              role: 'user'
+            }
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            topK: 1,
+            topP: 0.8,
+            maxOutputTokens: 1024,
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+          ]
+        }),
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (aiResponse) {
+        console.log('Gemini response received');
+        return parseAIResponse(aiResponse);
+      }
+    } else {
+      console.error('Gemini API error:', response.status, await response.text());
+    }
+  }
+
+  // Fallback to Lovable Gateway (has multiple models)
   if (LOVABLE_API_KEY) {
+    console.log('Falling back to Lovable AI Gateway');
+
+    const userContent: any[] = [{ type: 'text', text: userMessage }];
+
+    if (imageBase64) {
+      userContent.push({
+        type: 'image_url',
+        image_url: {
+          url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`
+        }
+      });
+      userContent.push({
+        type: 'text',
+        text: 'Analiza también la imagen adjunta. Si es un comprobante de pago, extrae todos los datos visibles.'
+      });
+    }
+
     response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -327,7 +498,7 @@ async function runAIAnalysis(content: string, imageBase64?: string): Promise<Pay
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.0-flash-exp',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent }
@@ -335,8 +506,31 @@ async function runAIAnalysis(content: string, imageBase64?: string): Promise<Pay
         temperature: 0.1,
       }),
     });
-  } else if (OPENAI_API_KEY) {
-    // Fallback to OpenAI
+
+    if (response.ok) {
+      const data = await response.json();
+      const aiResponse = data.choices?.[0]?.message?.content;
+      if (aiResponse) {
+        return parseAIResponse(aiResponse);
+      }
+    }
+  }
+
+  // Final fallback to OpenAI
+  if (OPENAI_API_KEY) {
+    console.log('Falling back to OpenAI');
+
+    const userContent: any[] = [{ type: 'text', text: userMessage }];
+
+    if (imageBase64) {
+      userContent.push({
+        type: 'image_url',
+        image_url: {
+          url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`
+        }
+      });
+    }
+
     response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -352,35 +546,18 @@ async function runAIAnalysis(content: string, imageBase64?: string): Promise<Pay
         temperature: 0.1,
       }),
     });
-  } else {
-    throw new Error('No AI API key configured (LOVABLE_API_KEY or OPENAI_API_KEY)');
-  }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('AI API error:', response.status, errorText);
-
-    if (response.status === 429) {
-      throw new Error('Límite de solicitudes excedido. Intente más tarde.');
+    if (response.ok) {
+      const data = await response.json();
+      const aiResponse = data.choices?.[0]?.message?.content;
+      if (aiResponse) {
+        return parseAIResponse(aiResponse);
+      }
     }
-    if (response.status === 402) {
-      throw new Error('Créditos agotados. Por favor recargue su cuenta.');
-    }
-
-    throw new Error('Error al procesar el mensaje con IA');
   }
 
-  const data = await response.json();
-  const aiResponse = data.choices?.[0]?.message?.content;
-
-  if (!aiResponse) {
-    throw new Error('No se recibió respuesta del modelo');
-  }
-
-  console.log('Raw AI response:', aiResponse);
-
-  // Parse the JSON response
-  return parseAIResponse(aiResponse);
+  // No API key available
+  throw new Error('No hay API key configurada. Configure GEMINI_API_KEY (gratuito), LOVABLE_API_KEY, o OPENAI_API_KEY');
 }
 
 function parseAIResponse(aiResponse: string): PaymentAnalysis {
