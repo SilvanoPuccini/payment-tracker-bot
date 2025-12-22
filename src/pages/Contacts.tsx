@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useContacts, useContactMessages, useContactPayments, useUpdateContact } from "@/hooks/useSupabaseData";
+import {
+  useContacts,
+  useContactMessages,
+  useContactPayments,
+  useUpdateContact,
+  useDebts,
+  useCreateDebt,
+  useMarkDebtPaid,
+} from "@/hooks/useSupabaseData";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -23,6 +33,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Users,
   Search,
@@ -39,6 +56,9 @@ import {
   Save,
   X,
   User,
+  AlertCircle,
+  Plus,
+  CheckCircle2,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -48,10 +68,17 @@ const Contacts = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
     notes: "",
+  });
+  const [newDebt, setNewDebt] = useState({
+    amount: "",
+    currency: "PEN",
+    description: "",
+    dueDate: format(new Date(), "yyyy-MM-dd"),
   });
 
   const { data: contacts, isLoading, refetch } = useContacts({
@@ -61,7 +88,10 @@ const Contacts = () => {
 
   const { data: contactMessages } = useContactMessages(selectedContact?.id);
   const { data: contactPayments } = useContactPayments(selectedContact?.id);
+  const { data: contactDebts } = useDebts({ contactId: selectedContact?.id });
   const updateContact = useUpdateContact();
+  const createDebt = useCreateDebt();
+  const markDebtPaid = useMarkDebtPaid();
 
   // Sync edit form when contact is selected
   useEffect(() => {
@@ -121,7 +151,6 @@ const Contacts = () => {
         },
       });
 
-      // Update local state
       setSelectedContact({
         ...selectedContact,
         name: editForm.name || null,
@@ -145,6 +174,56 @@ const Contacts = () => {
       notes: selectedContact?.notes || "",
     });
     setIsEditing(false);
+  };
+
+  // Handle create debt
+  const handleCreateDebt = async () => {
+    if (!selectedContact || !newDebt.amount) {
+      toast.error("El monto es requerido");
+      return;
+    }
+
+    const amount = parseFloat(newDebt.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("El monto debe ser mayor a 0");
+      return;
+    }
+
+    try {
+      await createDebt.mutateAsync({
+        user_id: selectedContact.user_id,
+        contact_id: selectedContact.id,
+        original_amount: amount,
+        current_amount: amount,
+        currency: newDebt.currency,
+        description: newDebt.description || null,
+        due_date: newDebt.dueDate || null,
+        status: "active",
+      });
+
+      toast.success("Deuda registrada");
+      setIsDebtModalOpen(false);
+      setNewDebt({
+        amount: "",
+        currency: "PEN",
+        description: "",
+        dueDate: format(new Date(), "yyyy-MM-dd"),
+      });
+      refetch();
+    } catch (error) {
+      toast.error("Error al registrar la deuda");
+    }
+  };
+
+  // Handle mark debt as paid
+  const handleMarkDebtPaid = async (debtId: string) => {
+    try {
+      await markDebtPaid.mutateAsync(debtId);
+      toast.success("Deuda marcada como pagada");
+      refetch();
+    } catch (error) {
+      toast.error("Error al actualizar la deuda");
+    }
   };
 
   return (
@@ -344,7 +423,7 @@ const Contacts = () => {
 
                 {/* Tabs */}
                 <Tabs defaultValue={isEditing ? "info" : "messages"} className="flex-1">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="messages">
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Mensajes
@@ -353,9 +432,13 @@ const Contacts = () => {
                       <CreditCard className="mr-2 h-4 w-4" />
                       Pagos
                     </TabsTrigger>
+                    <TabsTrigger value="debts">
+                      <AlertCircle className="mr-2 h-4 w-4" />
+                      Deudas
+                    </TabsTrigger>
                     <TabsTrigger value="info">
                       <User className="mr-2 h-4 w-4" />
-                      Información
+                      Info
                     </TabsTrigger>
                   </TabsList>
 
@@ -448,6 +531,75 @@ const Contacts = () => {
                     )}
                   </TabsContent>
 
+                  <TabsContent value="debts" className="mt-4 max-h-[300px] overflow-y-auto">
+                    <div className="flex justify-end mb-4">
+                      <Button size="sm" onClick={() => setIsDebtModalOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nueva Deuda
+                      </Button>
+                    </div>
+
+                    {!contactDebts?.length ? (
+                      <p className="text-center text-muted-foreground py-8">
+                        No hay deudas registradas
+                      </p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead>Monto</TableHead>
+                            <TableHead>Vencimiento</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead className="w-12"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {contactDebts.map((debt: any) => (
+                            <TableRow key={debt.id}>
+                              <TableCell>
+                                {debt.description || "Deuda"}
+                              </TableCell>
+                              <TableCell className="font-semibold text-red-400">
+                                {formatCurrency(debt.current_amount, debt.currency)}
+                              </TableCell>
+                              <TableCell>
+                                {debt.due_date
+                                  ? format(new Date(debt.due_date), "dd/MM/yyyy")
+                                  : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    debt.status === "paid"
+                                      ? "bg-green-500/20 text-green-400"
+                                      : debt.status === "active"
+                                      ? "bg-yellow-500/20 text-yellow-400"
+                                      : "bg-red-500/20 text-red-400"
+                                  }
+                                >
+                                  {debt.status === "paid" ? "Pagada" : debt.status === "active" ? "Activa" : debt.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {debt.status === "active" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleMarkDebtPaid(debt.id)}
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </TabsContent>
+
                   <TabsContent value="info" className="mt-4">
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -502,6 +654,80 @@ const Contacts = () => {
                 </Tabs>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* New Debt Modal */}
+        <Dialog open={isDebtModalOpen} onOpenChange={setIsDebtModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nueva Deuda</DialogTitle>
+              <DialogDescription>
+                Registra una nueva deuda para {selectedContact?.name || selectedContact?.phone}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Monto *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={newDebt.amount}
+                    onChange={(e) => setNewDebt({ ...newDebt, amount: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Moneda</Label>
+                  <Select
+                    value={newDebt.currency}
+                    onValueChange={(value) => setNewDebt({ ...newDebt, currency: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PEN">PEN (Soles)</SelectItem>
+                      <SelectItem value="USD">USD (Dólares)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Descripción</Label>
+                <Input
+                  placeholder="Ej: Compra de productos"
+                  value={newDebt.description}
+                  onChange={(e) => setNewDebt({ ...newDebt, description: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Fecha de Vencimiento</Label>
+                <Input
+                  type="date"
+                  value={newDebt.dueDate}
+                  onChange={(e) => setNewDebt({ ...newDebt, dueDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDebtModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateDebt} disabled={createDebt.isPending}>
+                {createDebt.isPending ? (
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Crear Deuda
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -24,9 +25,17 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   MessageSquare,
   Search,
@@ -39,9 +48,13 @@ import {
   Clock,
   RefreshCw,
   Eye,
+  MoreHorizontal,
+  Pencil,
+  Save,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { toast } from "sonner";
 
 const intentLabels = {
   pago: { label: "Pago", color: "bg-green-500/20 text-green-400 border-green-500/30" },
@@ -73,12 +86,16 @@ const Messages = () => {
   const [intentFilter, setIntentFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editIntent, setEditIntent] = useState<string>("");
 
   const { data: messages, isLoading, refetch } = useMessages({
     status: statusFilter !== "all" ? statusFilter : undefined,
     intent: intentFilter !== "all" ? intentFilter : undefined,
     limit: 100,
   });
+
+  const updateMessage = useUpdateMessage();
 
   const filteredMessages = messages?.filter((msg) => {
     if (!searchQuery) return true;
@@ -95,6 +112,63 @@ const Messages = () => {
       return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: es });
     } catch {
       return dateStr;
+    }
+  };
+
+  // Handle quick intent change from table
+  const handleQuickIntentChange = async (messageId: string, newIntent: string) => {
+    try {
+      await updateMessage.mutateAsync({
+        id: messageId,
+        updates: {
+          intent: newIntent,
+          status: "processed",
+        },
+      });
+      toast.success(`Clasificación actualizada a "${intentLabels[newIntent as keyof typeof intentLabels]?.label}"`);
+    } catch (error) {
+      toast.error("Error al actualizar la clasificación");
+    }
+  };
+
+  // Handle save from modal
+  const handleSaveClassification = async () => {
+    if (!selectedMessage || !editIntent) return;
+
+    try {
+      await updateMessage.mutateAsync({
+        id: selectedMessage.id,
+        updates: {
+          intent: editIntent,
+          status: "processed",
+        },
+      });
+
+      setSelectedMessage({
+        ...selectedMessage,
+        intent: editIntent,
+        status: "processed",
+      });
+
+      setIsEditing(false);
+      toast.success("Clasificación corregida");
+    } catch (error) {
+      toast.error("Error al actualizar la clasificación");
+    }
+  };
+
+  // Handle mark as reviewed
+  const handleMarkAsReviewed = async (messageId: string) => {
+    try {
+      await updateMessage.mutateAsync({
+        id: messageId,
+        updates: {
+          status: "processed",
+        },
+      });
+      toast.success("Mensaje marcado como revisado");
+    } catch (error) {
+      toast.error("Error al actualizar el estado");
     }
   };
 
@@ -268,13 +342,48 @@ const Messages = () => {
                             {formatDate(msg.wa_timestamp)}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedMessage(msg)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedMessage(msg);
+                                  setEditIntent(msg.intent || "otro");
+                                }}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Ver detalle
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleQuickIntentChange(msg.id, "pago")}>
+                                  <div className="w-2 h-2 rounded-full bg-green-500 mr-2" />
+                                  Marcar como Pago
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleQuickIntentChange(msg.id, "promesa")}>
+                                  <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2" />
+                                  Marcar como Promesa
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleQuickIntentChange(msg.id, "consulta")}>
+                                  <div className="w-2 h-2 rounded-full bg-blue-500 mr-2" />
+                                  Marcar como Consulta
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleQuickIntentChange(msg.id, "otro")}>
+                                  <div className="w-2 h-2 rounded-full bg-gray-500 mr-2" />
+                                  Marcar como Otro
+                                </DropdownMenuItem>
+                                {msg.status === "review" && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleMarkAsReviewed(msg.id)}>
+                                      <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                                      Marcar como revisado
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );
@@ -287,10 +396,21 @@ const Messages = () => {
         </Card>
 
         {/* Message Detail Dialog */}
-        <Dialog open={!!selectedMessage} onOpenChange={() => setSelectedMessage(null)}>
+        <Dialog open={!!selectedMessage} onOpenChange={() => {
+          setSelectedMessage(null);
+          setIsEditing(false);
+        }}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Detalle del Mensaje</DialogTitle>
+              <DialogTitle className="flex items-center justify-between">
+                Detalle del Mensaje
+                {!isEditing && (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar clasificación
+                  </Button>
+                )}
+              </DialogTitle>
               <DialogDescription>
                 Información completa del mensaje y análisis de IA
               </DialogDescription>
@@ -320,9 +440,46 @@ const Messages = () => {
                   </div>
                 </div>
 
-                {selectedMessage.analysis && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Análisis de IA</p>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Clasificación</p>
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Intención</Label>
+                        <Select value={editIntent} onValueChange={setEditIntent}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar intención" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pago">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-green-500" />
+                                Pago
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="promesa">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                                Promesa
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="consulta">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                Consulta
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="otro">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-gray-500" />
+                                Otro
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ) : (
                     <div className="rounded-lg bg-muted p-4 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm">Intención:</span>
@@ -340,6 +497,11 @@ const Messages = () => {
                         <span className="font-medium">
                           {Math.round((selectedMessage.confidence || 0) * 100)}%
                         </span>
+                        {selectedMessage.confidence < 0.7 && (
+                          <Badge variant="outline" className="text-orange-400 border-orange-400/30">
+                            Requiere revisión
+                          </Badge>
+                        )}
                       </div>
                       {selectedMessage.extracted_data && (
                         <div>
@@ -350,9 +512,25 @@ const Messages = () => {
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
+            )}
+
+            {isEditing && (
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveClassification} disabled={updateMessage.isPending}>
+                  {updateMessage.isPending ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Guardar
+                </Button>
+              </DialogFooter>
             )}
           </DialogContent>
         </Dialog>

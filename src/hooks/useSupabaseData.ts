@@ -373,6 +373,43 @@ export function useCreateDebt() {
   });
 }
 
+export function useUpdateDebt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: TablesUpdate<"debts"> }) => {
+      const { data, error } = await supabase
+        .from("debts")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["debts"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+  });
+}
+
+export function useMarkDebtPaid() {
+  const updateDebt = useUpdateDebt();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return updateDebt.mutateAsync({
+        id,
+        updates: {
+          status: "paid",
+          paid_at: new Date().toISOString(),
+        },
+      });
+    },
+  });
+}
+
 // ============================================
 // Payment Promises Hooks
 // ============================================
