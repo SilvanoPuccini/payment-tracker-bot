@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { usePayments, useConfirmPayment, useRejectPayment } from "@/hooks/useSupabaseData";
+import {
+  usePayments,
+  useConfirmPayment,
+  useRejectPayment,
+  useBulkConfirmPayments,
+  useBulkRejectPayments,
+} from "@/hooks/useSupabaseData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -48,6 +55,8 @@ import {
   Download,
   DollarSign,
   TrendingUp,
+  CheckCheck,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -91,6 +100,9 @@ const Payments = () => {
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirmDialogOpen, setBulkConfirmDialogOpen] = useState(false);
+  const [bulkRejectDialogOpen, setBulkRejectDialogOpen] = useState(false);
 
   const { data: payments, isLoading, refetch } = usePayments({
     status: statusFilter !== "all" ? statusFilter : undefined,
@@ -99,6 +111,8 @@ const Payments = () => {
 
   const confirmPayment = useConfirmPayment();
   const rejectPayment = useRejectPayment();
+  const bulkConfirm = useBulkConfirmPayments();
+  const bulkReject = useBulkRejectPayments();
 
   const filteredPayments = payments?.filter((payment) => {
     if (!searchQuery) return true;
@@ -134,6 +148,57 @@ const Payments = () => {
       toast.error("Error al rechazar el pago");
     }
   };
+
+  // Bulk selection helpers
+  const detectablePayments = filteredPayments?.filter((p) => p.status === "detected") || [];
+  const allDetectableSelected =
+    detectablePayments.length > 0 &&
+    detectablePayments.every((p) => selectedIds.has(p.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allDetectableSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(detectablePayments.map((p) => p.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkConfirm = async () => {
+    try {
+      const result = await bulkConfirm.mutateAsync(Array.from(selectedIds));
+      toast.success(`${result.success} pagos confirmados${result.failed > 0 ? `, ${result.failed} fallaron` : ""}`);
+      setSelectedIds(new Set());
+      setBulkConfirmDialogOpen(false);
+    } catch (error) {
+      toast.error("Error al confirmar los pagos");
+    }
+  };
+
+  const handleBulkReject = async () => {
+    try {
+      const result = await bulkReject.mutateAsync(Array.from(selectedIds));
+      toast.success(`${result.success} pagos rechazados${result.failed > 0 ? `, ${result.failed} fallaron` : ""}`);
+      setSelectedIds(new Set());
+      setBulkRejectDialogOpen(false);
+    } catch (error) {
+      toast.error("Error al rechazar los pagos");
+    }
+  };
+
+  // Calculate bulk selection totals
+  const selectedPayments = filteredPayments?.filter((p) => selectedIds.has(p.id)) || [];
+  const selectedTotal = selectedPayments.reduce((sum, p) => sum + p.amount, 0);
 
   const formatCurrency = (amount: number, currency: string = "PEN") => {
     const symbols: Record<string, string> = {
@@ -276,6 +341,51 @@ const Payments = () => {
           </CardContent>
         </Card>
 
+        {/* Bulk Actions Bar */}
+        {someSelected && (
+          <Card className="glass-card border-primary/50 bg-primary/5">
+            <CardContent className="py-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <CheckCheck className="h-5 w-5 text-primary" />
+                  <span className="font-medium">
+                    {selectedIds.size} pago{selectedIds.size !== 1 ? "s" : ""} seleccionado{selectedIds.size !== 1 ? "s" : ""}
+                  </span>
+                  <Badge variant="secondary">
+                    Total: {formatCurrency(selectedTotal)}
+                  </Badge>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedIds(new Set())}
+                  >
+                    Deseleccionar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkRejectDialogOpen(true)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Rechazar todos
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setBulkConfirmDialogOpen(true)}
+                    className="gradient-primary text-primary-foreground"
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Confirmar todos
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Payments Table */}
         <Card className="glass-card">
           <CardHeader>
@@ -307,6 +417,14 @@ const Payments = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[50px]">
+                        <Checkbox
+                          checked={allDetectableSelected}
+                          onCheckedChange={toggleSelectAll}
+                          disabled={detectablePayments.length === 0}
+                          aria-label="Seleccionar todos los pagos pendientes"
+                        />
+                      </TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Contacto</TableHead>
                       <TableHead>Monto</TableHead>
@@ -321,9 +439,22 @@ const Payments = () => {
                     {filteredPayments.map((payment) => {
                       const status = statusConfig[payment.status as keyof typeof statusConfig];
                       const StatusIcon = status?.icon || Clock;
+                      const isDetected = payment.status === "detected";
+                      const isSelected = selectedIds.has(payment.id);
 
                       return (
-                        <TableRow key={payment.id} className="hover:bg-muted/50">
+                        <TableRow
+                          key={payment.id}
+                          className={`hover:bg-muted/50 ${isSelected ? "bg-primary/5" : ""}`}
+                        >
+                          <TableCell>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelect(payment.id)}
+                              disabled={!isDetected}
+                              aria-label={`Seleccionar pago de ${payment.contacts?.name || payment.contacts?.phone}`}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">
                             {format(new Date(payment.payment_date), "dd MMM yyyy", {
                               locale: es,
@@ -595,6 +726,94 @@ const Payments = () => {
                 )}
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Confirm Dialog */}
+        <Dialog open={bulkConfirmDialogOpen} onOpenChange={setBulkConfirmDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Múltiples Pagos</DialogTitle>
+              <DialogDescription>
+                ¿Estás seguro de que deseas confirmar todos los pagos seleccionados?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pagos seleccionados:</span>
+                  <span className="font-bold">{selectedIds.size}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Monto total:</span>
+                  <span className="font-bold text-primary">{formatCurrency(selectedTotal)}</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Esta acción confirmará todos los pagos seleccionados y los marcará como cobrados.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkConfirmDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleBulkConfirm}
+                disabled={bulkConfirm.isPending}
+                className="gradient-primary text-primary-foreground"
+              >
+                {bulkConfirm.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                )}
+                Confirmar {selectedIds.size} Pagos
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Reject Dialog */}
+        <Dialog open={bulkRejectDialogOpen} onOpenChange={setBulkRejectDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rechazar Múltiples Pagos</DialogTitle>
+              <DialogDescription>
+                ¿Estás seguro de que deseas rechazar todos los pagos seleccionados?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pagos seleccionados:</span>
+                  <span className="font-bold">{selectedIds.size}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Monto total:</span>
+                  <span className="font-bold">{formatCurrency(selectedTotal)}</span>
+                </div>
+              </div>
+              <p className="text-sm text-amber-500">
+                ⚠️ Esta acción rechazará todos los pagos seleccionados. Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkRejectDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkReject}
+                disabled={bulkReject.isPending}
+              >
+                {bulkReject.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="mr-2 h-4 w-4" />
+                )}
+                Rechazar {selectedIds.size} Pagos
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

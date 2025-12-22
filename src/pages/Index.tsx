@@ -4,6 +4,7 @@ import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PendingPayments } from "@/components/dashboard/PendingPayments";
+import { OverduePromisesAlert } from "@/components/dashboard/OverduePromisesAlert";
 import { useDashboardStats } from "@/hooks/useSupabaseData";
 import { DashboardFilterProvider, useDashboardFilters } from "@/contexts/DashboardFilterContext";
 import { CreditCard, DollarSign, Clock, CheckCircle2, Calendar } from "lucide-react";
@@ -85,6 +86,9 @@ function DashboardContent() {
           </div>
           <QuickActions />
         </div>
+
+        {/* Overdue Promises Alert */}
+        <OverduePromisesAlert />
 
         {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

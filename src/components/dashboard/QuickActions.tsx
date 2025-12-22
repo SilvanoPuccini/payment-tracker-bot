@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Download, RefreshCw, Filter, Plus, X, RotateCcw } from "lucide-react";
+import { Download, RefreshCw, Filter, Plus, X, RotateCcw, Save, Bookmark, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -35,9 +37,22 @@ export function QuickActions() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [savePresetName, setSavePresetName] = useState("");
+  const [showSavePreset, setShowSavePreset] = useState(false);
 
-  // Filter context
-  const { filters, updateFilter, resetFilters, applyPreset } = useDashboardFilters();
+  // Filter context with persistence methods
+  const {
+    filters,
+    updateFilter,
+    resetFilters,
+    applyPreset,
+    saveCurrentFilters,
+    savedPresets,
+    loadSavedPreset,
+    deleteSavedPreset,
+    autoSaveEnabled,
+    setAutoSaveEnabled,
+  } = useDashboardFilters();
 
   // Local filter state (before applying)
   const [localFilters, setLocalFilters] = useState(filters);
@@ -344,6 +359,111 @@ export function QuickActions() {
                   })}
                 />
               </div>
+
+              <Separator />
+
+              {/* Auto-save toggle */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Recordar filtros</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Guardar automáticamente al cerrar sesión
+                  </p>
+                </div>
+                <Switch
+                  checked={autoSaveEnabled}
+                  onCheckedChange={setAutoSaveEnabled}
+                />
+              </div>
+
+              {/* Saved presets */}
+              {savedPresets.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Filtros guardados</Label>
+                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                    {savedPresets.map((preset) => (
+                      <div
+                        key={preset.id}
+                        className="flex items-center justify-between rounded-md border px-2 py-1 text-sm"
+                      >
+                        <button
+                          className="flex-1 text-left hover:text-primary truncate"
+                          onClick={() => {
+                            loadSavedPreset(preset.id);
+                            setLocalFilters(preset.filters);
+                            toast.success(`Filtro "${preset.name}" cargado`);
+                          }}
+                        >
+                          <Bookmark className="h-3 w-3 inline mr-1" />
+                          {preset.name}
+                        </button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            deleteSavedPreset(preset.id);
+                            toast.success("Filtro eliminado");
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Save current preset */}
+              {showSavePreset ? (
+                <div className="space-y-2">
+                  <Label className="text-sm">Guardar filtro actual</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nombre del filtro"
+                      value={savePresetName}
+                      onChange={(e) => setSavePresetName(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8"
+                      disabled={!savePresetName.trim()}
+                      onClick={() => {
+                        saveCurrentFilters(savePresetName.trim());
+                        setSavePresetName("");
+                        setShowSavePreset(false);
+                        toast.success("Filtro guardado");
+                      }}
+                    >
+                      <Save className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => {
+                        setShowSavePreset(false);
+                        setSavePresetName("");
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1"
+                  onClick={() => setShowSavePreset(true)}
+                >
+                  <Save className="h-3 w-3" />
+                  Guardar filtro actual
+                </Button>
+              )}
+
+              <Separator />
 
               <div className="flex justify-between gap-2">
                 <Button variant="ghost" size="sm" onClick={handleResetFilters} className="gap-1">
