@@ -6,29 +6,55 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Webhook, 
-  CheckCircle2, 
-  XCircle, 
-  Copy, 
-  RefreshCw, 
+import {
+  Webhook,
+  CheckCircle2,
+  XCircle,
+  Copy,
+  RefreshCw,
   Bell,
   Shield,
-  Globe,
   Zap,
   MessageSquare,
-  Settings2
+  Settings2,
+  Loader2,
+  Save
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useSettings, useUpdateSettings, useTestWebhookConnection } from "@/hooks/useSettings";
 
 export default function Settings() {
-  const [webhookUrl, setWebhookUrl] = useState("");
+  const { data: settings, isLoading } = useSettings();
+  const updateSettings = useUpdateSettings();
+  const testConnection = useTestWebhookConnection();
+
+  const [phoneId, setPhoneId] = useState("");
+  const [businessId, setBusinessId] = useState("");
   const [verifyToken, setVerifyToken] = useState("paytrack_verify_2024");
-  const [isConnected, setIsConnected] = useState(true);
   const [autoProcess, setAutoProcess] = useState(true);
   const [notifications, setNotifications] = useState(true);
   const [lowConfidenceAlert, setLowConfidenceAlert] = useState(true);
+  const [confidenceThreshold, setConfidenceThreshold] = useState(70);
+  const [timezone, setTimezone] = useState("America/Lima");
+  const [currency, setCurrency] = useState("PEN");
+  const [language, setLanguage] = useState("Español");
+
+  // Load settings when data is available
+  useEffect(() => {
+    if (settings) {
+      setPhoneId(settings.whatsapp_phone_id || "");
+      setBusinessId(settings.whatsapp_business_id || "");
+      setVerifyToken(settings.webhook_verify_token || "paytrack_verify_2024");
+      setAutoProcess(settings.auto_process_messages ?? true);
+      setNotifications(settings.notification_new_payment ?? true);
+      setLowConfidenceAlert(settings.notification_low_confidence ?? true);
+      setConfidenceThreshold(settings.ai_confidence_threshold || 70);
+      setTimezone(settings.timezone || "America/Lima");
+      setCurrency(settings.default_currency || "PEN");
+      setLanguage(settings.language || "Español");
+    }
+  }, [settings]);
 
   // Generate the webhook URL for this project
   const projectWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
@@ -38,16 +64,46 @@ export default function Settings() {
     toast.success(`${label} copiado al portapapeles`);
   };
 
-  const testConnection = () => {
-    toast.promise(
-      new Promise((resolve) => setTimeout(resolve, 2000)),
-      {
-        loading: 'Probando conexión...',
-        success: 'Conexión exitosa con WhatsApp Business API',
-        error: 'Error al conectar',
-      }
-    );
+  const handleTestConnection = async () => {
+    try {
+      await testConnection.mutateAsync();
+      toast.success('Conexión exitosa con WhatsApp Business API');
+    } catch (error) {
+      toast.error('Error al conectar');
+    }
   };
+
+  const handleSaveSettings = async () => {
+    try {
+      await updateSettings.mutateAsync({
+        whatsapp_phone_id: phoneId || null,
+        whatsapp_business_id: businessId || null,
+        webhook_verify_token: verifyToken,
+        auto_process_messages: autoProcess,
+        notification_new_payment: notifications,
+        notification_low_confidence: lowConfidenceAlert,
+        ai_confidence_threshold: confidenceThreshold,
+        timezone: timezone,
+        default_currency: currency,
+        language: language,
+      });
+      toast.success('Configuración guardada exitosamente');
+    } catch (error) {
+      toast.error('Error al guardar configuración');
+    }
+  };
+
+  const isConnected = settings?.webhook_connected ?? false;
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -127,6 +183,8 @@ export default function Settings() {
                   id="phone-id"
                   placeholder="Ej: 123456789012345"
                   className="font-mono text-sm"
+                  value={phoneId}
+                  onChange={(e) => setPhoneId(e.target.value)}
                 />
               </div>
 
@@ -136,6 +194,8 @@ export default function Settings() {
                   id="business-id"
                   placeholder="Ej: 123456789012345"
                   className="font-mono text-sm"
+                  value={businessId}
+                  onChange={(e) => setBusinessId(e.target.value)}
                 />
               </div>
             </CardContent>
@@ -168,33 +228,35 @@ export default function Settings() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Último mensaje</span>
-                  <span className="text-sm font-medium">Hace 2 minutos</span>
+                  <span className="text-sm font-medium">
+                    {settings?.last_webhook_received
+                      ? new Date(settings.last_webhook_received).toLocaleString('es-PE')
+                      : "Sin actividad"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Mensajes hoy</span>
-                  <span className="text-sm font-medium">47</span>
+                  <span className="text-sm font-medium">{settings?.messages_today || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Pagos detectados</span>
-                  <span className="text-sm font-medium text-success">12</span>
+                  <span className="text-sm font-medium text-success">{settings?.payments_today || 0}</span>
                 </div>
               </div>
 
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="flex-1"
-                  onClick={testConnection}
+                  onClick={handleTestConnection}
+                  disabled={testConnection.isPending}
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {testConnection.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
                   Probar Conexión
-                </Button>
-                <Button 
-                  variant={isConnected ? "destructive" : "default"}
-                  className="flex-1"
-                  onClick={() => setIsConnected(!isConnected)}
-                >
-                  {isConnected ? "Desconectar" : "Conectar"}
                 </Button>
               </div>
             </CardContent>
@@ -233,7 +295,7 @@ export default function Settings() {
                 <div className="space-y-0.5">
                   <Label>Alerta de baja confianza</Label>
                   <p className="text-xs text-muted-foreground">
-                    Notificar cuando confianza {"<"} 70%
+                    Notificar cuando confianza {"<"} {confidenceThreshold}%
                   </p>
                 </div>
                 <Switch
@@ -251,7 +313,8 @@ export default function Settings() {
                     type="number"
                     min="0"
                     max="100"
-                    defaultValue="70"
+                    value={confidenceThreshold}
+                    onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
                     className="w-24"
                   />
                   <span className="text-sm text-muted-foreground">%</span>
@@ -358,15 +421,27 @@ export default function Settings() {
             <div className="grid gap-6 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Zona horaria</Label>
-                <Input defaultValue="America/Lima" className="font-mono text-sm" />
+                <Input
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="font-mono text-sm"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Moneda predeterminada</Label>
-                <Input defaultValue="PEN" className="font-mono text-sm" />
+                <Input
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="font-mono text-sm"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Idioma</Label>
-                <Input defaultValue="Español" className="font-mono text-sm" />
+                <Input
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="font-mono text-sm"
+                />
               </div>
             </div>
 
@@ -389,7 +464,16 @@ export default function Settings() {
 
             <div className="flex justify-end gap-2">
               <Button variant="outline">Cancelar cambios</Button>
-              <Button className="gradient-primary text-primary-foreground">
+              <Button
+                className="gradient-primary text-primary-foreground"
+                onClick={handleSaveSettings}
+                disabled={updateSettings.isPending}
+              >
+                {updateSettings.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
                 Guardar configuración
               </Button>
             </div>

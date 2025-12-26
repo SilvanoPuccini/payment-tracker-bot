@@ -35,9 +35,9 @@ import {
   Building2,
   MoreHorizontal,
   Eye,
-  Edit,
   Trash2,
-  Plus
+  Plus,
+  Loader2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,107 +46,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
+import { usePayments, usePaymentStats, useConfirmPayment, useRejectPayment, useDeletePayment } from "@/hooks/usePayments";
+import { PaymentStatus } from "@/integrations/supabase/types";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
-const payments = [
-  {
-    id: "PAY-001",
-    contact: "Juan Pérez",
-    amount: 1500.00,
-    currency: "PEN",
-    status: "confirmed",
-    method: "Transferencia BCP",
-    date: "2024-01-15",
-    time: "10:32 AM",
-    confidence: 94,
-    reference: "78452136",
-  },
-  {
-    id: "PAY-002",
-    contact: "María García",
-    amount: 2300.50,
-    currency: "PEN",
-    status: "pending",
-    method: "Yape",
-    date: "2024-01-15",
-    time: "09:45 AM",
-    confidence: 87,
-    reference: "YAP-9823",
-  },
-  {
-    id: "PAY-003",
-    contact: "Carlos López",
-    amount: 500.00,
-    currency: "PEN",
-    status: "confirmed",
-    method: "Depósito BCP",
-    date: "2024-01-15",
-    time: "08:20 AM",
-    confidence: 92,
-    reference: "DEP-4521",
-  },
-  {
-    id: "PAY-004",
-    contact: "Ana Rodríguez",
-    amount: 3200.00,
-    currency: "PEN",
-    status: "rejected",
-    method: "Transferencia BBVA",
-    date: "2024-01-14",
-    time: "16:50 PM",
-    confidence: 45,
-    reference: "N/A",
-  },
-  {
-    id: "PAY-005",
-    contact: "Pedro Sánchez",
-    amount: 750.00,
-    currency: "PEN",
-    status: "confirmed",
-    method: "Plin",
-    date: "2024-01-14",
-    time: "14:30 PM",
-    confidence: 98,
-    reference: "PLIN-7821",
-  },
-  {
-    id: "PAY-006",
-    contact: "Laura Martínez",
-    amount: 1800.00,
-    currency: "PEN",
-    status: "pending",
-    method: "Transferencia Interbank",
-    date: "2024-01-14",
-    time: "11:15 AM",
-    confidence: 72,
-    reference: "INT-3456",
-  },
-  {
-    id: "PAY-007",
-    contact: "Roberto Díaz",
-    amount: 4500.00,
-    currency: "PEN",
-    status: "confirmed",
-    method: "Transferencia BCP",
-    date: "2024-01-13",
-    time: "17:20 PM",
-    confidence: 96,
-    reference: "BCP-9012",
-  },
-  {
-    id: "PAY-008",
-    contact: "Carmen Flores",
-    amount: 620.00,
-    currency: "PEN",
-    status: "pending",
-    method: "Yape",
-    date: "2024-01-13",
-    time: "10:05 AM",
-    confidence: 68,
-    reference: "YAP-5678",
-  },
-];
-
-const getStatusBadge = (status: string) => {
+const getStatusBadge = (status: PaymentStatus) => {
   switch (status) {
     case "confirmed":
       return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmado</Badge>;
@@ -154,6 +59,8 @@ const getStatusBadge = (status: string) => {
       return <Badge variant="warning"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
     case "rejected":
       return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Rechazado</Badge>;
+    case "cancelled":
+      return <Badge variant="secondary"><XCircle className="h-3 w-3 mr-1" />Cancelado</Badge>;
     default:
       return null;
   }
@@ -167,18 +74,50 @@ const getConfidenceColor = (confidence: number) => {
 
 export default function Payments() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<PaymentStatus | "all">("all");
 
-  const filteredPayments = payments.filter((payment) => {
-    const matchesSearch = payment.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const { data: payments, isLoading } = usePayments(
+    statusFilter !== "all" ? { status: statusFilter } : undefined
+  );
+  const { data: stats } = usePaymentStats();
+  const confirmPayment = useConfirmPayment();
+  const rejectPayment = useRejectPayment();
+  const deletePayment = useDeletePayment();
+
+  const filteredPayments = payments?.filter((payment) => {
+    const contactName = payment.contact?.name || '';
+    const matchesSearch = contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || payment.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+    return matchesSearch;
+  }) || [];
 
-  const totalConfirmed = payments.filter(p => p.status === "confirmed").reduce((sum, p) => sum + p.amount, 0);
-  const totalPending = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0);
-  const totalRejected = payments.filter(p => p.status === "rejected").reduce((sum, p) => sum + p.amount, 0);
+  const formatCurrency = (amount: number, currency: string = 'PEN') => {
+    return new Intl.NumberFormat('es-PE', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const handleConfirm = async (id: string) => {
+    await confirmPayment.mutateAsync(id);
+  };
+
+  const handleReject = async (id: string) => {
+    await rejectPayment.mutateAsync(id);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('¿Estás seguro de eliminar este pago?')) {
+      await deletePayment.mutateAsync(id);
+    }
+  };
+
+  const todayPayments = payments?.filter(p => {
+    const today = new Date();
+    const paymentDate = new Date(p.created_at);
+    return paymentDate.toDateString() === today.toDateString();
+  }) || [];
 
   return (
     <DashboardLayout>
@@ -212,7 +151,9 @@ export default function Payments() {
                   <DollarSign className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">S/. {(totalConfirmed + totalPending).toLocaleString()}</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(stats?.totalAmount || 0)}
+                  </p>
                   <p className="text-xs text-muted-foreground">Total detectado</p>
                 </div>
               </div>
@@ -225,7 +166,9 @@ export default function Payments() {
                   <CheckCircle2 className="h-5 w-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">S/. {totalConfirmed.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(stats?.confirmedAmount || 0)}
+                  </p>
                   <p className="text-xs text-muted-foreground">Confirmados</p>
                 </div>
               </div>
@@ -238,7 +181,9 @@ export default function Payments() {
                   <Clock className="h-5 w-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">S/. {totalPending.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(stats?.pendingAmount || 0)}
+                  </p>
                   <p className="text-xs text-muted-foreground">Pendientes</p>
                 </div>
               </div>
@@ -251,8 +196,8 @@ export default function Payments() {
                   <TrendingUp className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">94.2%</p>
-                  <p className="text-xs text-muted-foreground">Tasa de detección</p>
+                  <p className="text-2xl font-bold">{(stats?.avgConfidence || 0).toFixed(1)}%</p>
+                  <p className="text-xs text-muted-foreground">Confianza promedio</p>
                 </div>
               </div>
             </CardContent>
@@ -277,7 +222,7 @@ export default function Payments() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as PaymentStatus | "all")}>
                   <SelectTrigger className="w-40">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Estado" />
@@ -295,183 +240,201 @@ export default function Payments() {
           <CardContent>
             <Tabs defaultValue="all" className="w-full">
               <TabsList className="mb-4">
-                <TabsTrigger value="all">Todos ({payments.length})</TabsTrigger>
-                <TabsTrigger value="today">Hoy ({payments.filter(p => p.date === "2024-01-15").length})</TabsTrigger>
-                <TabsTrigger value="week">Esta semana</TabsTrigger>
+                <TabsTrigger value="all">Todos ({payments?.length || 0})</TabsTrigger>
+                <TabsTrigger value="today">Hoy ({todayPayments.length})</TabsTrigger>
               </TabsList>
               <TabsContent value="all" className="m-0">
-                <div className="rounded-lg border border-border/50 overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableHead>ID</TableHead>
-                        <TableHead>Contacto</TableHead>
-                        <TableHead>Monto</TableHead>
-                        <TableHead>Método</TableHead>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Confianza</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredPayments.map((payment) => (
-                        <TableRow key={payment.id} className="hover:bg-muted/20">
-                          <TableCell className="font-mono text-xs">{payment.id}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                                  {payment.contact.split(" ").map((n) => n[0]).join("")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="font-medium text-sm">{payment.contact}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-semibold text-foreground">
-                              S/. {payment.amount.toLocaleString()}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="text-sm">{payment.method}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                              <div>
-                                <p className="text-sm">{payment.date}</p>
-                                <p className="text-xs text-muted-foreground">{payment.time}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Progress
-                                value={payment.confidence}
-                                className={`h-2 w-16 ${getConfidenceColor(payment.confidence)}`}
-                              />
-                              <span className="text-xs font-medium">{payment.confidence}%</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Ver detalle
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                                  Confirmar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Eliminar
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Mostrando {filteredPayments.length} de {payments.length} pagos
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled>
-                      Anterior
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Siguiente
-                    </Button>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                </div>
+                ) : filteredPayments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No hay pagos registrados</p>
+                    <p className="text-xs text-muted-foreground mt-1">Los pagos aparecerán aquí cuando se detecten</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-lg border border-border/50 overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableHead>Contacto</TableHead>
+                            <TableHead>Monto</TableHead>
+                            <TableHead>Método</TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Confianza</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredPayments.map((payment) => (
+                            <TableRow key={payment.id} className="hover:bg-muted/20">
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                                      {payment.contact?.name
+                                        ? payment.contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2)
+                                        : "??"
+                                      }
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <span className="font-medium text-sm">{payment.contact?.name || 'Desconocido'}</span>
+                                    <p className="text-xs text-muted-foreground">{payment.contact?.phone || ''}</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <span className="font-semibold text-foreground">
+                                  {formatCurrency(payment.amount, payment.currency)}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="text-sm">{payment.method_detail || payment.method || 'N/A'}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <div>
+                                    <p className="text-sm">{format(new Date(payment.created_at), 'dd/MM/yyyy', { locale: es })}</p>
+                                    <p className="text-xs text-muted-foreground">{format(new Date(payment.created_at), 'HH:mm', { locale: es })}</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Progress
+                                    value={payment.confidence_score}
+                                    className={`h-2 w-16 ${getConfidenceColor(payment.confidence_score)}`}
+                                  />
+                                  <span className="text-xs font-medium">{payment.confidence_score}%</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      Ver detalle
+                                    </DropdownMenuItem>
+                                    {payment.status === 'pending' && (
+                                      <>
+                                        <DropdownMenuItem onClick={() => handleConfirm(payment.id)}>
+                                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                                          Confirmar
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleReject(payment.id)}>
+                                          <XCircle className="h-4 w-4 mr-2" />
+                                          Rechazar
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => handleDelete(payment.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Eliminar
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Count */}
+                    <div className="flex items-center justify-between mt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Mostrando {filteredPayments.length} pagos
+                      </p>
+                    </div>
+                  </>
+                )}
               </TabsContent>
               <TabsContent value="today" className="m-0">
-                <div className="rounded-lg border border-border/50 overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableHead>ID</TableHead>
-                        <TableHead>Contacto</TableHead>
-                        <TableHead>Monto</TableHead>
-                        <TableHead>Método</TableHead>
-                        <TableHead>Hora</TableHead>
-                        <TableHead>Confianza</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payments.filter(p => p.date === "2024-01-15").map((payment) => (
-                        <TableRow key={payment.id} className="hover:bg-muted/20">
-                          <TableCell className="font-mono text-xs">{payment.id}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                                  {payment.contact.split(" ").map((n) => n[0]).join("")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="font-medium text-sm">{payment.contact}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-semibold text-foreground">
-                              S/. {payment.amount.toLocaleString()}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="text-sm">{payment.method}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm">{payment.time}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Progress
-                                value={payment.confidence}
-                                className={`h-2 w-16 ${getConfidenceColor(payment.confidence)}`}
-                              />
-                              <span className="text-xs font-medium">{payment.confidence}%</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                {todayPayments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No hay pagos de hoy</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-border/50 overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableHead>Contacto</TableHead>
+                          <TableHead>Monto</TableHead>
+                          <TableHead>Método</TableHead>
+                          <TableHead>Hora</TableHead>
+                          <TableHead>Confianza</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </TabsContent>
-              <TabsContent value="week" className="m-0">
-                <div className="flex items-center justify-center h-32 text-muted-foreground">
-                  Vista de pagos semanales
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {todayPayments.map((payment) => (
+                          <TableRow key={payment.id} className="hover:bg-muted/20">
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                                    {payment.contact?.name
+                                      ? payment.contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2)
+                                      : "??"
+                                    }
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium text-sm">{payment.contact?.name || 'Desconocido'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-semibold text-foreground">
+                                {formatCurrency(payment.amount, payment.currency)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm">{payment.method_detail || payment.method || 'N/A'}</span>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {format(new Date(payment.created_at), 'HH:mm', { locale: es })}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Progress
+                                  value={payment.confidence_score}
+                                  className={`h-2 w-16 ${getConfidenceColor(payment.confidence_score)}`}
+                                />
+                                <span className="text-xs font-medium">{payment.confidence_score}%</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

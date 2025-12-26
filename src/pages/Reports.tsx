@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -25,7 +24,8 @@ import {
   PieChart,
   ArrowUpRight,
   ArrowDownRight,
-  Printer
+  Printer,
+  Loader2
 } from "lucide-react";
 import {
   Area,
@@ -43,31 +43,10 @@ import {
   YAxis,
 } from "recharts";
 import { useState } from "react";
-
-const monthlyData = [
-  { month: "Ene", pagos: 45200, mensajes: 320, confirmados: 42000 },
-  { month: "Feb", pagos: 52300, mensajes: 380, confirmados: 48500 },
-  { month: "Mar", pagos: 48900, mensajes: 350, confirmados: 45200 },
-  { month: "Abr", pagos: 61200, mensajes: 420, confirmados: 58000 },
-  { month: "May", pagos: 55800, mensajes: 390, confirmados: 52100 },
-  { month: "Jun", pagos: 67400, mensajes: 450, confirmados: 64200 },
-  { month: "Jul", pagos: 72100, mensajes: 480, confirmados: 69500 },
-  { month: "Ago", pagos: 68300, mensajes: 460, confirmados: 65800 },
-  { month: "Sep", pagos: 75600, mensajes: 510, confirmados: 72300 },
-  { month: "Oct", pagos: 82400, mensajes: 550, confirmados: 79100 },
-  { month: "Nov", pagos: 78900, mensajes: 520, confirmados: 75600 },
-  { month: "Dic", pagos: 91200, mensajes: 580, confirmados: 88000 },
-];
-
-const weeklyData = [
-  { day: "Lun", pagos: 12500, mensajes: 85 },
-  { day: "Mar", pagos: 15200, mensajes: 92 },
-  { day: "Mié", pagos: 18400, mensajes: 110 },
-  { day: "Jue", pagos: 14800, mensajes: 88 },
-  { day: "Vie", pagos: 21300, mensajes: 125 },
-  { day: "Sáb", pagos: 8900, mensajes: 45 },
-  { day: "Dom", pagos: 5200, mensajes: 28 },
-];
+import { useMonthlyStats, useWeeklyActivity, useTopContacts, useDashboardStats } from "@/hooks/useDashboard";
+import { useContactStats } from "@/hooks/useContacts";
+import { useMessageStats } from "@/hooks/useMessages";
+import { usePaymentStats } from "@/hooks/usePayments";
 
 const paymentMethodData = [
   { name: "Transferencia BCP", value: 45, color: "hsl(173, 80%, 40%)" },
@@ -75,14 +54,6 @@ const paymentMethodData = [
   { name: "Plin", value: 15, color: "hsl(38, 92%, 50%)" },
   { name: "Interbank", value: 8, color: "hsl(222, 47%, 50%)" },
   { name: "Otros", value: 4, color: "hsl(222, 30%, 40%)" },
-];
-
-const topContacts = [
-  { name: "Pedro Sánchez", payments: 15800, count: 12, trend: "+15%" },
-  { name: "Juan Pérez", payments: 12500, count: 8, trend: "+8%" },
-  { name: "María García", payments: 8300, count: 5, trend: "-3%" },
-  { name: "Laura Martínez", payments: 6200, count: 4, trend: "+12%" },
-  { name: "Carlos López", payments: 4200, count: 3, trend: "+5%" },
 ];
 
 const detectionStats = [
@@ -94,6 +65,37 @@ const detectionStats = [
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState("month");
+
+  const { data: dashboardStats, isLoading: loadingDashboard } = useDashboardStats();
+  const { data: monthlyData, isLoading: loadingMonthly } = useMonthlyStats();
+  const { data: weeklyData, isLoading: loadingWeekly } = useWeeklyActivity();
+  const { data: topContacts, isLoading: loadingContacts } = useTopContacts(5);
+  const { data: contactStats } = useContactStats();
+  const { data: messageStats } = useMessageStats();
+  const { data: paymentStats } = usePaymentStats();
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-PE', {
+      style: 'currency',
+      currency: 'PEN',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const chartMonthlyData = monthlyData?.map(item => ({
+    month: item.month,
+    pagos: item.total_amount,
+    confirmados: item.confirmed_amount,
+    mensajes: item.message_count,
+  })) || [];
+
+  const chartWeeklyData = weeklyData?.map(day => ({
+    day: day.day,
+    pagos: day.payments,
+    mensajes: day.messages,
+  })) || [];
+
+  const isLoading = loadingDashboard || loadingMonthly || loadingWeekly || loadingContacts;
 
   return (
     <DashboardLayout>
@@ -137,10 +139,18 @@ export default function Reports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground">Ingresos totales</p>
-                  <p className="text-2xl font-bold mt-1">S/. 799,300</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {isLoading ? "---" : formatCurrency(dashboardStats?.totalAmountThisMonth || 0)}
+                  </p>
                   <div className="flex items-center gap-1 mt-1">
-                    <ArrowUpRight className="h-3 w-3 text-success" />
-                    <span className="text-xs text-success">+23.5%</span>
+                    {(dashboardStats?.paymentsTrend || 0) >= 0 ? (
+                      <ArrowUpRight className="h-3 w-3 text-success" />
+                    ) : (
+                      <ArrowDownRight className="h-3 w-3 text-destructive" />
+                    )}
+                    <span className={`text-xs ${(dashboardStats?.paymentsTrend || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {(dashboardStats?.paymentsTrend || 0) >= 0 ? '+' : ''}{dashboardStats?.paymentsTrend?.toFixed(1) || 0}%
+                    </span>
                     <span className="text-xs text-muted-foreground">vs mes anterior</span>
                   </div>
                 </div>
@@ -155,10 +165,12 @@ export default function Reports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground">Pagos procesados</p>
-                  <p className="text-2xl font-bold mt-1">1,247</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {isLoading ? "---" : (paymentStats?.totalPayments || 0)}
+                  </p>
                   <div className="flex items-center gap-1 mt-1">
                     <ArrowUpRight className="h-3 w-3 text-success" />
-                    <span className="text-xs text-success">+18.2%</span>
+                    <span className="text-xs text-success">+{dashboardStats?.confirmedTrend?.toFixed(1) || 0}%</span>
                     <span className="text-xs text-muted-foreground">vs mes anterior</span>
                   </div>
                 </div>
@@ -173,7 +185,9 @@ export default function Reports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground">Mensajes analizados</p>
-                  <p className="text-2xl font-bold mt-1">5,085</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {isLoading ? "---" : (messageStats?.totalMessagesToday || 0)}
+                  </p>
                   <div className="flex items-center gap-1 mt-1">
                     <ArrowUpRight className="h-3 w-3 text-success" />
                     <span className="text-xs text-success">+12.8%</span>
@@ -191,10 +205,12 @@ export default function Reports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground">Contactos activos</p>
-                  <p className="text-2xl font-bold mt-1">156</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {isLoading ? "---" : (contactStats?.activeContacts || 0)}
+                  </p>
                   <div className="flex items-center gap-1 mt-1">
-                    <ArrowDownRight className="h-3 w-3 text-destructive" />
-                    <span className="text-xs text-destructive">-2.3%</span>
+                    <ArrowUpRight className="h-3 w-3 text-success" />
+                    <span className="text-xs text-success">+5.2%</span>
                     <span className="text-xs text-muted-foreground">vs mes anterior</span>
                   </div>
                 </div>
@@ -220,48 +236,59 @@ export default function Reports() {
               </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={monthlyData}>
-                  <defs>
-                    <linearGradient id="colorPagos" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(173, 80%, 40%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(173, 80%, 40%)" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorConfirmados" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 20%)" />
-                  <XAxis dataKey="month" stroke="hsl(222, 30%, 50%)" fontSize={12} />
-                  <YAxis stroke="hsl(222, 30%, 50%)" fontSize={12} tickFormatter={(value) => `${value / 1000}k`} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(222, 47%, 11%)",
-                      border: "1px solid hsl(222, 30%, 20%)",
-                      borderRadius: "8px",
-                    }}
-                    formatter={(value: number) => [`S/. ${value.toLocaleString()}`, ""]}
-                  />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="pagos"
-                    name="Detectados"
-                    stroke="hsl(173, 80%, 40%)"
-                    fillOpacity={1}
-                    fill="url(#colorPagos)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="confirmados"
-                    name="Confirmados"
-                    stroke="hsl(142, 71%, 45%)"
-                    fillOpacity={1}
-                    fill="url(#colorConfirmados)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {loadingMonthly ? (
+                <div className="flex items-center justify-center h-[300px]">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : chartMonthlyData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[300px] text-center">
+                  <BarChart3 className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">No hay datos disponibles</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chartMonthlyData}>
+                    <defs>
+                      <linearGradient id="colorPagos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(173, 80%, 40%)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(173, 80%, 40%)" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorConfirmados" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 20%)" />
+                    <XAxis dataKey="month" stroke="hsl(222, 30%, 50%)" fontSize={12} />
+                    <YAxis stroke="hsl(222, 30%, 50%)" fontSize={12} tickFormatter={(value) => `${value / 1000}k`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(222, 47%, 11%)",
+                        border: "1px solid hsl(222, 30%, 20%)",
+                        borderRadius: "8px",
+                      }}
+                      formatter={(value: number) => [`S/. ${value.toLocaleString()}`, ""]}
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="pagos"
+                      name="Detectados"
+                      stroke="hsl(173, 80%, 40%)"
+                      fillOpacity={1}
+                      fill="url(#colorPagos)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="confirmados"
+                      name="Confirmados"
+                      stroke="hsl(142, 71%, 45%)"
+                      fillOpacity={1}
+                      fill="url(#colorConfirmados)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -324,22 +351,33 @@ export default function Reports() {
               <CardDescription>Pagos detectados por día</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={weeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 20%)" />
-                  <XAxis dataKey="day" stroke="hsl(222, 30%, 50%)" fontSize={12} />
-                  <YAxis stroke="hsl(222, 30%, 50%)" fontSize={12} tickFormatter={(value) => `${value / 1000}k`} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(222, 47%, 11%)",
-                      border: "1px solid hsl(222, 30%, 20%)",
-                      borderRadius: "8px",
-                    }}
-                    formatter={(value: number) => [`S/. ${value.toLocaleString()}`, "Pagos"]}
-                  />
-                  <Bar dataKey="pagos" fill="hsl(173, 80%, 40%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {loadingWeekly ? (
+                <div className="flex items-center justify-center h-[250px]">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : chartWeeklyData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[250px] text-center">
+                  <BarChart3 className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">No hay datos de esta semana</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={chartWeeklyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 20%)" />
+                    <XAxis dataKey="day" stroke="hsl(222, 30%, 50%)" fontSize={12} />
+                    <YAxis stroke="hsl(222, 30%, 50%)" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(222, 47%, 11%)",
+                        border: "1px solid hsl(222, 30%, 20%)",
+                        borderRadius: "8px",
+                      }}
+                      formatter={(value: number) => [value, "Pagos"]}
+                    />
+                    <Bar dataKey="pagos" fill="hsl(173, 80%, 40%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -355,34 +393,39 @@ export default function Reports() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {topContacts.map((contact, index) => (
-                  <div key={contact.name} className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm truncate">{contact.name}</p>
-                        <span className="font-semibold text-sm">S/. {contact.payments.toLocaleString()}</span>
+              {loadingContacts ? (
+                <div className="flex items-center justify-center h-[200px]">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : !topContacts || topContacts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[200px] text-center">
+                  <Users className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">No hay datos de contactos</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {topContacts.map((contact, index) => (
+                    <div key={contact.id} className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">
+                        {index + 1}
                       </div>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <span className="text-xs text-muted-foreground">{contact.count} pagos</span>
-                        <span className={`text-xs flex items-center gap-0.5 ${
-                          contact.trend.startsWith("+") ? "text-success" : "text-destructive"
-                        }`}>
-                          {contact.trend.startsWith("+") ? (
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-sm truncate">{contact.name}</p>
+                          <span className="font-semibold text-sm">{formatCurrency(contact.total_paid || 0)}</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <span className="text-xs text-muted-foreground">{contact.payment_count || 0} pagos</span>
+                          <span className="text-xs flex items-center gap-0.5 text-success">
                             <TrendingUp className="h-3 w-3" />
-                          ) : (
-                            <TrendingDown className="h-3 w-3" />
-                          )}
-                          {contact.trend}
-                        </span>
+                            +{((contact.reliability_score || 0) / 10).toFixed(0)}%
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
