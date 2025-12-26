@@ -37,19 +37,22 @@ import {
   Eye,
   Trash2,
   Plus,
-  Loader2
+  Loader2,
+  Pencil
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { usePayments, usePaymentStats, useConfirmPayment, useRejectPayment, useDeletePayment } from "@/hooks/usePayments";
-import { PaymentStatus } from "@/integrations/supabase/types";
+import { Payment, PaymentStatus } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { PaymentDialog } from "@/components/payments/PaymentDialog";
 
 const getStatusBadge = (status: PaymentStatus) => {
   switch (status) {
@@ -75,6 +78,8 @@ const getConfidenceColor = (confidence: number) => {
 export default function Payments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | "all">("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
   const { data: payments, isLoading } = usePayments(
     statusFilter !== "all" ? { status: statusFilter } : undefined
@@ -87,7 +92,8 @@ export default function Payments() {
   const filteredPayments = payments?.filter((payment) => {
     const contactName = payment.contact?.name || '';
     const matchesSearch = contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.id.toLowerCase().includes(searchTerm.toLowerCase());
+      payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (payment.reference_number && payment.reference_number.includes(searchTerm));
     return matchesSearch;
   }) || [];
 
@@ -113,6 +119,16 @@ export default function Payments() {
     }
   };
 
+  const handleOpenCreate = () => {
+    setSelectedPayment(null);
+    setDialogOpen(true);
+  };
+
+  const handleOpenEdit = (payment: Payment) => {
+    setSelectedPayment(payment);
+    setDialogOpen(true);
+  };
+
   const todayPayments = payments?.filter(p => {
     const today = new Date();
     const paymentDate = new Date(p.created_at);
@@ -135,7 +151,11 @@ export default function Payments() {
               <Download className="h-4 w-4 mr-2" />
               Exportar
             </Button>
-            <Button size="sm" className="gradient-primary text-primary-foreground">
+            <Button
+              size="sm"
+              className="gradient-primary text-primary-foreground"
+              onClick={handleOpenCreate}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Registrar pago
             </Button>
@@ -253,6 +273,14 @@ export default function Payments() {
                     <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">No hay pagos registrados</p>
                     <p className="text-xs text-muted-foreground mt-1">Los pagos aparecerán aquí cuando se detecten</p>
+                    <Button
+                      size="sm"
+                      className="gradient-primary text-primary-foreground mt-4"
+                      onClick={handleOpenCreate}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Registrar pago
+                    </Button>
                   </div>
                 ) : (
                   <>
@@ -326,12 +354,17 @@ export default function Payments() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleOpenEdit(payment)}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Editar
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem>
                                       <Eye className="h-4 w-4 mr-2" />
                                       Ver detalle
                                     </DropdownMenuItem>
                                     {payment.status === 'pending' && (
                                       <>
+                                        <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => handleConfirm(payment.id)}>
                                           <CheckCircle2 className="h-4 w-4 mr-2" />
                                           Confirmar
@@ -342,6 +375,7 @@ export default function Payments() {
                                         </DropdownMenuItem>
                                       </>
                                     )}
+                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                       className="text-destructive"
                                       onClick={() => handleDelete(payment.id)}
@@ -372,6 +406,14 @@ export default function Payments() {
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">No hay pagos de hoy</p>
+                    <Button
+                      size="sm"
+                      className="gradient-primary text-primary-foreground mt-4"
+                      onClick={handleOpenCreate}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Registrar pago
+                    </Button>
                   </div>
                 ) : (
                   <div className="rounded-lg border border-border/50 overflow-hidden">
@@ -425,9 +467,39 @@ export default function Payments() {
                             </TableCell>
                             <TableCell>{getStatusBadge(payment.status)}</TableCell>
                             <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleOpenEdit(payment)}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  {payment.status === 'pending' && (
+                                    <>
+                                      <DropdownMenuItem onClick={() => handleConfirm(payment.id)}>
+                                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                                        Confirmar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleReject(payment.id)}>
+                                        <XCircle className="h-4 w-4 mr-2" />
+                                        Rechazar
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleDelete(payment.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Eliminar
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -440,6 +512,13 @@ export default function Payments() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        payment={selectedPayment}
+      />
     </DashboardLayout>
   );
 }

@@ -20,30 +20,34 @@ import {
   CheckCircle2,
   Clock,
   UserPlus,
-  Loader2
+  Loader2,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { useContacts, useContactStats, useToggleContactStar, useDeleteContact } from "@/hooks/useContacts";
-import { ContactStatus } from "@/integrations/supabase/types";
+import { Contact, ContactStatus } from "@/integrations/supabase/types";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { ContactDialog } from "@/components/contacts/ContactDialog";
 
 const getStatusBadge = (status: ContactStatus) => {
   switch (status) {
     case "active":
       return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" />Activo</Badge>;
-    case "pending":
-      return <Badge variant="warning"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
     case "inactive":
       return <Badge variant="secondary">Inactivo</Badge>;
+    case "blocked":
+      return <Badge variant="destructive">Bloqueado</Badge>;
     default:
       return null;
   }
@@ -57,6 +61,8 @@ const getReliabilityColor = (reliability: number) => {
 
 export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const navigate = useNavigate();
 
   const { data: contacts, isLoading } = useContacts();
@@ -85,20 +91,30 @@ export default function Contacts() {
 
   const handleToggleStar = async (contactId: string, currentStarred: boolean) => {
     try {
-      await toggleStar.mutateAsync({ id: contactId, starred: !currentStarred });
-      toast.success(currentStarred ? "Favorito removido" : "Agregado a favoritos");
+      await toggleStar.mutateAsync({ id: contactId, isStarred: !currentStarred });
     } catch (error) {
       toast.error("Error al actualizar favorito");
     }
   };
 
   const handleDelete = async (contactId: string) => {
-    try {
-      await deleteContact.mutateAsync(contactId);
-      toast.success("Contacto eliminado");
-    } catch (error) {
-      toast.error("Error al eliminar contacto");
+    if (confirm('¿Estás seguro de eliminar este contacto?')) {
+      try {
+        await deleteContact.mutateAsync(contactId);
+      } catch (error) {
+        toast.error("Error al eliminar contacto");
+      }
     }
+  };
+
+  const handleOpenCreate = () => {
+    setSelectedContact(null);
+    setDialogOpen(true);
+  };
+
+  const handleOpenEdit = (contact: Contact) => {
+    setSelectedContact(contact);
+    setDialogOpen(true);
   };
 
   return (
@@ -117,7 +133,11 @@ export default function Contacts() {
               <Filter className="h-4 w-4 mr-2" />
               Filtrar
             </Button>
-            <Button size="sm" className="gradient-primary text-primary-foreground">
+            <Button
+              size="sm"
+              className="gradient-primary text-primary-foreground"
+              onClick={handleOpenCreate}
+            >
               <UserPlus className="h-4 w-4 mr-2" />
               Nuevo contacto
             </Button>
@@ -133,7 +153,7 @@ export default function Contacts() {
                   <Users className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.totalContacts || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
                   <p className="text-xs text-muted-foreground">Total contactos</p>
                 </div>
               </div>
@@ -146,7 +166,7 @@ export default function Contacts() {
                   <CheckCircle2 className="h-5 w-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.activeContacts || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.active || 0}</p>
                   <p className="text-xs text-muted-foreground">Activos</p>
                 </div>
               </div>
@@ -159,7 +179,7 @@ export default function Contacts() {
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats?.totalReceived || 0)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(stats?.totalPaid || 0)}</p>
                   <p className="text-xs text-muted-foreground">Total recibido</p>
                 </div>
               </div>
@@ -228,7 +248,7 @@ export default function Contacts() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold text-foreground">{contact.name}</h3>
-                            {contact.starred && (
+                            {contact.is_starred && (
                               <Star className="h-4 w-4 fill-warning text-warning" />
                             )}
                           </div>
@@ -242,17 +262,25 @@ export default function Contacts() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenEdit(contact)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => navigate(`/messages?contact=${contact.id}`)}>
                             <MessageSquare className="h-4 w-4 mr-2" />
                             Ver mensajes
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Phone className="h-4 w-4 mr-2" />
-                            Llamar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleToggleStar(contact.id, contact.starred)}>
+                          <DropdownMenuItem onClick={() => handleToggleStar(contact.id, contact.is_starred)}>
                             <Star className="h-4 w-4 mr-2" />
-                            {contact.starred ? "Quitar favorito" : "Agregar favorito"}
+                            {contact.is_starred ? "Quitar favorito" : "Agregar favorito"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => handleDelete(contact.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -272,10 +300,10 @@ export default function Contacts() {
                           <span className="truncate">{contact.email}</span>
                         </div>
                       )}
-                      {contact.notes && (
+                      {contact.location && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <MapPin className="h-3.5 w-3.5" />
-                          <span>{contact.notes}</span>
+                          <span>{contact.location}</span>
                         </div>
                       )}
                     </div>
@@ -314,7 +342,7 @@ export default function Contacts() {
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        <span>Último pago: {formatLastPayment(contact.last_payment_date)}</span>
+                        <span>Último pago: {formatLastPayment(contact.last_payment_at)}</span>
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <DollarSign className="h-3 w-3" />
@@ -335,11 +363,20 @@ export default function Contacts() {
                   </div>
                   <h3 className="text-lg font-semibold mb-1">No se encontraron contactos</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    {searchTerm ? "Intenta con otros términos de búsqueda" : "Los contactos aparecerán cuando recibas mensajes"}
+                    {searchTerm ? "Intenta con otros términos de búsqueda" : "Crea tu primer contacto para empezar"}
                   </p>
-                  {searchTerm && (
+                  {searchTerm ? (
                     <Button variant="outline" size="sm" onClick={() => setSearchTerm("")}>
                       Limpiar búsqueda
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="gradient-primary text-primary-foreground"
+                      onClick={handleOpenCreate}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Crear contacto
                     </Button>
                   )}
                 </CardContent>
@@ -348,6 +385,13 @@ export default function Contacts() {
           </>
         )}
       </div>
+
+      {/* Contact Dialog */}
+      <ContactDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        contact={selectedContact}
+      />
     </DashboardLayout>
   );
 }
