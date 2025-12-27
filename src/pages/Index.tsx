@@ -5,39 +5,57 @@ import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PendingPayments } from "@/components/dashboard/PendingPayments";
 import { CreditCard, DollarSign, Clock, CheckCircle2 } from "lucide-react";
-
-const stats = [
-  {
-    title: "Pagos Este Mes",
-    value: "$2,845,600",
-    change: "+12.5%",
-    changeType: "positive" as const,
-    icon: DollarSign,
-  },
-  {
-    title: "Pagos Confirmados",
-    value: "156",
-    change: "+8.2%",
-    changeType: "positive" as const,
-    icon: CheckCircle2,
-  },
-  {
-    title: "Pagos Pendientes",
-    value: "23",
-    change: "-3.1%",
-    changeType: "positive" as const,
-    icon: Clock,
-  },
-  {
-    title: "Tasa de Detección",
-    value: "94.2%",
-    change: "+2.3%",
-    changeType: "positive" as const,
-    icon: CreditCard,
-  },
-];
+import { useDashboardStats } from "@/hooks/useDashboard";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
+  const { data: stats, isLoading } = useDashboardStats();
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-PE', {
+      style: 'currency',
+      currency: 'PEN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatTrend = (value: number) => {
+    const sign = value >= 0 ? '+' : '';
+    return `${sign}${value.toFixed(1)}%`;
+  };
+
+  const statsData = [
+    {
+      title: "Pagos Este Mes",
+      value: isLoading ? "---" : formatCurrency(stats?.totalAmountThisMonth || 0),
+      change: isLoading ? "---" : formatTrend(stats?.paymentsTrend || 0),
+      changeType: (stats?.paymentsTrend || 0) >= 0 ? "positive" as const : "negative" as const,
+      icon: DollarSign,
+    },
+    {
+      title: "Pagos Confirmados",
+      value: isLoading ? "---" : String(stats?.confirmedPayments || 0),
+      change: isLoading ? "---" : formatTrend(stats?.confirmedTrend || 0),
+      changeType: (stats?.confirmedTrend || 0) >= 0 ? "positive" as const : "negative" as const,
+      icon: CheckCircle2,
+    },
+    {
+      title: "Pagos Pendientes",
+      value: isLoading ? "---" : String(stats?.pendingPayments || 0),
+      change: isLoading ? "---" : formatTrend(stats?.pendingTrend || 0),
+      changeType: (stats?.pendingTrend || 0) <= 0 ? "positive" as const : "negative" as const,
+      icon: Clock,
+    },
+    {
+      title: "Tasa de Detección",
+      value: isLoading ? "---" : `${(stats?.detectionRate || 0).toFixed(1)}%`,
+      change: isLoading ? "---" : formatTrend(stats?.detectionTrend || 0),
+      changeType: (stats?.detectionTrend || 0) >= 0 ? "positive" as const : "negative" as const,
+      icon: CreditCard,
+    },
+  ];
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -54,7 +72,7 @@ const Index = () => {
 
         {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, index) => (
+          {statsData.map((stat, index) => (
             <StatsCard key={stat.title} {...stat} delay={index * 50} />
           ))}
         </div>
