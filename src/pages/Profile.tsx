@@ -18,13 +18,16 @@ import {
   Save,
   Camera
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Profile() {
   const { user, profile, updateProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -92,6 +95,64 @@ export default function Profile() {
       })
     : "Desconocido";
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Por favor selecciona una imagen");
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("La imagen debe ser menor a 2MB");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await updateProfile({
+        avatar_url: publicUrl,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      toast.success("Avatar actualizado correctamente");
+    } catch (error: any) {
+      console.error("Error uploading avatar:", error);
+      toast.error(error.message || "Error al subir la imagen");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -115,12 +176,25 @@ export default function Profile() {
                       {getInitials()}
                     </AvatarFallback>
                   </Avatar>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleAvatarChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
                   <Button
                     size="icon"
                     variant="secondary"
                     className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
+                    onClick={handleAvatarClick}
+                    disabled={isUploadingAvatar}
                   >
-                    <Camera className="h-4 w-4" />
+                    {isUploadingAvatar ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
 
@@ -253,11 +327,13 @@ export default function Profile() {
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     <option value="PEN">Soles (PEN)</option>
-                    <option value="USD">D&oacute;lares (USD)</option>
+                    <option value="USD">Dólares (USD)</option>
                     <option value="EUR">Euros (EUR)</option>
+                    <option value="CLP">Pesos Chilenos (CLP)</option>
                     <option value="MXN">Pesos MX (MXN)</option>
                     <option value="COP">Pesos CO (COP)</option>
                     <option value="ARS">Pesos AR (ARS)</option>
+                    <option value="BRL">Reales (BRL)</option>
                   </select>
                 </div>
 
