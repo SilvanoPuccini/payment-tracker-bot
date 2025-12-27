@@ -16,7 +16,6 @@ import {
   Shield,
   Zap,
   MessageSquare,
-  Settings2,
   Loader2,
   Save
 } from "lucide-react";
@@ -36,9 +35,6 @@ export default function Settings() {
   const [notifications, setNotifications] = useState(true);
   const [lowConfidenceAlert, setLowConfidenceAlert] = useState(true);
   const [confidenceThreshold, setConfidenceThreshold] = useState(70);
-  const [timezone, setTimezone] = useState("America/Lima");
-  const [currency, setCurrency] = useState("PEN");
-  const [language, setLanguage] = useState("Español");
 
   // Load settings when data is available
   useEffect(() => {
@@ -87,8 +83,8 @@ export default function Settings() {
     }
   };
 
-  // Connection status is based on whether we have configured the webhook
-  const isConnected = !!(settings?.verify_token);
+  // Connection status is determined by whether webhook_url is configured
+  const isConnected = !!settings?.webhook_url;
 
   if (isLoading) {
     return (
@@ -218,24 +214,18 @@ export default function Settings() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Estado</span>
                   <Badge variant={isConnected ? "success" : "destructive"}>
-                    {isConnected ? "Conectado" : "Desconectado"}
+                    {isConnected ? "Configurado" : "No configurado"}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Último mensaje</span>
-                  <span className="text-sm font-medium">
-                    {settings?.updated_at
-                      ? new Date(settings.updated_at).toLocaleString('es-PE')
-                      : "Sin actividad"}
-                  </span>
+                  <span className="text-sm text-muted-foreground">Procesamiento automático</span>
+                  <Badge variant={settings?.auto_process ? "success" : "secondary"}>
+                    {settings?.auto_process ? "Activo" : "Inactivo"}
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Estado del webhook</span>
-                  <span className="text-sm font-medium">{isConnected ? "Configurado" : "Pendiente"}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Auto-procesamiento</span>
-                  <span className="text-sm font-medium text-success">{settings?.auto_process ? "Activo" : "Inactivo"}</span>
+                  <span className="text-sm text-muted-foreground">Umbral de confianza</span>
+                  <span className="text-sm font-medium">{settings?.min_confidence_threshold || 70}%</span>
                 </div>
               </div>
 
@@ -399,49 +389,9 @@ export default function Settings() {
           </Card>
         </div>
 
-        {/* Security & Advanced */}
+        {/* Save Button */}
         <Card className="glass-card">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/50">
-                <Settings2 className="h-5 w-5 text-foreground" />
-              </div>
-              <div>
-                <CardTitle>Configuración Avanzada</CardTitle>
-                <CardDescription>Ajustes de seguridad y sistema</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Zona horaria</Label>
-                <Input
-                  value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Moneda predeterminada</Label>
-                <Input
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Idioma</Label>
-                <Input
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
+          <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Shield className="h-5 w-5 text-muted-foreground" />
@@ -458,7 +408,6 @@ export default function Settings() {
             <Separator className="my-6" />
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline">Cancelar cambios</Button>
               <Button
                 className="gradient-primary text-primary-foreground"
                 onClick={handleSaveSettings}
