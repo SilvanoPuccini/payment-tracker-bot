@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { PaymentWithContact } from '@/integrations/supabase/types';
+import { PaymentWithContact } from '@/types/database';
 
 export interface DashboardStats {
   // Payment stats

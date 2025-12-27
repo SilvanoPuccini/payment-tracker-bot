@@ -21,7 +21,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Loader2, User, Phone, Mail, MapPin, Building2, FileText, Star } from "lucide-react";
 import { useCreateContact, useUpdateContact } from "@/hooks/useContacts";
-import { Contact, ContactStatus } from "@/integrations/supabase/types";
+import { Contact, ContactStatus } from "@/types/database";
 
 interface ContactDialogProps {
   open: boolean;

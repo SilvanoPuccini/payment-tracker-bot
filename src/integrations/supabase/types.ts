@@ -14,7 +14,338 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          custom_fields: Json | null
+          email: string | null
+          id: string
+          is_starred: boolean
+          last_message_at: string | null
+          last_payment_at: string | null
+          location: string | null
+          name: string
+          notes: string | null
+          pending_amount: number
+          phone: string
+          status: string
+          tags: string[] | null
+          total_paid: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          custom_fields?: Json | null
+          email?: string | null
+          id?: string
+          is_starred?: boolean
+          last_message_at?: string | null
+          last_payment_at?: string | null
+          location?: string | null
+          name: string
+          notes?: string | null
+          pending_amount?: number
+          phone: string
+          status?: string
+          tags?: string[] | null
+          total_paid?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          custom_fields?: Json | null
+          email?: string | null
+          id?: string
+          is_starred?: boolean
+          last_message_at?: string | null
+          last_payment_at?: string | null
+          location?: string | null
+          name?: string
+          notes?: string | null
+          pending_amount?: number
+          phone?: string
+          status?: string
+          tags?: string[] | null
+          total_paid?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          ai_analysis: Json | null
+          confidence_score: number | null
+          contact_id: string | null
+          content: string | null
+          created_at: string
+          detected_amount: number | null
+          detected_currency: string | null
+          direction: string
+          error_message: string | null
+          id: string
+          is_payment_related: boolean
+          media_mime_type: string | null
+          media_url: string | null
+          payment_intent: string | null
+          processed_at: string | null
+          requires_review: boolean
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          confidence_score?: number | null
+          contact_id?: string | null
+          content?: string | null
+          created_at?: string
+          detected_amount?: number | null
+          detected_currency?: string | null
+          direction: string
+          error_message?: string | null
+          id?: string
+          is_payment_related?: boolean
+          media_mime_type?: string | null
+          media_url?: string | null
+          payment_intent?: string | null
+          processed_at?: string | null
+          requires_review?: boolean
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id: string
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          ai_analysis?: Json | null
+          confidence_score?: number | null
+          contact_id?: string | null
+          content?: string | null
+          created_at?: string
+          detected_amount?: number | null
+          detected_currency?: string | null
+          direction?: string
+          error_message?: string | null
+          id?: string
+          is_payment_related?: boolean
+          media_mime_type?: string | null
+          media_url?: string | null
+          payment_intent?: string | null
+          processed_at?: string | null
+          requires_review?: boolean
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          account_number: string | null
+          amount: number
+          bank_name: string | null
+          confidence_score: number | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          contact_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          message_id: string | null
+          method: string | null
+          method_detail: string | null
+          notes: string | null
+          payment_date: string | null
+          payment_time: string | null
+          reference_number: string | null
+          rejected_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_number?: string | null
+          amount: number
+          bank_name?: string | null
+          confidence_score?: number | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          contact_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          message_id?: string | null
+          method?: string | null
+          method_detail?: string | null
+          notes?: string | null
+          payment_date?: string | null
+          payment_time?: string | null
+          reference_number?: string | null
+          rejected_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_number?: string | null
+          amount?: number
+          bank_name?: string | null
+          confidence_score?: number | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          contact_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          message_id?: string | null
+          method?: string | null
+          method_detail?: string | null
+          notes?: string | null
+          payment_date?: string | null
+          payment_time?: string | null
+          reference_number?: string | null
+          rejected_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          company_name: string | null
+          created_at: string
+          currency: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          language: string | null
+          phone: string | null
+          timezone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string
+          currency?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          language?: string | null
+          phone?: string | null
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string
+          currency?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          language?: string | null
+          phone?: string | null
+          timezone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          auto_process: boolean
+          created_at: string
+          id: string
+          low_confidence_alert: boolean
+          min_confidence_threshold: number | null
+          notifications_enabled: boolean
+          notify_errors: boolean
+          notify_new_payments: boolean
+          notify_promises: boolean
+          updated_at: string
+          user_id: string
+          verify_token: string | null
+          webhook_url: string | null
+          whatsapp_access_token: string | null
+          whatsapp_business_id: string | null
+          whatsapp_phone_id: string | null
+        }
+        Insert: {
+          auto_process?: boolean
+          created_at?: string
+          id?: string
+          low_confidence_alert?: boolean
+          min_confidence_threshold?: number | null
+          notifications_enabled?: boolean
+          notify_errors?: boolean
+          notify_new_payments?: boolean
+          notify_promises?: boolean
+          updated_at?: string
+          user_id: string
+          verify_token?: string | null
+          webhook_url?: string | null
+          whatsapp_access_token?: string | null
+          whatsapp_business_id?: string | null
+          whatsapp_phone_id?: string | null
+        }
+        Update: {
+          auto_process?: boolean
+          created_at?: string
+          id?: string
+          low_confidence_alert?: boolean
+          min_confidence_threshold?: number | null
+          notifications_enabled?: boolean
+          notify_errors?: boolean
+          notify_new_payments?: boolean
+          notify_promises?: boolean
+          updated_at?: string
+          user_id?: string
+          verify_token?: string | null
+          webhook_url?: string | null
+          whatsapp_access_token?: string | null
+          whatsapp_business_id?: string | null
+          whatsapp_phone_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

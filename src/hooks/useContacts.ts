@@ -7,7 +7,7 @@ import {
   ContactUpdate,
   ContactStatus,
   ContactWithPayments
-} from '@/integrations/supabase/types';
+} from '@/types/database';
 import { toast } from 'sonner';
 
 // Fetch all contacts for current user

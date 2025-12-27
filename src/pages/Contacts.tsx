@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { useContacts, useContactStats, useToggleContactStar, useDeleteContact } from "@/hooks/useContacts";
-import { Contact, ContactStatus } from "@/integrations/supabase/types";
+import { Contact, ContactStatus } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";

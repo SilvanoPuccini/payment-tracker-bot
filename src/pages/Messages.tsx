@@ -23,22 +23,10 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useConversations, useContactMessages, useSendMessage, useMessageStats } from "@/hooks/useMessages";
+import { Conversation } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
-
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "confirmed":
-      return <Badge variant="success" className="text-xs"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmado</Badge>;
-    case "pending":
-      return <Badge variant="warning" className="text-xs"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
-    case "promise":
-      return <Badge variant="secondary" className="text-xs"><AlertCircle className="h-3 w-3 mr-1" />Promesa</Badge>;
-    default:
-      return null;
-  }
-};
 
 export default function Messages() {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
@@ -53,13 +41,14 @@ export default function Messages() {
   // Auto-select first conversation
   useEffect(() => {
     if (conversations && conversations.length > 0 && !selectedContactId) {
-      setSelectedContactId(conversations[0].contact_id);
+      setSelectedContactId(conversations[0].contact.id);
     }
   }, [conversations, selectedContactId]);
 
-  const selectedConversation = conversations?.find(c => c.contact_id === selectedContactId);
+  const selectedConversation = conversations?.find(c => c.contact.id === selectedContactId);
 
-  const formatTime = (dateString: string) => {
+  const formatTime = (dateString: string | null) => {
+    if (!dateString) return "";
     return formatDistanceToNow(new Date(dateString), { addSuffix: true, locale: es });
   };
 
@@ -78,7 +67,7 @@ export default function Messages() {
       await sendMessage.mutateAsync({
         contact_id: selectedContactId,
         content: messageInput,
-        sender: 'user'
+        direction: 'outgoing'
       });
       setMessageInput("");
     } catch (error) {
@@ -87,8 +76,8 @@ export default function Messages() {
   };
 
   const filteredConversations = conversations?.filter((conv) =>
-    conv.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conv.contact_phone?.includes(searchTerm)
+    conv.contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conv.contact.phone?.includes(searchTerm)
   ) || [];
 
   return (
@@ -123,7 +112,7 @@ export default function Messages() {
                   <MessageSquare className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.totalMessagesToday || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.totalToday || 0}</p>
                   <p className="text-xs text-muted-foreground">Mensajes hoy</p>
                 </div>
               </div>
@@ -136,7 +125,7 @@ export default function Messages() {
                   <CheckCircle2 className="h-5 w-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.paymentsDetectedToday || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.paymentsDetected || 0}</p>
                   <p className="text-xs text-muted-foreground">Pagos detectados</p>
                 </div>
               </div>
@@ -149,7 +138,7 @@ export default function Messages() {
                   <Clock className="h-5 w-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.messagesRequiringReview || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.requiresReview || 0}</p>
                   <p className="text-xs text-muted-foreground">Por revisar</p>
                 </div>
               </div>
@@ -162,7 +151,7 @@ export default function Messages() {
                   <DollarSign className="h-5 w-5 text-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats?.totalAmountToday || 0)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(stats?.totalDetectedAmount || 0)}</p>
                   <p className="text-xs text-muted-foreground">Detectado hoy</p>
                 </div>
               </div>
@@ -211,109 +200,40 @@ export default function Messages() {
                       </div>
                     ) : (
                       filteredConversations.map((conv) => (
-                        <div
-                          key={conv.contact_id}
-                          onClick={() => setSelectedContactId(conv.contact_id)}
-                          className={`flex items-start gap-3 p-4 cursor-pointer transition-colors border-b border-border/50 hover:bg-muted/30 ${
-                            selectedContactId === conv.contact_id ? "bg-primary/5 border-l-2 border-l-primary" : ""
-                          }`}
-                        >
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                              {conv.contact_name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "??"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium text-sm truncate">{conv.contact_name || "Desconocido"}</p>
-                              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                {conv.last_message_time ? formatTime(conv.last_message_time) : ""}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate mt-0.5">
-                              {conv.last_message || "Sin mensajes"}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1.5">
-                              {conv.has_payment && (
-                                <DollarSign className="h-3 w-3 text-success" />
-                              )}
-                              {conv.payment_status && getStatusBadge(conv.payment_status)}
-                              {(conv.unread_count || 0) > 0 && (
-                                <Badge className="h-5 w-5 p-0 flex items-center justify-center rounded-full text-xs">
-                                  {conv.unread_count}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                        <ConversationItem
+                          key={conv.id}
+                          conversation={conv}
+                          isSelected={selectedContactId === conv.contact.id}
+                          onSelect={() => setSelectedContactId(conv.contact.id)}
+                          formatTime={formatTime}
+                        />
                       ))
                     )}
                   </ScrollArea>
                 </TabsContent>
                 <TabsContent value="payments" className="m-0">
                   <ScrollArea className="h-[500px]">
-                    {filteredConversations.filter(c => c.has_payment).map((conv) => (
-                      <div
-                        key={conv.contact_id}
-                        onClick={() => setSelectedContactId(conv.contact_id)}
-                        className={`flex items-start gap-3 p-4 cursor-pointer transition-colors border-b border-border/50 hover:bg-muted/30 ${
-                          selectedContactId === conv.contact_id ? "bg-primary/5 border-l-2 border-l-primary" : ""
-                        }`}
-                      >
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                            {conv.contact_name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "??"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-medium text-sm truncate">{conv.contact_name}</p>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {conv.last_message_time ? formatTime(conv.last_message_time) : ""}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate mt-0.5">{conv.last_message}</p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <DollarSign className="h-3 w-3 text-success" />
-                            {conv.payment_status && getStatusBadge(conv.payment_status)}
-                          </div>
-                        </div>
-                      </div>
+                    {filteredConversations.filter(c => c.hasPaymentPending).map((conv) => (
+                      <ConversationItem
+                        key={conv.id}
+                        conversation={conv}
+                        isSelected={selectedContactId === conv.contact.id}
+                        onSelect={() => setSelectedContactId(conv.contact.id)}
+                        formatTime={formatTime}
+                      />
                     ))}
                   </ScrollArea>
                 </TabsContent>
                 <TabsContent value="unread" className="m-0">
                   <ScrollArea className="h-[500px]">
-                    {filteredConversations.filter(c => (c.unread_count || 0) > 0).map((conv) => (
-                      <div
-                        key={conv.contact_id}
-                        onClick={() => setSelectedContactId(conv.contact_id)}
-                        className={`flex items-start gap-3 p-4 cursor-pointer transition-colors border-b border-border/50 hover:bg-muted/30 ${
-                          selectedContactId === conv.contact_id ? "bg-primary/5 border-l-2 border-l-primary" : ""
-                        }`}
-                      >
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                            {conv.contact_name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "??"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-medium text-sm truncate">{conv.contact_name}</p>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {conv.last_message_time ? formatTime(conv.last_message_time) : ""}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate mt-0.5">{conv.last_message}</p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            {conv.has_payment && <DollarSign className="h-3 w-3 text-success" />}
-                            {conv.payment_status && getStatusBadge(conv.payment_status)}
-                            <Badge className="h-5 w-5 p-0 flex items-center justify-center rounded-full text-xs">
-                              {conv.unread_count}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
+                    {filteredConversations.filter(c => c.unreadCount > 0).map((conv) => (
+                      <ConversationItem
+                        key={conv.id}
+                        conversation={conv}
+                        isSelected={selectedContactId === conv.contact.id}
+                        onSelect={() => setSelectedContactId(conv.contact.id)}
+                        formatTime={formatTime}
+                      />
                     ))}
                   </ScrollArea>
                 </TabsContent>
@@ -329,19 +249,23 @@ export default function Messages() {
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-primary/20 text-primary">
-                        {selectedConversation.contact_name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "??"}
+                        {selectedConversation.contact.name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "??"}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <CardTitle className="text-base">{selectedConversation.contact_name || "Desconocido"}</CardTitle>
+                      <CardTitle className="text-base">{selectedConversation.contact.name || "Desconocido"}</CardTitle>
                       <CardDescription className="flex items-center gap-2">
                         <Phone className="h-3 w-3" />
-                        {selectedConversation.contact_phone || "Sin teléfono"}
+                        {selectedConversation.contact.phone || "Sin teléfono"}
                       </CardDescription>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedConversation.payment_status && getStatusBadge(selectedConversation.payment_status)}
+                    {selectedConversation.hasPaymentPending && (
+                      <Badge variant="warning" className="text-xs">
+                        <Clock className="h-3 w-3 mr-1" />Pago pendiente
+                      </Badge>
+                    )}
                     <Button variant="ghost" size="icon">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
@@ -371,35 +295,24 @@ export default function Messages() {
                     {messages.map((msg) => (
                       <div
                         key={msg.id}
-                        className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                        className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
-                            msg.sender === "user"
-                              ? "bg-primary text-primary-foreground rounded-br-md"
-                              : msg.payment_intent === "confirmed"
-                              ? "bg-success/10 border border-success/30 text-success rounded-bl-md"
-                              : msg.payment_intent === "payment"
-                              ? "bg-warning/10 border border-warning/30 text-foreground rounded-bl-md"
-                              : "bg-muted/50 text-foreground rounded-bl-md"
+                          className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                            msg.direction === 'outgoing'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted'
                           }`}
                         >
-                          {msg.payment_intent === "payment" && (
-                            <div className="flex items-center gap-1.5 mb-1.5 text-warning">
-                              <DollarSign className="h-3.5 w-3.5" />
-                              <span className="text-xs font-medium">Pago detectado</span>
-                            </div>
-                          )}
-                          {msg.payment_intent === "confirmed" && (
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span className="text-xs font-medium">Confirmado</span>
-                            </div>
-                          )}
                           <p className="text-sm">{msg.content}</p>
-                          <p className={`text-xs mt-1 ${msg.sender === "user" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                            {formatTime(msg.created_at)}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs opacity-70">
+                              {formatTime(msg.created_at)}
+                            </span>
+                            {msg.is_payment_related && (
+                              <DollarSign className="h-3 w-3 text-success" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -407,7 +320,7 @@ export default function Messages() {
                 )}
               </ScrollArea>
 
-              {/* Input Area */}
+              {/* Message Input */}
               <div className="border-t border-border/50 p-4">
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon" className="shrink-0">
@@ -418,21 +331,16 @@ export default function Messages() {
                   </Button>
                   <Input
                     placeholder="Escribe un mensaje..."
-                    className="flex-1"
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    disabled={!selectedContactId}
                   />
                   <Button
                     size="icon"
-                    className="gradient-primary text-primary-foreground shrink-0"
+                    className="gradient-primary shrink-0"
                     onClick={handleSendMessage}
-                    disabled={!messageInput.trim() || sendMessage.isPending}
+                    disabled={!messageInput.trim() || !selectedContactId || sendMessage.isPending}
                   >
                     {sendMessage.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -447,5 +355,54 @@ export default function Messages() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+// Conversation item component
+function ConversationItem({
+  conversation,
+  isSelected,
+  onSelect,
+  formatTime
+}: {
+  conversation: Conversation;
+  isSelected: boolean;
+  onSelect: () => void;
+  formatTime: (date: string | null) => string;
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      className={`flex items-start gap-3 p-4 cursor-pointer transition-colors border-b border-border/50 hover:bg-muted/30 ${
+        isSelected ? "bg-primary/5 border-l-2 border-l-primary" : ""
+      }`}
+    >
+      <Avatar className="h-10 w-10">
+        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+          {conversation.contact.name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "??"}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium text-sm truncate">{conversation.contact.name || "Desconocido"}</p>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {conversation.lastMessage ? formatTime(conversation.lastMessage.created_at) : ""}
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground truncate mt-0.5">
+          {conversation.lastMessage?.content || "Sin mensajes"}
+        </p>
+        <div className="flex items-center gap-2 mt-1.5">
+          {conversation.hasPaymentPending && (
+            <DollarSign className="h-3 w-3 text-success" />
+          )}
+          {conversation.unreadCount > 0 && (
+            <Badge className="h-5 w-5 p-0 flex items-center justify-center rounded-full text-xs">
+              {conversation.unreadCount}
+            </Badge>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
