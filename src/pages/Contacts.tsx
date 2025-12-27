@@ -33,14 +33,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { useContacts, useContactStats, useToggleContactStar, useDeleteContact } from "@/hooks/useContacts";
-import { Contact, ContactStatus } from "@/integrations/supabase/types";
+import { ContactStatus } from "@/types/database";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Contact = Tables<'contacts'>;
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
 
-const getStatusBadge = (status: ContactStatus) => {
+const getStatusBadge = (status: string) => {
   switch (status) {
     case "active":
       return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" />Activo</Badge>;
@@ -324,18 +327,6 @@ export default function Contacts() {
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Confiabilidad</span>
-                        <div className="flex items-center gap-2">
-                          <Progress
-                            value={contact.reliability_score || 0}
-                            className="h-2 w-16"
-                          />
-                          <span className={`text-xs font-medium ${getReliabilityColor(contact.reliability_score || 0)}`}>
-                            {contact.reliability_score || 0}%
-                          </span>
-                        </div>
-                      </div>
                     </div>
 
                     {/* Footer */}
@@ -343,10 +334,6 @@ export default function Contacts() {
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
                         <span>Último pago: {formatLastPayment(contact.last_payment_at)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <DollarSign className="h-3 w-3" />
-                        <span>{contact.payment_count || 0} pagos</span>
                       </div>
                     </div>
                   </CardContent>

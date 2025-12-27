@@ -1,14 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  Payment,
-  PaymentInsert,
-  PaymentUpdate,
-  PaymentWithContact,
-  PaymentStatus
-} from '@/integrations/supabase/types';
+import { PaymentStatus } from '@/types/database';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+
+type Payment = Tables<'payments'>;
+type PaymentInsert = TablesInsert<'payments'>;
+type PaymentUpdate = TablesUpdate<'payments'>;
+
+export interface PaymentWithContact extends Payment {
+  contact?: {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string | null;
+  } | null;
+}
 
 // Fetch all payments for current user
 export function usePayments(filters?: {

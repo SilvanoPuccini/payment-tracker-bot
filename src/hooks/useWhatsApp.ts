@@ -93,10 +93,10 @@ export function useTestWhatsAppConnection() {
 
       // Get user's WhatsApp settings
       const { data: settings, error: settingsError } = await supabase
-        .from('user_settings')
+        .from('settings')
         .select('whatsapp_phone_id, whatsapp_access_token')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (settingsError) throw new Error('No se encontró configuración de WhatsApp');
 
@@ -137,27 +137,6 @@ export function useTestWhatsAppConnection() {
   });
 }
 
-// Hook to get webhook logs
-export function useWebhookLogs(limit = 50) {
-  const { user } = useAuth();
-
-  return useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error('No user logged in');
-
-      const { data, error } = await supabase
-        .from('webhook_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-
 // Hook to manually process a message with AI
 export function useProcessMessageWithAI() {
   const { user } = useAuth();
@@ -176,6 +155,7 @@ export function useProcessMessageWithAI() {
         .single();
 
       if (msgError) throw msgError;
+      if (!message) throw new Error('Mensaje no encontrado');
 
       // Analyze with AI
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('process-message', {
@@ -220,21 +200,6 @@ export function useProcessMessageWithAI() {
           reference_number: analysis.extractedData.reference || null,
           payment_date: analysis.extractedData.date || null,
           confidence_score: Math.round(analysis.confidence * 100),
-          requires_review: analysis.requiresReview,
-          notes: analysis.summary,
-        });
-      }
-
-      // Create promise if detected
-      if (analysis.intent === 'promesa') {
-        await supabase.from('payment_promises').insert({
-          user_id: user.id,
-          contact_id: message.contact_id,
-          message_id: messageId,
-          promised_amount: analysis.extractedData?.amount || 0,
-          currency: analysis.extractedData?.currency || 'PEN',
-          promised_date: analysis.extractedData?.dueDate || null,
-          status: 'pending',
           notes: analysis.summary,
         });
       }

@@ -48,13 +48,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
-import { usePayments, usePaymentStats, useConfirmPayment, useRejectPayment, useDeletePayment } from "@/hooks/usePayments";
-import { Payment, PaymentStatus } from "@/integrations/supabase/types";
+import { usePayments, usePaymentStats, useConfirmPayment, useRejectPayment, useDeletePayment, PaymentWithContact } from "@/hooks/usePayments";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 
-const getStatusBadge = (status: PaymentStatus) => {
+const getStatusBadge = (status: string) => {
   switch (status) {
     case "confirmed":
       return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmado</Badge>;
@@ -77,12 +76,12 @@ const getConfidenceColor = (confidence: number) => {
 
 export default function Payments() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<PaymentStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentWithContact | null>(null);
 
   const { data: payments, isLoading } = usePayments(
-    statusFilter !== "all" ? { status: statusFilter } : undefined
+    statusFilter !== "all" ? { status: statusFilter as any } : undefined
   );
   const { data: stats } = usePaymentStats();
   const confirmPayment = useConfirmPayment();
@@ -124,7 +123,7 @@ export default function Payments() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (payment: Payment) => {
+  const handleOpenEdit = (payment: PaymentWithContact) => {
     setSelectedPayment(payment);
     setDialogOpen(true);
   };
@@ -242,7 +241,7 @@ export default function Payments() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as PaymentStatus | "all")}>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
                   <SelectTrigger className="w-40">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Estado" />

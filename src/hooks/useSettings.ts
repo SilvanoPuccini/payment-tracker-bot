@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserSettings, UserSettingsUpdate } from '@/integrations/supabase/types';
+import { Settings, SettingsUpdate } from '@/types/database';
 import { toast } from 'sonner';
 
 // Fetch user settings
@@ -14,27 +14,15 @@ export function useSettings() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('user_settings')
+        .from('settings')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        // If no settings exist, create default ones
-        if (error.code === 'PGRST116') {
-          const { data: newSettings, error: insertError } = await supabase
-            .from('user_settings')
-            .insert({ user_id: user.id })
-            .select()
-            .single();
-
-          if (insertError) throw insertError;
-          return newSettings as UserSettings;
-        }
-        throw error;
-      }
-
-      return data as UserSettings;
+      if (error) throw error;
+      
+      // Settings are created automatically via trigger on user signup
+      return data as Settings | null;
     },
     enabled: !!user,
   });
@@ -46,18 +34,18 @@ export function useUpdateSettings() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (updates: Omit<UserSettingsUpdate, 'user_id'>) => {
+    mutationFn: async (updates: SettingsUpdate) => {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('user_settings')
+        .from('settings')
         .update(updates)
         .eq('user_id', user.id)
         .select()
         .single();
 
       if (error) throw error;
-      return data as UserSettings;
+      return data as Settings;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -79,10 +67,10 @@ export function useTestWebhookConnection() {
 
       // Get current settings
       const { data: settings } = await supabase
-        .from('user_settings')
+        .from('settings')
         .select('webhook_url, verify_token')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!settings?.webhook_url) {
         throw new Error('No hay URL de webhook configurada');
@@ -125,14 +113,14 @@ export function useUpdateWhatsAppCredentials() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('user_settings')
+        .from('settings')
         .update(credentials)
         .eq('user_id', user.id)
         .select()
         .single();
 
       if (error) throw error;
-      return data as UserSettings;
+      return data as Settings;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -159,14 +147,14 @@ export function useUpdateNotificationPreferences() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('user_settings')
+        .from('settings')
         .update(preferences)
         .eq('user_id', user.id)
         .select()
         .single();
 
       if (error) throw error;
-      return data as UserSettings;
+      return data as Settings;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -184,7 +172,7 @@ export function useUpdateAISettings() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (settings: {
+    mutationFn: async (aiSettings: {
       auto_process?: boolean;
       min_confidence_threshold?: number;
       low_confidence_alert?: boolean;
@@ -192,14 +180,14 @@ export function useUpdateAISettings() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('user_settings')
-        .update(settings)
+        .from('settings')
+        .update(aiSettings)
         .eq('user_id', user.id)
         .select()
         .single();
 
       if (error) throw error;
-      return data as UserSettings;
+      return data as Settings;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });

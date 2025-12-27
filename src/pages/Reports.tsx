@@ -84,9 +84,9 @@ export default function Reports() {
 
   const chartMonthlyData = monthlyData?.map(item => ({
     month: item.month,
-    pagos: item.total_amount,
-    confirmados: item.confirmed_amount,
-    mensajes: item.message_count,
+    pagos: item.payments,
+    confirmados: item.confirmed,
+    mensajes: item.messages,
   })) || [];
 
   const chartWeeklyData = weeklyData?.map(day => ({
@@ -166,7 +166,7 @@ export default function Reports() {
                 <div>
                   <p className="text-xs text-muted-foreground">Pagos procesados</p>
                   <p className="text-2xl font-bold mt-1">
-                    {isLoading ? "---" : (paymentStats?.totalPayments || 0)}
+                    {isLoading ? "---" : ((paymentStats?.confirmedCount || 0) + (paymentStats?.pendingCount || 0) + (paymentStats?.rejectedCount || 0))}
                   </p>
                   <div className="flex items-center gap-1 mt-1">
                     <ArrowUpRight className="h-3 w-3 text-success" />
@@ -186,7 +186,7 @@ export default function Reports() {
                 <div>
                   <p className="text-xs text-muted-foreground">Mensajes analizados</p>
                   <p className="text-2xl font-bold mt-1">
-                    {isLoading ? "---" : (messageStats?.totalMessagesToday || 0)}
+                    {isLoading ? "---" : (messageStats?.totalToday || 0)}
                   </p>
                   <div className="flex items-center gap-1 mt-1">
                     <ArrowUpRight className="h-3 w-3 text-success" />
@@ -206,7 +206,7 @@ export default function Reports() {
                 <div>
                   <p className="text-xs text-muted-foreground">Contactos activos</p>
                   <p className="text-2xl font-bold mt-1">
-                    {isLoading ? "---" : (contactStats?.activeContacts || 0)}
+                    {isLoading ? "---" : (contactStats?.active || 0)}
                   </p>
                   <div className="flex items-center gap-1 mt-1">
                     <ArrowUpRight className="h-3 w-3 text-success" />
@@ -415,10 +415,9 @@ export default function Reports() {
                           <span className="font-semibold text-sm">{formatCurrency(contact.total_paid || 0)}</span>
                         </div>
                         <div className="flex items-center justify-between mt-0.5">
-                          <span className="text-xs text-muted-foreground">{contact.payment_count || 0} pagos</span>
+                          <span className="text-xs text-muted-foreground">Top pagador</span>
                           <span className="text-xs flex items-center gap-0.5 text-success">
                             <TrendingUp className="h-3 w-3" />
-                            +{((contact.reliability_score || 0) / 10).toFixed(0)}%
                           </span>
                         </div>
                       </div>

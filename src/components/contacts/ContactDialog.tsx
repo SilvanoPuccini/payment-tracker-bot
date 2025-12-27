@@ -21,7 +21,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Loader2, User, Phone, Mail, MapPin, Building2, FileText, Star } from "lucide-react";
 import { useCreateContact, useUpdateContact } from "@/hooks/useContacts";
-import { Contact, ContactStatus } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Contact = Tables<'contacts'>;
 
 interface ContactDialogProps {
   open: boolean;
@@ -41,7 +43,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
     location: "",
     company: "",
     notes: "",
-    status: "active" as ContactStatus,
+    status: "active" as string,
     is_starred: false,
   });
 
@@ -187,7 +189,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
               <Label htmlFor="status">Estado</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: ContactStatus) =>
+                onValueChange={(value: string) =>
                   setFormData({ ...formData, status: value })
                 }
               >
