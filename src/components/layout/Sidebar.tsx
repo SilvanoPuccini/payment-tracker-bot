@@ -1,11 +1,10 @@
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  CreditCard, 
-  Users, 
-  BarChart3, 
-  Settings,
+import {
+  LayoutDashboard,
+  MessageSquare,
+  CreditCard,
+  Users,
+  BarChart3,
   Zap
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
@@ -16,7 +15,6 @@ const navigation = [
   { name: "Pagos", href: "/payments", icon: CreditCard },
   { name: "Contactos", href: "/contacts", icon: Users },
   { name: "Reportes", href: "/reports", icon: BarChart3 },
-  { name: "Configuración", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
