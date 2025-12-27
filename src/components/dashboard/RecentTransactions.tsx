@@ -3,7 +3,7 @@ import { CheckCircle2, Clock, XCircle, MessageSquare, ImageIcon, Loader2 } from 
 import { Badge } from "@/components/ui/badge";
 import { useRecentTransactions } from "@/hooks/useDashboard";
 import { useNavigate } from "react-router-dom";
-import { PaymentStatus } from "@/integrations/supabase/types";
+import { PaymentStatus } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 

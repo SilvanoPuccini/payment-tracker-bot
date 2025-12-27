@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { usePayments, usePaymentStats, useConfirmPayment, useRejectPayment, useDeletePayment } from "@/hooks/usePayments";
-import { Payment, PaymentStatus } from "@/integrations/supabase/types";
+import { Payment, PaymentStatus } from "@/types/database";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";

@@ -21,7 +21,7 @@ import {
 import { Loader2, DollarSign, CreditCard, Calendar, FileText, Hash, Building2 } from "lucide-react";
 import { useCreatePayment, useUpdatePayment } from "@/hooks/usePayments";
 import { useContacts } from "@/hooks/useContacts";
-import { Payment, PaymentStatus, PaymentMethod } from "@/integrations/supabase/types";
+import { Payment, PaymentStatus, PaymentMethod } from "@/types/database";
 
 interface PaymentDialogProps {
   open: boolean;

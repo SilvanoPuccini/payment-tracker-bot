@@ -6,16 +6,8 @@ import {
   MessageInsert,
   MessageWithContact,
   Contact
-} from '@/integrations/supabase/types';
-import { toast } from 'sonner';
-
-// Conversation type for grouping messages by contact
-export interface Conversation {
-  contact: Contact;
-  lastMessage: Message;
-  unreadCount: number;
-  hasPaymentPending: boolean;
-}
+} from '@/types/database';
+import { Conversation } from '@/types/database';
 
 // Fetch all conversations (grouped by contact)
 export function useConversations() {

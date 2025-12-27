@@ -7,7 +7,7 @@ import {
   PaymentUpdate,
   PaymentWithContact,
   PaymentStatus
-} from '@/integrations/supabase/types';
+} from '@/types/database';
 import { toast } from 'sonner';
 
 // Fetch all payments for current user
