@@ -22,8 +22,7 @@ import {
   Loader2
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useConversations, useContactMessages, useSendMessage, useMessageStats } from "@/hooks/useMessages";
-import { Conversation } from "@/types/database";
+import { useConversations, useContactMessages, useSendMessage, useMessageStats, Conversation } from "@/hooks/useMessages";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";

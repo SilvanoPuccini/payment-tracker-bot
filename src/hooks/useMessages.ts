@@ -1,13 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  Message,
-  MessageInsert,
-  MessageWithContact,
-  Contact
-} from '@/types/database';
-import { Conversation } from '@/types/database';
+import { toast } from 'sonner';
+import type { Tables, TablesInsert } from '@/integrations/supabase/types';
+
+type Message = Tables<'messages'>;
+type MessageInsert = TablesInsert<'messages'>;
+type Contact = Tables<'contacts'>;
+
+export interface Conversation {
+  id: string;
+  contact: Contact;
+  lastMessage: Message | null;
+  unreadCount: number;
+  hasPaymentPending: boolean;
+}
 
 // Fetch all conversations (grouped by contact)
 export function useConversations() {
@@ -50,6 +57,7 @@ export function useConversations() {
             .eq('requires_review', true);
 
           conversations.push({
+            id: contact.id,
             contact,
             lastMessage: messages[0] as Message,
             unreadCount: 0, // TODO: Implement read tracking
@@ -148,7 +156,7 @@ export function useRecentPaymentMessages() {
         .limit(20);
 
       if (error) throw error;
-      return data as MessageWithContact[];
+      return data;
     },
     enabled: !!user,
   });
@@ -174,7 +182,7 @@ export function useMessagesRequiringReview() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as MessageWithContact[];
+      return data;
     },
     enabled: !!user,
   });

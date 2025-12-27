@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { PaymentWithContact } from '@/types/database';
+import { PaymentWithContact } from '@/hooks/usePayments';
 
 export interface DashboardStats {
   // Payment stats
@@ -303,7 +303,7 @@ export function useTopContacts(limit = 5) {
 
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, phone, total_paid, payment_count, reliability_score')
+        .select('id, name, phone, total_paid')
         .eq('user_id', user.id)
         .order('total_paid', { ascending: false })
         .limit(limit);

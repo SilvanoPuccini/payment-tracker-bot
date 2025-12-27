@@ -21,7 +21,10 @@ import {
 import { Loader2, DollarSign, CreditCard, Calendar, FileText, Hash, Building2 } from "lucide-react";
 import { useCreatePayment, useUpdatePayment } from "@/hooks/usePayments";
 import { useContacts } from "@/hooks/useContacts";
-import { Payment, PaymentStatus, PaymentMethod } from "@/types/database";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Payment = Tables<'payments'>;
+type PaymentMethod = 'transfer_bcp' | 'transfer_bbva' | 'transfer_interbank' | 'transfer_scotiabank' | 'yape' | 'plin' | 'deposit' | 'cash' | 'other';
 
 interface PaymentDialogProps {
   open: boolean;
@@ -42,7 +45,7 @@ const paymentMethods: { value: PaymentMethod; label: string }[] = [
   { value: "other", label: "Otro" },
 ];
 
-const paymentStatuses: { value: PaymentStatus; label: string }[] = [
+const paymentStatuses: { value: string; label: string }[] = [
   { value: "pending", label: "Pendiente" },
   { value: "confirmed", label: "Confirmado" },
   { value: "rejected", label: "Rechazado" },
@@ -59,7 +62,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
     contact_id: "",
     amount: "",
     currency: "PEN",
-    status: "pending" as PaymentStatus,
+    status: "pending" as string,
     method: "" as PaymentMethod | "",
     method_detail: "",
     reference_number: "",
@@ -78,7 +81,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         amount: payment.amount?.toString() || "",
         currency: payment.currency || "PEN",
         status: payment.status || "pending",
-        method: payment.method || "",
+        method: (payment.method || "") as PaymentMethod | "",
         method_detail: payment.method_detail || "",
         reference_number: payment.reference_number || "",
         bank_name: payment.bank_name || "",
@@ -241,7 +244,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
               <Label htmlFor="status">Estado</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: PaymentStatus) => setFormData({ ...formData, status: value })}
+                onValueChange={(value: string) => setFormData({ ...formData, status: value })}
               >
                 <SelectTrigger>
                   <SelectValue />

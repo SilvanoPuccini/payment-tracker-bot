@@ -45,14 +45,11 @@ export default function Settings() {
     if (settings) {
       setPhoneId(settings.whatsapp_phone_id || "");
       setBusinessId(settings.whatsapp_business_id || "");
-      setVerifyToken(settings.webhook_verify_token || "paytrack_verify_2024");
-      setAutoProcess(settings.auto_process_messages ?? true);
-      setNotifications(settings.notification_new_payment ?? true);
-      setLowConfidenceAlert(settings.notification_low_confidence ?? true);
-      setConfidenceThreshold(settings.ai_confidence_threshold || 70);
-      setTimezone(settings.timezone || "America/Lima");
-      setCurrency(settings.default_currency || "PEN");
-      setLanguage(settings.language || "Español");
+      setVerifyToken(settings.verify_token || "paytrack_verify_2024");
+      setAutoProcess(settings.auto_process ?? true);
+      setNotifications(settings.notify_new_payments ?? true);
+      setLowConfidenceAlert(settings.low_confidence_alert ?? true);
+      setConfidenceThreshold(settings.min_confidence_threshold || 70);
     }
   }, [settings]);
 
@@ -78,14 +75,11 @@ export default function Settings() {
       await updateSettings.mutateAsync({
         whatsapp_phone_id: phoneId || null,
         whatsapp_business_id: businessId || null,
-        webhook_verify_token: verifyToken,
-        auto_process_messages: autoProcess,
-        notification_new_payment: notifications,
-        notification_low_confidence: lowConfidenceAlert,
-        ai_confidence_threshold: confidenceThreshold,
-        timezone: timezone,
-        default_currency: currency,
-        language: language,
+        verify_token: verifyToken,
+        auto_process: autoProcess,
+        notify_new_payments: notifications,
+        low_confidence_alert: lowConfidenceAlert,
+        min_confidence_threshold: confidenceThreshold,
       });
       toast.success('Configuración guardada exitosamente');
     } catch (error) {
@@ -93,7 +87,8 @@ export default function Settings() {
     }
   };
 
-  const isConnected = settings?.webhook_connected ?? false;
+  // Connection status is based on whether we have configured the webhook
+  const isConnected = !!(settings?.verify_token);
 
   if (isLoading) {
     return (
@@ -229,18 +224,18 @@ export default function Settings() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Último mensaje</span>
                   <span className="text-sm font-medium">
-                    {settings?.last_webhook_received
-                      ? new Date(settings.last_webhook_received).toLocaleString('es-PE')
+                    {settings?.updated_at
+                      ? new Date(settings.updated_at).toLocaleString('es-PE')
                       : "Sin actividad"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Mensajes hoy</span>
-                  <span className="text-sm font-medium">{settings?.messages_today || 0}</span>
+                  <span className="text-sm text-muted-foreground">Estado del webhook</span>
+                  <span className="text-sm font-medium">{isConnected ? "Configurado" : "Pendiente"}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Pagos detectados</span>
-                  <span className="text-sm font-medium text-success">{settings?.payments_today || 0}</span>
+                  <span className="text-sm text-muted-foreground">Auto-procesamiento</span>
+                  <span className="text-sm font-medium text-success">{settings?.auto_process ? "Activo" : "Inactivo"}</span>
                 </div>
               </div>
 

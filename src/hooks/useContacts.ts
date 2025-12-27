@@ -1,13 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  Contact,
-  ContactInsert,
-  ContactUpdate,
-  ContactStatus,
-  ContactWithPayments
-} from '@/types/database';
+import { ContactStatus } from '@/types/database';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type Contact = Tables<'contacts'>;
+type ContactInsert = TablesInsert<'contacts'>;
+type ContactUpdate = TablesUpdate<'contacts'>;
 import { toast } from 'sonner';
 
 // Fetch all contacts for current user
@@ -68,7 +67,7 @@ export function useContact(contactId: string) {
         .single();
 
       if (error) throw error;
-      return data as ContactWithPayments;
+      return data;
     },
     enabled: !!user && !!contactId,
   });
