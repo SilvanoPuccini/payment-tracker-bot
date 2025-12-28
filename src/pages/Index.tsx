@@ -6,15 +6,18 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PendingPayments } from "@/components/dashboard/PendingPayments";
 import { CreditCard, DollarSign, Clock, CheckCircle2 } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
+import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
   const { data: stats, isLoading } = useDashboardStats();
+  const { profile } = useAuth();
 
   const formatCurrency = (amount: number) => {
+    const currency = profile?.currency || 'PEN';
     return new Intl.NumberFormat('es-PE', {
       style: 'currency',
-      currency: 'PEN',
+      currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
