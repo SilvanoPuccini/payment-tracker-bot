@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, CreditCard, MessageSquare, Users, Menu, BarChart3, Settings, User, LogOut } from 'lucide-react';
+import { Home, CreditCard, Users, BarChart3, Plus, Settings, User, LogOut, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { PaymentDialog } from '@/components/payments/PaymentDialog';
 
 interface NavItem {
   icon: typeof Home;
@@ -15,15 +16,18 @@ interface NavItem {
   badge?: number;
 }
 
-const mainNavItems: NavItem[] = [
+// Nav items sin FAB central
+const leftNavItems: NavItem[] = [
   { icon: Home, label: 'Inicio', path: '/' },
   { icon: CreditCard, label: 'Pagos', path: '/payments' },
-  { icon: MessageSquare, label: 'Mensajes', path: '/messages' },
+];
+
+const rightNavItems: NavItem[] = [
   { icon: Users, label: 'Contactos', path: '/contacts' },
+  { icon: BarChart3, label: 'Reportes', path: '/reports' },
 ];
 
 const moreMenuItems: NavItem[] = [
-  { icon: BarChart3, label: 'Reportes', path: '/reports' },
   { icon: Settings, label: 'Configuracion', path: '/settings' },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];
@@ -33,6 +37,7 @@ export function BottomNavigation() {
   const location = useLocation();
   const { profile, signOut } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -53,8 +58,6 @@ export function BottomNavigation() {
     return location.pathname.startsWith(path);
   };
 
-  const isMoreActive = moreMenuItems.some(item => isActive(item.path));
-
   const handleNavigate = (path: string) => {
     navigate(path);
     setMoreOpen(false);
@@ -66,146 +69,156 @@ export function BottomNavigation() {
     navigate('/login');
   };
 
+  const NavButton = ({ item }: { item: NavItem }) => {
+    const Icon = item.icon;
+    const active = isActive(item.path);
+
+    return (
+      <button
+        onClick={() => handleNavigate(item.path)}
+        className={cn(
+          'flex flex-col items-center justify-center flex-1 py-2 transition-all duration-200',
+          active
+            ? 'text-emerald-400'
+            : 'text-slate-400 hover:text-slate-300'
+        )}
+      >
+        <div className="relative">
+          <Icon
+            className={cn(
+              'h-5 w-5 transition-transform duration-200',
+              active && 'scale-110'
+            )}
+          />
+          {item.badge && item.badge > 0 && (
+            <Badge
+              className="absolute -top-1.5 -right-1.5 h-4 min-w-4 p-0.5 text-[10px] flex items-center justify-center"
+              variant="destructive"
+            >
+              {item.badge > 99 ? '99+' : item.badge}
+            </Badge>
+          )}
+        </div>
+        <span className={cn('text-[10px] mt-1 font-medium', active && 'text-emerald-400')}>
+          {item.label}
+        </span>
+      </button>
+    );
+  };
+
   return (
-    <nav
-      className={cn(
-        'fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border md:hidden transition-transform duration-300',
-        !isVisible && 'translate-y-full'
-      )}
-    >
-      <div className="flex items-center justify-around px-2 py-2 safe-area-bottom">
-        {mainNavItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.path);
+    <>
+      <nav
+        className={cn(
+          'fixed bottom-0 left-0 right-0 z-50 bg-slate-800/95 backdrop-blur-lg border-t border-slate-700 md:hidden transition-transform duration-300',
+          !isVisible && 'translate-y-full'
+        )}
+      >
+        <div className="flex items-center h-16 px-2 safe-area-bottom">
+          {/* Left Nav Items */}
+          {leftNavItems.map((item) => (
+            <NavButton key={item.path} item={item} />
+          ))}
 
-          return (
+          {/* FAB Central - New Payment */}
+          <div className="flex-1 flex justify-center">
             <button
-              key={item.path}
-              onClick={() => handleNavigate(item.path)}
-              className={cn(
-                'flex flex-col items-center justify-center w-16 py-1 rounded-lg transition-all duration-200',
-                active
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
+              onClick={() => setPaymentDialogOpen(true)}
+              className="w-14 h-14 -mt-6 bg-emerald-500 hover:bg-emerald-600 rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
             >
-              <div className="relative">
-                <Icon
-                  className={cn(
-                    'h-5 w-5 transition-transform duration-200',
-                    active && 'scale-110'
-                  )}
-                />
-                {item.badge && item.badge > 0 && (
-                  <Badge
-                    className="absolute -top-1.5 -right-1.5 h-4 min-w-4 p-0.5 text-[10px] flex items-center justify-center"
-                    variant="destructive"
-                  >
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </Badge>
-                )}
-              </div>
-              <span className={cn('text-[10px] mt-1 font-medium', active && 'font-semibold')}>
-                {item.label}
-              </span>
-              {active && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
-              )}
+              <Plus className="h-7 w-7 text-white" />
             </button>
-          );
-        })}
+          </div>
 
-        {/* More Menu */}
-        <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-          <SheetTrigger asChild>
-            <button
-              className={cn(
-                'flex flex-col items-center justify-center w-16 py-1 rounded-lg transition-all duration-200',
-                isMoreActive || moreOpen
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <Menu
+          {/* Right Nav Items */}
+          {rightNavItems.map((item) => (
+            <NavButton key={item.path} item={item} />
+          ))}
+
+          {/* More Menu Trigger */}
+          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+            <SheetTrigger asChild>
+              <button
                 className={cn(
-                  'h-5 w-5 transition-transform duration-200',
-                  (isMoreActive || moreOpen) && 'scale-110'
-                )}
-              />
-              <span
-                className={cn(
-                  'text-[10px] mt-1 font-medium',
-                  (isMoreActive || moreOpen) && 'font-semibold'
+                  'flex flex-col items-center justify-center flex-1 py-2 transition-all duration-200',
+                  moreOpen
+                    ? 'text-emerald-400'
+                    : 'text-slate-400 hover:text-slate-300'
                 )}
               >
-                Mas
-              </span>
-              {(isMoreActive || moreOpen) && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
-              )}
-            </button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-xl">
-            <SheetHeader className="text-left pb-4">
-              <SheetTitle>Menu</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-1">
-              {/* User Info */}
-              {profile && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 mb-4">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-primary/20 text-primary">
-                      {profile.business_name?.[0] || profile.full_name?.[0] || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {profile.business_name || profile.full_name || 'Usuario'}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {profile.full_name}
-                    </p>
+                <Menu className="h-5 w-5" />
+                <span className="text-[10px] mt-1 font-medium">Mas</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-xl bg-slate-900 border-slate-700">
+              <SheetHeader className="text-left pb-4">
+                <SheetTitle className="text-white">Menu</SheetTitle>
+              </SheetHeader>
+              <div className="space-y-1">
+                {/* User Info */}
+                {profile && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 mb-4">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-emerald-500/20 text-emerald-400">
+                        {profile.business_name?.[0] || profile.full_name?.[0] || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate text-white">
+                        {profile.business_name || profile.full_name || 'Usuario'}
+                      </p>
+                      <p className="text-xs text-slate-400 truncate">
+                        {profile.full_name}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Menu Items */}
-              {moreMenuItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.path);
+                {/* Menu Items */}
+                {moreMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.path);
 
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => handleNavigate(item.path)}
-                    className={cn(
-                      'flex items-center gap-3 w-full p-3 rounded-lg transition-colors',
-                      active
-                        ? 'bg-primary/10 text-primary'
-                        : 'hover:bg-muted text-foreground'
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium">{item.label}</span>
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => handleNavigate(item.path)}
+                      className={cn(
+                        'flex items-center gap-3 w-full p-3 rounded-lg transition-colors',
+                        active
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'hover:bg-slate-800 text-white'
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="font-medium">{item.label}</span>
+                    </button>
+                  );
+                })}
 
-              <div className="border-t border-border my-2" />
+                <div className="border-t border-slate-700 my-2" />
 
-              {/* Sign Out */}
-              <Button
-                variant="ghost"
-                className="flex items-center gap-3 w-full justify-start p-3 h-auto text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={handleSignOut}
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="font-medium">Cerrar sesion</span>
-              </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-    </nav>
+                {/* Sign Out */}
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-3 w-full justify-start p-3 h-auto text-red-400 hover:text-red-400 hover:bg-red-500/10"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="font-medium">Cerrar sesion</span>
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </nav>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        payment={null}
+      />
+    </>
   );
 }
