@@ -177,8 +177,9 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
             <Select
               value={formData.contact_id || "none"}
               onValueChange={(value) => setFormData({ ...formData, contact_id: value === "none" ? "" : value })}
+              disabled={isPending}
             >
-              <SelectTrigger>
+              <SelectTrigger disabled={isPending}>
                 <SelectValue placeholder="Seleccionar contacto (opcional)" />
               </SelectTrigger>
               <SelectContent>
@@ -208,6 +209,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 required
+                disabled={isPending}
               />
             </div>
             <div className="space-y-2">
@@ -215,8 +217,9 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
               <Select
                 value={formData.currency}
                 onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                disabled={isPending}
               >
-                <SelectTrigger>
+                <SelectTrigger disabled={isPending}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -240,8 +243,9 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
               <Select
                 value={formData.method}
                 onValueChange={(value: PaymentMethod) => setFormData({ ...formData, method: value })}
+                disabled={isPending}
               >
-                <SelectTrigger>
+                <SelectTrigger disabled={isPending}>
                   <SelectValue placeholder="Seleccionar método" />
                 </SelectTrigger>
                 <SelectContent>
@@ -258,8 +262,9 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
               <Select
                 value={formData.status}
                 onValueChange={(value: string) => setFormData({ ...formData, status: value })}
+                disabled={isPending}
               >
-                <SelectTrigger>
+                <SelectTrigger disabled={isPending}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -285,6 +290,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 type="date"
                 value={formData.payment_date}
                 onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+                disabled={isPending}
               />
             </div>
             <div className="space-y-2">
@@ -294,6 +300,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 type="time"
                 value={formData.payment_time}
                 onChange={(e) => setFormData({ ...formData, payment_time: e.target.value })}
+                disabled={isPending}
               />
             </div>
           </div>
@@ -310,6 +317,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 placeholder="12345678"
                 value={formData.reference_number}
                 onChange={(e) => setFormData({ ...formData, reference_number: e.target.value })}
+                disabled={isPending}
               />
             </div>
             <div className="space-y-2">
@@ -322,6 +330,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 placeholder="BCP, BBVA, etc."
                 value={formData.bank_name}
                 onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                disabled={isPending}
               />
             </div>
           </div>
@@ -335,6 +344,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 placeholder="4532"
                 value={formData.account_number}
                 onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
+                disabled={isPending}
               />
             </div>
             <div className="space-y-2">
@@ -344,6 +354,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 placeholder="Cuenta corriente, ahorros..."
                 value={formData.method_detail}
                 onChange={(e) => setFormData({ ...formData, method_detail: e.target.value })}
+                disabled={isPending}
               />
             </div>
           </div>
@@ -360,6 +371,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={2}
+              disabled={isPending}
             />
           </div>
 
