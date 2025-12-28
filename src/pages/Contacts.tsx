@@ -42,6 +42,7 @@ import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -64,11 +65,15 @@ const getReliabilityColor = (reliability: number) => {
 
 export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const navigate = useNavigate();
+  const { profile } = useAuth();
 
-  const { data: contacts, isLoading } = useContacts();
+  const { data: contacts, isLoading } = useContacts(
+    statusFilter !== "all" ? { status: statusFilter as ContactStatus } : undefined
+  );
   const { data: stats } = useContactStats();
   const toggleStar = useToggleContactStar();
   const deleteContact = useDeleteContact();
@@ -79,10 +84,12 @@ export default function Contacts() {
     (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase()))
   ) || [];
 
+  const userCurrency = profile?.currency || 'PEN';
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-PE', {
       style: 'currency',
-      currency: 'PEN',
+      currency: userCurrency,
       minimumFractionDigits: 0,
     }).format(amount);
   };
@@ -132,10 +139,30 @@ export default function Contacts() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filtrar
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Filter className="h-4 w-4 mr-2" />
+                  {statusFilter === "all" ? "Filtrar" :
+                   statusFilter === "active" ? "Activos" :
+                   statusFilter === "inactive" ? "Inactivos" : "Bloqueados"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setStatusFilter("all")}>
+                  Todos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("active")}>
+                  Activos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("inactive")}>
+                  Inactivos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("blocked")}>
+                  Bloqueados
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               size="sm"
               className="gradient-primary text-primary-foreground"

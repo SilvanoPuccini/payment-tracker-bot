@@ -52,6 +52,8 @@ import { usePayments, usePaymentStats, useConfirmPayment, useRejectPayment, useD
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -79,6 +81,7 @@ export default function Payments() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithContact | null>(null);
+  const { profile } = useAuth();
 
   const { data: payments, isLoading } = usePayments(
     statusFilter !== "all" ? { status: statusFilter as any } : undefined
@@ -96,12 +99,47 @@ export default function Payments() {
     return matchesSearch;
   }) || [];
 
-  const formatCurrency = (amount: number, currency: string = 'PEN') => {
+  const userCurrency = profile?.currency || 'PEN';
+
+  const formatCurrency = (amount: number, currency?: string) => {
+    const curr = currency || userCurrency;
     return new Intl.NumberFormat('es-PE', {
       style: 'currency',
-      currency: currency,
+      currency: curr,
       minimumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const handleExport = () => {
+    if (!payments || payments.length === 0) {
+      toast.error("No hay pagos para exportar");
+      return;
+    }
+
+    const data = payments.map(p => ({
+      Fecha: format(new Date(p.created_at), 'dd/MM/yyyy HH:mm', { locale: es }),
+      Contacto: p.contact?.name || 'Desconocido',
+      Telefono: p.contact?.phone || '',
+      Monto: p.amount,
+      Moneda: p.currency || 'PEN',
+      Metodo: p.method || '',
+      Detalle: p.method_detail || '',
+      Estado: p.status === 'confirmed' ? 'Confirmado' : p.status === 'pending' ? 'Pendiente' : 'Rechazado',
+      Confianza: `${p.confidence_score || 0}%`,
+      Referencia: p.reference_number || '',
+      Notas: p.notes || '',
+    }));
+
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => Object.values(row).map(v => `"${v}"`).join(',')).join('\n');
+    const csv = `${headers}\n${rows}`;
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `pagos_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    toast.success("Archivo CSV descargado");
   };
 
   const handleConfirm = async (id: string) => {
@@ -146,7 +184,7 @@ export default function Payments() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Exportar
             </Button>
@@ -171,7 +209,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {formatCurrency(stats?.totalAmount || 0)}
+                    {formatCurrency(stats?.totalAmount || 0, userCurrency)}
                   </p>
                   <p className="text-xs text-muted-foreground">Total detectado</p>
                 </div>
@@ -186,7 +224,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {formatCurrency(stats?.confirmedAmount || 0)}
+                    {formatCurrency(stats?.confirmedAmount || 0, userCurrency)}
                   </p>
                   <p className="text-xs text-muted-foreground">Confirmados</p>
                 </div>
@@ -201,7 +239,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {formatCurrency(stats?.pendingAmount || 0)}
+                    {formatCurrency(stats?.pendingAmount || 0, userCurrency)}
                   </p>
                   <p className="text-xs text-muted-foreground">Pendientes</p>
                 </div>
