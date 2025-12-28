@@ -21,10 +21,11 @@ import {
 import { Loader2, DollarSign, CreditCard, Calendar, FileText, Hash, Building2 } from "lucide-react";
 import { useCreatePayment, useUpdatePayment } from "@/hooks/usePayments";
 import { useContacts } from "@/hooks/useContacts";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Payment = Tables<'payments'>;
-type PaymentMethod = 'transfer_bcp' | 'transfer_bbva' | 'transfer_interbank' | 'transfer_scotiabank' | 'yape' | 'plin' | 'deposit' | 'cash' | 'other';
+type PaymentMethod = 'transfer' | 'cash' | 'deposit' | 'debit' | 'credit' | 'other';
 
 interface PaymentDialogProps {
   open: boolean;
@@ -34,15 +35,23 @@ interface PaymentDialogProps {
 }
 
 const paymentMethods: { value: PaymentMethod; label: string }[] = [
-  { value: "transfer_bcp", label: "Transferencia BCP" },
-  { value: "transfer_bbva", label: "Transferencia BBVA" },
-  { value: "transfer_interbank", label: "Transferencia Interbank" },
-  { value: "transfer_scotiabank", label: "Transferencia Scotiabank" },
-  { value: "yape", label: "Yape" },
-  { value: "plin", label: "Plin" },
-  { value: "deposit", label: "Depósito" },
+  { value: "transfer", label: "Transferencia" },
   { value: "cash", label: "Efectivo" },
+  { value: "deposit", label: "Depósito" },
+  { value: "debit", label: "Débito" },
+  { value: "credit", label: "Crédito" },
   { value: "other", label: "Otro" },
+];
+
+const currencies = [
+  { value: "PEN", label: "Soles (PEN)" },
+  { value: "USD", label: "Dólares (USD)" },
+  { value: "EUR", label: "Euros (EUR)" },
+  { value: "CLP", label: "Pesos Chilenos (CLP)" },
+  { value: "MXN", label: "Pesos MX (MXN)" },
+  { value: "COP", label: "Pesos CO (COP)" },
+  { value: "ARS", label: "Pesos AR (ARS)" },
+  { value: "BRL", label: "Reales (BRL)" },
 ];
 
 const paymentStatuses: { value: string; label: string }[] = [
@@ -57,6 +66,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
   const createPayment = useCreatePayment();
   const updatePayment = useUpdatePayment();
   const { data: contacts } = useContacts();
+  const { profile } = useAuth();
 
   const [formData, setFormData] = useState({
     contact_id: "",
@@ -96,7 +106,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
       setFormData({
         contact_id: defaultContactId || "",
         amount: "",
-        currency: "PEN",
+        currency: profile?.currency || "PEN",
         status: "pending",
         method: "",
         method_detail: "",
@@ -108,7 +118,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         notes: "",
       });
     }
-  }, [payment, defaultContactId, open]);
+  }, [payment, defaultContactId, open, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,8 +220,11 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PEN">PEN (S/.)</SelectItem>
-                  <SelectItem value="USD">USD ($)</SelectItem>
+                  {currencies.map((curr) => (
+                    <SelectItem key={curr.value} value={curr.value}>
+                      {curr.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
