@@ -4,14 +4,24 @@ import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PendingPayments } from "@/components/dashboard/PendingPayments";
-import { CreditCard, DollarSign, Clock, CheckCircle2 } from "lucide-react";
+import { CreditCard, DollarSign, Clock, CheckCircle2, Plus, MessageSquare } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { usePayments } from "@/hooks/usePayments";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { PaymentDialog } from "@/components/payments/PaymentDialog";
 
 const Index = () => {
   const { data: stats, isLoading } = useDashboardStats();
+  const { data: payments, isLoading: paymentsLoading } = usePayments();
   const { profile } = useAuth();
+  const navigate = useNavigate();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const hasNoData = !paymentsLoading && (!payments || payments.length === 0);
 
   const formatCurrency = (amount: number) => {
     const currency = profile?.currency || 'PEN';
@@ -73,26 +83,53 @@ const Index = () => {
           <QuickActions />
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {statsData.map((stat, index) => (
-            <StatsCard key={stat.title} {...stat} delay={index * 50} />
-          ))}
-        </div>
+        {hasNoData ? (
+          <EmptyState
+            icon={<span role="img" aria-label="money">💰</span>}
+            title="¡Bienvenido a PayTrack!"
+            description="Registra tu primer pago o conecta WhatsApp para empezar a detectar pagos automáticamente."
+            action={{
+              label: "Registrar pago manual",
+              onClick: () => setDialogOpen(true),
+              icon: <Plus className="h-4 w-4" />,
+            }}
+            secondaryAction={{
+              label: "Conectar WhatsApp",
+              onClick: () => navigate("/settings"),
+            }}
+            tip="También puedes agregar contactos primero en la sección Contactos."
+          />
+        ) : (
+          <>
+            {/* Stats Grid */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {statsData.map((stat, index) => (
+                <StatsCard key={stat.title} {...stat} delay={index * 50} />
+              ))}
+            </div>
 
-        {/* Charts and Activity */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <ActivityChart />
-          </div>
-          <div>
-            <PendingPayments />
-          </div>
-        </div>
+            {/* Charts and Activity */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <ActivityChart />
+              </div>
+              <div>
+                <PendingPayments />
+              </div>
+            </div>
 
-        {/* Recent Transactions */}
-        <RecentTransactions />
+            {/* Recent Transactions */}
+            <RecentTransactions />
+          </>
+        )}
       </div>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        payment={null}
+      />
     </DashboardLayout>
   );
 };

@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Clock, XCircle, MessageSquare, ImageIcon, Loader2 } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, MessageSquare, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useRecentTransactions } from "@/hooks/useDashboard";
 import { useNavigate } from "react-router-dom";
 import { PaymentStatus } from "@/types/database";
@@ -63,8 +64,33 @@ export function RecentTransactions() {
 
       <div className="divide-y divide-border">
         {isLoading ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-3.5 w-3.5 rounded" />
+                    </div>
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right space-y-2">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-3 w-12" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 space-y-1">
+                      <Skeleton className="h-1.5 w-full rounded-full" />
+                    </div>
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : !transactions || transactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">

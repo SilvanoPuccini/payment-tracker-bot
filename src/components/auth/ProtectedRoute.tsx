@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -8,9 +9,10 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
+  const { needsOnboarding, isLoading: onboardingLoading } = useOnboarding();
   const location = useLocation();
 
-  if (isLoading) {
+  if (isLoading || onboardingLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -24,6 +26,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (!user) {
     // Redirect to login page with the return url
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Redirect to onboarding if not completed
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;

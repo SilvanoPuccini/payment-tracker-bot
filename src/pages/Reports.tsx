@@ -47,8 +47,12 @@ import { toast } from "sonner";
 import { useMonthlyStats, useWeeklyActivity, useTopContacts, useDashboardStats } from "@/hooks/useDashboard";
 import { useContactStats } from "@/hooks/useContacts";
 import { useMessageStats } from "@/hooks/useMessages";
-import { usePaymentStats } from "@/hooks/usePayments";
+import { usePaymentStats, usePayments } from "@/hooks/usePayments";
 import { useAuth } from "@/contexts/AuthContext";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useNavigate } from "react-router-dom";
+import { Plus } from "lucide-react";
+import { PaymentDialog } from "@/components/payments/PaymentDialog";
 
 const paymentMethodData = [
   { name: "Transferencia", value: 35, color: "hsl(173, 80%, 40%)" },
@@ -68,7 +72,9 @@ const detectionStats = [
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState("month");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { profile } = useAuth();
+  const navigate = useNavigate();
 
   const { data: dashboardStats, isLoading: loadingDashboard } = useDashboardStats();
   const { data: monthlyData, isLoading: loadingMonthly } = useMonthlyStats();
@@ -77,6 +83,9 @@ export default function Reports() {
   const { data: contactStats } = useContactStats();
   const { data: messageStats } = useMessageStats();
   const { data: paymentStats } = usePaymentStats();
+  const { data: payments, isLoading: loadingPayments } = usePayments();
+
+  const hasNoData = !loadingPayments && (!payments || payments.length === 0);
 
   const formatCurrency = (amount: number) => {
     const currency = profile?.currency || 'PEN';
@@ -204,6 +213,23 @@ export default function Reports() {
           </div>
         </div>
 
+        {hasNoData ? (
+          <EmptyState
+            icon={<span role="img" aria-label="chart">📊</span>}
+            title="Sin datos para reportar"
+            description="Cuando tengas pagos registrados, podrás ver estadísticas detalladas aquí."
+            action={{
+              label: "Registrar primer pago",
+              onClick: () => setDialogOpen(true),
+              icon: <Plus className="h-4 w-4" />,
+            }}
+            secondaryAction={{
+              label: "Ver Dashboard",
+              onClick: () => navigate("/"),
+            }}
+          />
+        ) : (
+        <>
         {/* KPI Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="glass-card">
@@ -600,7 +626,16 @@ export default function Reports() {
             </CardContent>
           </Card>
         </div>
+        </>
+        )}
       </div>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        payment={null}
+      />
     </DashboardLayout>
   );
 }
