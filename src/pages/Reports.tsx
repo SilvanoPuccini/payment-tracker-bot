@@ -193,11 +193,11 @@ export default function Reports() {
                 <SelectItem value="year">Este año</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportPDF}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
             </Button>
-            <Button size="sm" className="gradient-primary text-primary-foreground">
+            <Button size="sm" className="gradient-primary text-primary-foreground" onClick={handleExportPDF}>
               <Download className="h-4 w-4 mr-2" />
               Exportar PDF
             </Button>
