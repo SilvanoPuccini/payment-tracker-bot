@@ -87,6 +87,73 @@ export default function Reports() {
     }).format(amount);
   };
 
+  const handleExportPDF = () => {
+    window.print();
+    toast.success("Usa 'Guardar como PDF' en el diálogo de impresión");
+  };
+
+  const handleExportExcel = () => {
+    const data = monthlyData?.map(item => ({
+      Mes: item.month,
+      Pagos: item.payments,
+      Confirmados: item.confirmed,
+      Mensajes: item.messages
+    })) || [];
+
+    if (data.length === 0) {
+      toast.error("No hay datos para exportar");
+      return;
+    }
+
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => Object.values(row).join(',')).join('\n');
+    const csv = `${headers}\n${rows}`;
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `pagos_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    toast.success("Archivo CSV descargado");
+  };
+
+  const handleViewMetrics = () => {
+    const metrics = detectionStats.map(s => `${s.label}: ${s.value}%`).join('\n');
+    toast.info(
+      <div className="space-y-1">
+        <p className="font-semibold">Métricas de IA</p>
+        {detectionStats.map(s => (
+          <p key={s.label} className="text-sm">{s.label}: {s.value}%</p>
+        ))}
+      </div>,
+      { duration: 5000 }
+    );
+  };
+
+  const handleExportClients = () => {
+    if (!topContacts || topContacts.length === 0) {
+      toast.error("No hay contactos para exportar");
+      return;
+    }
+
+    const data = topContacts.map(c => ({
+      Nombre: c.name,
+      Telefono: c.phone || '',
+      TotalPagado: c.total_paid || 0
+    }));
+
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => Object.values(row).join(',')).join('\n');
+    const csv = `${headers}\n${rows}`;
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `clientes_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    toast.success("Cartera de clientes descargada");
+  };
+
   const chartMonthlyData = monthlyData?.map(item => ({
     month: item.month,
     pagos: item.payments,
@@ -470,7 +537,7 @@ export default function Reports() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card
             className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-            onClick={() => toast.info("Reporte Mensual - Próximamente")}
+            onClick={handleExportPDF}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -486,7 +553,7 @@ export default function Reports() {
           </Card>
           <Card
             className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-            onClick={() => toast.info("Análisis de Pagos - Próximamente")}
+            onClick={handleExportExcel}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -495,14 +562,14 @@ export default function Reports() {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Análisis de Pagos</p>
-                  <p className="text-xs text-muted-foreground">Exportar Excel</p>
+                  <p className="text-xs text-muted-foreground">Exportar CSV</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card
             className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-            onClick={() => toast.info("Rendimiento IA - Próximamente")}
+            onClick={handleViewMetrics}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -518,7 +585,7 @@ export default function Reports() {
           </Card>
           <Card
             className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-            onClick={() => toast.info("Cartera de Clientes - Próximamente")}
+            onClick={handleExportClients}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -527,7 +594,7 @@ export default function Reports() {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Cartera de Clientes</p>
-                  <p className="text-xs text-muted-foreground">Generar reporte</p>
+                  <p className="text-xs text-muted-foreground">Exportar CSV</p>
                 </div>
               </div>
             </CardContent>
