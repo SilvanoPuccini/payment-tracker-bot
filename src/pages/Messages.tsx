@@ -19,8 +19,12 @@ import {
   Phone,
   Image as ImageIcon,
   Paperclip,
-  Loader2
+  Loader2,
+  Settings
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useNavigate } from "react-router-dom";
+import { ConversationItemSkeleton, MessageSkeleton } from "@/components/ui/skeletons";
 import { useState, useEffect } from "react";
 import { useConversations, useContactMessages, useSendMessage, useMessageStats, Conversation } from "@/hooks/useMessages";
 import { formatDistanceToNow } from "date-fns";
@@ -31,8 +35,10 @@ export default function Messages() {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [messageInput, setMessageInput] = useState("");
+  const navigate = useNavigate();
 
   const { data: conversations, isLoading: loadingConversations } = useConversations();
+  const hasNoConversations = !loadingConversations && (!conversations || conversations.length === 0);
   const { data: messages, isLoading: loadingMessages } = useContactMessages(selectedContactId || "");
   const { data: stats } = useMessageStats();
   const sendMessage = useSendMessage();
@@ -189,14 +195,24 @@ export default function Messages() {
                 <TabsContent value="all" className="m-0">
                   <ScrollArea className="h-[500px]">
                     {loadingConversations ? (
-                      <div className="flex items-center justify-center p-8">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <div className="space-y-0">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <ConversationItemSkeleton key={i} />
+                        ))}
                       </div>
                     ) : filteredConversations.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center p-8 text-center">
-                        <MessageSquare className="h-10 w-10 text-muted-foreground mb-3" />
-                        <p className="text-sm text-muted-foreground">No hay conversaciones</p>
-                      </div>
+                      <EmptyState
+                        icon={<span role="img" aria-label="chat">💬</span>}
+                        title="Sin mensajes"
+                        description="Cuando conectes WhatsApp, los mensajes aparecerán aquí."
+                        action={{
+                          label: "Conectar WhatsApp",
+                          onClick: () => navigate("/settings"),
+                          icon: <Settings className="h-4 w-4" />,
+                        }}
+                        tip="PayTrack detecta automáticamente pagos en tus conversaciones."
+                        className="py-8"
+                      />
                     ) : (
                       filteredConversations.map((conv) => (
                         <ConversationItem
@@ -280,14 +296,17 @@ export default function Messages() {
               {/* Messages */}
               <ScrollArea className="h-[400px] p-4">
                 {loadingMessages ? (
-                  <div className="flex items-center justify-center h-full">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <div className="space-y-4">
+                    <MessageSkeleton direction="incoming" />
+                    <MessageSkeleton direction="outgoing" />
+                    <MessageSkeleton direction="incoming" />
+                    <MessageSkeleton direction="outgoing" />
                   </div>
                 ) : !messages || messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center">
-                    <MessageSquare className="h-10 w-10 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">No hay mensajes</p>
-                    <p className="text-xs text-muted-foreground mt-1">Los mensajes aparecerán aquí</p>
+                  <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                    <span className="text-5xl mb-4" role="img" aria-label="wave">👋</span>
+                    <p className="text-lg font-medium text-foreground mb-1">Inicia la conversación</p>
+                    <p className="text-sm text-muted-foreground">Escribe un mensaje para comenzar</p>
                   </div>
                 ) : (
                   <div className="space-y-4">

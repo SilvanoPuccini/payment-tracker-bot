@@ -38,8 +38,11 @@ import {
   Trash2,
   Plus,
   Loader2,
-  Pencil
+  Pencil,
+  MessageSquare
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +57,7 @@ import { es } from "date-fns/locale";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { StatsCardSkeleton, TableSkeleton } from "@/components/ui/skeletons";
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -82,6 +86,7 @@ export default function Payments() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithContact | null>(null);
   const { profile } = useAuth();
+  const navigate = useNavigate();
 
   const { data: payments, isLoading } = usePayments(
     statusFilter !== "all" ? { status: statusFilter as any } : undefined
@@ -90,6 +95,8 @@ export default function Payments() {
   const confirmPayment = useConfirmPayment();
   const rejectPayment = useRejectPayment();
   const deletePayment = useDeletePayment();
+
+  const hasNoPayments = !isLoading && (!payments || payments.length === 0);
 
   const filteredPayments = payments?.filter((payment) => {
     const contactName = payment.contact?.name || '';
@@ -302,23 +309,23 @@ export default function Payments() {
               </TabsList>
               <TabsContent value="all" className="m-0">
                 {isLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
+                  <TableSkeleton rows={8} columns={7} />
                 ) : filteredPayments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No hay pagos registrados</p>
-                    <p className="text-xs text-muted-foreground mt-1">Los pagos aparecerán aquí cuando se detecten</p>
-                    <Button
-                      size="sm"
-                      className="gradient-primary text-primary-foreground mt-4"
-                      onClick={handleOpenCreate}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Registrar pago
-                    </Button>
-                  </div>
+                  <EmptyState
+                    icon={<span role="img" aria-label="clipboard">📋</span>}
+                    title="Sin pagos registrados"
+                    description="Los pagos que detectemos aparecerán aquí. Puedes agregar uno manualmente o conectar WhatsApp."
+                    action={{
+                      label: "Registrar primer pago",
+                      onClick: handleOpenCreate,
+                      icon: <Plus className="h-4 w-4" />,
+                    }}
+                    secondaryAction={{
+                      label: "Conectar WhatsApp",
+                      onClick: () => navigate("/settings"),
+                    }}
+                    tip="Conecta WhatsApp para detectar pagos automáticamente."
+                  />
                 ) : (
                   <>
                     <div className="rounded-lg border border-border/50 overflow-hidden">
@@ -440,18 +447,16 @@ export default function Payments() {
               </TabsContent>
               <TabsContent value="today" className="m-0">
                 {todayPayments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No hay pagos de hoy</p>
-                    <Button
-                      size="sm"
-                      className="gradient-primary text-primary-foreground mt-4"
-                      onClick={handleOpenCreate}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Registrar pago
-                    </Button>
-                  </div>
+                  <EmptyState
+                    icon={<span role="img" aria-label="calendar">📅</span>}
+                    title="Sin pagos hoy"
+                    description="Aún no hay pagos registrados para hoy. Los nuevos pagos aparecerán aquí."
+                    action={{
+                      label: "Registrar pago",
+                      onClick: handleOpenCreate,
+                      icon: <Plus className="h-4 w-4" />,
+                    }}
+                  />
                 ) : (
                   <div className="rounded-lg border border-border/50 overflow-hidden">
                     <Table>

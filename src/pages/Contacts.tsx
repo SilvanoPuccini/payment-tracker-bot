@@ -43,6 +43,8 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatsCardSkeleton, ContactCardSkeleton } from "@/components/ui/skeletons";
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -254,8 +256,10 @@ export default function Contacts() {
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <ContactCardSkeleton key={i} />
+            ))}
           </div>
         ) : (
           <>
@@ -371,27 +375,30 @@ export default function Contacts() {
             {/* Empty State */}
             {filteredContacts.length === 0 && !isLoading && (
               <Card className="glass-card">
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
-                    <Users className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-1">No se encontraron contactos</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {searchTerm ? "Intenta con otros términos de búsqueda" : "Crea tu primer contacto para empezar"}
-                  </p>
+                <CardContent className="py-4">
                   {searchTerm ? (
-                    <Button variant="outline" size="sm" onClick={() => setSearchTerm("")}>
-                      Limpiar búsqueda
-                    </Button>
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <Search className="h-10 w-10 text-muted-foreground mb-3" />
+                      <h3 className="text-lg font-semibold mb-1">Sin resultados</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        No encontramos contactos con "{searchTerm}"
+                      </p>
+                      <Button variant="outline" size="sm" onClick={() => setSearchTerm("")}>
+                        Limpiar búsqueda
+                      </Button>
+                    </div>
                   ) : (
-                    <Button
-                      size="sm"
-                      className="gradient-primary text-primary-foreground"
-                      onClick={handleOpenCreate}
-                    >
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Crear contacto
-                    </Button>
+                    <EmptyState
+                      icon={<span role="img" aria-label="people">👥</span>}
+                      title="Sin contactos aún"
+                      description="Agrega tu primer contacto para empezar a trackear sus pagos."
+                      action={{
+                        label: "Agregar contacto",
+                        onClick: handleOpenCreate,
+                        icon: <UserPlus className="h-4 w-4" />,
+                      }}
+                      tip="Los contactos se crean automáticamente cuando detectamos pagos de nuevos números."
+                    />
                   )}
                 </CardContent>
               </Card>

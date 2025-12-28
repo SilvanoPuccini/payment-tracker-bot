@@ -7,10 +7,12 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { PWAUpdatePrompt, OfflineIndicator, InstallPrompt } from "@/components/pwa/PWAUpdatePrompt";
 
 // Auth pages
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Onboarding from "./pages/Onboarding";
 
 // Protected pages
 import Index from "./pages/Index";
@@ -38,13 +40,15 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <SpeedInsights />
-        <Analytics />
+        <OfflineIndicator />
+        <PWAUpdatePrompt />
+        <InstallPrompt />
         <BrowserRouter>
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Protected routes */}
             <Route

@@ -1,6 +1,6 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useWeeklyActivity } from '@/hooks/useDashboard';
-import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function ActivityChart() {
   const { data: activity, isLoading } = useWeeklyActivity();
@@ -21,8 +21,16 @@ export function ActivityChart() {
 
       <div className="h-[300px]">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-end justify-around gap-2 h-full p-4">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 flex-1">
+                <Skeleton
+                  className="w-full rounded-t-md"
+                  style={{ height: `${Math.random() * 50 + 30}%` }}
+                />
+                <Skeleton className="h-3 w-8" />
+              </div>
+            ))}
           </div>
         ) : chartData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
