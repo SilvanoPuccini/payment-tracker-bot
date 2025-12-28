@@ -43,6 +43,7 @@ import {
   YAxis,
 } from "recharts";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useMonthlyStats, useWeeklyActivity, useTopContacts, useDashboardStats } from "@/hooks/useDashboard";
 import { useContactStats } from "@/hooks/useContacts";
 import { useMessageStats } from "@/hooks/useMessages";
@@ -467,7 +468,10 @@ export default function Reports() {
 
         {/* Quick Reports */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]">
+          <Card
+            className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+            onClick={() => toast.info("Reporte Mensual - Próximamente")}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
@@ -480,7 +484,10 @@ export default function Reports() {
               </div>
             </CardContent>
           </Card>
-          <Card className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]">
+          <Card
+            className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+            onClick={() => toast.info("Análisis de Pagos - Próximamente")}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/20">
@@ -493,7 +500,10 @@ export default function Reports() {
               </div>
             </CardContent>
           </Card>
-          <Card className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]">
+          <Card
+            className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+            onClick={() => toast.info("Rendimiento IA - Próximamente")}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/20">
@@ -506,7 +516,10 @@ export default function Reports() {
               </div>
             </CardContent>
           </Card>
-          <Card className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]">
+          <Card
+            className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+            onClick={() => toast.info("Cartera de Clientes - Próximamente")}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/50">
