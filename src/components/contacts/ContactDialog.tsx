@@ -122,6 +122,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
+              disabled={isPending}
             />
           </div>
 
@@ -137,6 +138,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               required
+              disabled={isPending}
             />
           </div>
 
@@ -152,6 +154,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
               placeholder="juan@email.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              disabled={isPending}
             />
           </div>
 
@@ -167,6 +170,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                 placeholder="Lima, Perú"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                disabled={isPending}
               />
             </div>
             <div className="space-y-2">
@@ -179,6 +183,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                 placeholder="Empresa SAC"
                 value={formData.company}
                 onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                disabled={isPending}
               />
             </div>
           </div>
@@ -192,8 +197,9 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                 onValueChange={(value: string) =>
                   setFormData({ ...formData, status: value })
                 }
+                disabled={isPending}
               >
-                <SelectTrigger>
+                <SelectTrigger disabled={isPending}>
                   <SelectValue placeholder="Seleccionar estado" />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,6 +221,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, is_starred: checked })
                   }
+                  disabled={isPending}
                 />
                 <Label htmlFor="starred" className="text-sm text-muted-foreground">
                   {formData.is_starred ? "Marcado" : "No marcado"}
@@ -235,6 +242,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
+              disabled={isPending}
             />
           </div>
 
