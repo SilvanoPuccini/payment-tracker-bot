@@ -47,13 +47,15 @@ import { useMonthlyStats, useWeeklyActivity, useTopContacts, useDashboardStats }
 import { useContactStats } from "@/hooks/useContacts";
 import { useMessageStats } from "@/hooks/useMessages";
 import { usePaymentStats } from "@/hooks/usePayments";
+import { useAuth } from "@/contexts/AuthContext";
 
 const paymentMethodData = [
-  { name: "Transferencia BCP", value: 45, color: "hsl(173, 80%, 40%)" },
-  { name: "Yape", value: 28, color: "hsl(142, 71%, 45%)" },
-  { name: "Plin", value: 15, color: "hsl(38, 92%, 50%)" },
-  { name: "Interbank", value: 8, color: "hsl(222, 47%, 50%)" },
-  { name: "Otros", value: 4, color: "hsl(222, 30%, 40%)" },
+  { name: "Transferencia", value: 35, color: "hsl(173, 80%, 40%)" },
+  { name: "Efectivo", value: 25, color: "hsl(142, 71%, 45%)" },
+  { name: "Depósito", value: 18, color: "hsl(38, 92%, 50%)" },
+  { name: "Débito", value: 12, color: "hsl(222, 47%, 50%)" },
+  { name: "Crédito", value: 7, color: "hsl(280, 60%, 50%)" },
+  { name: "Otro", value: 3, color: "hsl(222, 30%, 40%)" },
 ];
 
 const detectionStats = [
@@ -65,6 +67,7 @@ const detectionStats = [
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState("month");
+  const { profile } = useAuth();
 
   const { data: dashboardStats, isLoading: loadingDashboard } = useDashboardStats();
   const { data: monthlyData, isLoading: loadingMonthly } = useMonthlyStats();
@@ -75,9 +78,10 @@ export default function Reports() {
   const { data: paymentStats } = usePaymentStats();
 
   const formatCurrency = (amount: number) => {
+    const currency = profile?.currency || 'PEN';
     return new Intl.NumberFormat('es-PE', {
       style: 'currency',
-      currency: 'PEN',
+      currency: currency,
       minimumFractionDigits: 0,
     }).format(amount);
   };
