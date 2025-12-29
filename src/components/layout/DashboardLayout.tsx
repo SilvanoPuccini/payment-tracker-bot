@@ -2,6 +2,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { BottomNavigation } from "./BottomNavigation";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
+import { PlanLimitBanner } from "@/components/subscription/PlanLimitBanner";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -23,6 +24,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <Header />
         <main className="p-4 md:p-6 pb-24 md:pb-6">
           <div className="gradient-glow fixed inset-0 pointer-events-none" />
+          <PlanLimitBanner />
           {children}
         </main>
       </div>

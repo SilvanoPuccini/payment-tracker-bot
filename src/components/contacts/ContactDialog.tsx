@@ -21,6 +21,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Loader2, User, Phone, Mail, MapPin, Building2, FileText, Star } from "lucide-react";
 import { useCreateContact, useUpdateContact } from "@/hooks/useContacts";
+import { useLimitedActions } from "@/hooks/useLimitedActions";
+import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Contact = Tables<'contacts'>;
@@ -35,6 +37,14 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
   const isEditing = !!contact;
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
+  const {
+    showUpgradeModal,
+    limitReached,
+    currentUsage,
+    limit,
+    checkAndExecute,
+    closeUpgradeModal,
+  } = useLimitedActions();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -83,10 +93,16 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
           id: contact.id,
           ...formData,
         });
+        onOpenChange(false);
       } else {
-        await createContact.mutateAsync(formData);
+        // Check limits before creating new contact
+        const result = await checkAndExecute("contacts", async () => {
+          return await createContact.mutateAsync(formData);
+        });
+        if (result) {
+          onOpenChange(false);
+        }
       }
-      onOpenChange(false);
     } catch (error) {
       // Error is handled by the mutation
     }
@@ -274,6 +290,17 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Upgrade Modal */}
+      {limitReached && (
+        <UpgradeModal
+          open={showUpgradeModal}
+          onClose={closeUpgradeModal}
+          limitReached={limitReached}
+          currentUsage={currentUsage}
+          limit={limit}
+        />
+      )}
     </Dialog>
   );
 }

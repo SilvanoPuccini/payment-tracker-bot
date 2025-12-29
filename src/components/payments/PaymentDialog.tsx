@@ -23,6 +23,8 @@ import { Loader2, DollarSign, CreditCard, Calendar, FileText, Hash, Building2, B
 import { useCreatePayment, useUpdatePayment } from "@/hooks/usePayments";
 import { useContacts } from "@/hooks/useContacts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLimitedActions } from "@/hooks/useLimitedActions";
+import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Payment = Tables<'payments'>;
@@ -68,6 +70,14 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
   const updatePayment = useUpdatePayment();
   const { data: contacts } = useContacts();
   const { profile } = useAuth();
+  const {
+    showUpgradeModal,
+    limitReached,
+    currentUsage,
+    limit,
+    checkAndExecute,
+    closeUpgradeModal,
+  } = useLimitedActions();
 
   const [formData, setFormData] = useState({
     contact_id: "",
@@ -153,10 +163,16 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
           id: payment.id,
           ...paymentData,
         });
+        onOpenChange(false);
       } else {
-        await createPayment.mutateAsync(paymentData);
+        // Check limits before creating new payment
+        const result = await checkAndExecute("paymentsPerMonth", async () => {
+          return await createPayment.mutateAsync(paymentData);
+        });
+        if (result) {
+          onOpenChange(false);
+        }
       }
-      onOpenChange(false);
     } catch (error) {
       // Error is handled by the mutation
     }
@@ -446,6 +462,17 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Upgrade Modal */}
+      {limitReached && (
+        <UpgradeModal
+          open={showUpgradeModal}
+          onClose={closeUpgradeModal}
+          limitReached={limitReached}
+          currentUsage={currentUsage}
+          limit={limit}
+        />
+      )}
     </Dialog>
   );
 }

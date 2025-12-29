@@ -17,19 +17,29 @@ import {
   Zap,
   MessageSquare,
   Loader2,
-  Save
+  Save,
+  Crown,
+  CreditCard,
+  Calendar,
+  ExternalLink
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useSettings, useUpdateSettings, useTestWebhookConnection } from "@/hooks/useSettings";
 import { ReminderSettings } from "@/components/reminders/ReminderSettings";
+import { useSubscription } from "@/hooks/useSubscription";
+import { redirectToPortal } from "@/lib/stripe";
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
   const testConnection = useTestWebhookConnection();
+  const { subscription, currentPlan, isFree, isLoading: loadingSubscription } = useSubscription();
 
   const [phoneId, setPhoneId] = useState("");
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const [businessId, setBusinessId] = useState("");
   const [verifyToken, setVerifyToken] = useState("paytrack_verify_2024");
   const [autoProcess, setAutoProcess] = useState(true);
@@ -385,6 +395,145 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch defaultChecked />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Subscription Section */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+            <Crown className="h-5 w-5 text-primary" />
+            Suscripción
+          </h2>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                    isFree ? 'bg-gray-100 dark:bg-gray-800' : 'bg-emerald-100 dark:bg-emerald-900/50'
+                  }`}>
+                    <Crown className={`h-5 w-5 ${
+                      isFree ? 'text-gray-500' : 'text-emerald-600 dark:text-emerald-400'
+                    }`} />
+                  </div>
+                  <div>
+                    <CardTitle>Plan {currentPlan.name}</CardTitle>
+                    <CardDescription>
+                      {isFree ? 'Actualiza para desbloquear más funciones' : 'Tu plan actual'}
+                    </CardDescription>
+                  </div>
+                </div>
+                <Badge variant={isFree ? 'secondary' : 'default'} className={
+                  isFree ? '' : 'bg-emerald-600'
+                }>
+                  {currentPlan.name}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Plan Details */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="rounded-lg bg-muted/30 p-3 text-center">
+                  <p className="text-2xl font-bold">{currentPlan.limits.paymentsPerMonth === -1 ? '∞' : currentPlan.limits.paymentsPerMonth}</p>
+                  <p className="text-xs text-muted-foreground">Pagos/mes</p>
+                </div>
+                <div className="rounded-lg bg-muted/30 p-3 text-center">
+                  <p className="text-2xl font-bold">{currentPlan.limits.contacts === -1 ? '∞' : currentPlan.limits.contacts}</p>
+                  <p className="text-xs text-muted-foreground">Contactos</p>
+                </div>
+                <div className="rounded-lg bg-muted/30 p-3 text-center">
+                  <p className="text-2xl font-bold">{currentPlan.limits.users === -1 ? '∞' : currentPlan.limits.users}</p>
+                  <p className="text-xs text-muted-foreground">Usuarios</p>
+                </div>
+                <div className="rounded-lg bg-muted/30 p-3 text-center">
+                  <p className="text-2xl font-bold">{currentPlan.limits.whatsappMessages === -1 ? '∞' : currentPlan.limits.whatsappMessages}</p>
+                  <p className="text-xs text-muted-foreground">Mensajes WA</p>
+                </div>
+              </div>
+
+              {/* Billing Info (for paid plans) */}
+              {!isFree && subscription && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        Ciclo de facturación
+                      </span>
+                      <span className="font-medium capitalize">{subscription.billing_cycle}</span>
+                    </div>
+                    {subscription.current_period_end && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Próxima renovación
+                        </span>
+                        <span className="font-medium">
+                          {new Date(subscription.current_period_end).toLocaleDateString('es', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                    )}
+                    {subscription.cancel_at_period_end && (
+                      <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 mt-2">
+                        <p className="text-sm text-amber-800 dark:text-amber-200">
+                          Tu suscripción se cancelará al final del período actual.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <Separator />
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                {isFree ? (
+                  <Button
+                    onClick={() => navigate('/pricing')}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Upgrade a Pro
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={async () => {
+                        try {
+                          setIsOpeningPortal(true);
+                          await redirectToPortal();
+                        } catch (error) {
+                          toast.error('Error al abrir el portal de facturación');
+                          setIsOpeningPortal(false);
+                        }
+                      }}
+                      disabled={isOpeningPortal}
+                    >
+                      {isOpeningPortal ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                      )}
+                      Gestionar suscripción
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => navigate('/pricing')}
+                    >
+                      Cambiar plan
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,4 +1,4 @@
-import { Search, LogOut, Settings, User } from "lucide-react";
+import { Search, LogOut, Settings, User, Zap, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,10 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useSubscription } from "@/hooks/useSubscription";
 
 export function Header() {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const { isFree, currentPlan } = useSubscription();
 
   const handleSignOut = async () => {
     await signOut();
@@ -58,6 +60,26 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Upgrade Button - Show for Free plan users */}
+        {isFree && (
+          <Button
+            onClick={() => navigate("/pricing")}
+            size="sm"
+            className="hidden sm:flex bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white"
+          >
+            <Zap className="h-4 w-4 mr-1" />
+            Upgrade
+          </Button>
+        )}
+
+        {/* Plan Badge for Pro/Business */}
+        {!isFree && (
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+            <Crown className="h-3.5 w-3.5" />
+            {currentPlan.name}
+          </div>
+        )}
+
         {/* Notifications - Now using NotificationCenter */}
         <NotificationCenter />
 
