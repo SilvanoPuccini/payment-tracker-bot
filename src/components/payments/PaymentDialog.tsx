@@ -30,10 +30,16 @@ import type { Tables } from "@/integrations/supabase/types";
 type Payment = Tables<'payments'>;
 type PaymentMethod = 'transfer' | 'cash' | 'deposit' | 'debit' | 'credit' | 'other';
 
+// Extended payment type with additional fields from database
+interface ExtendedPayment extends Payment {
+  payment_due_date?: string | null;
+  auto_remind?: boolean;
+}
+
 interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  payment?: Payment | null;
+  payment?: ExtendedPayment | null;
   defaultContactId?: string;
 }
 
@@ -111,8 +117,8 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         account_number: payment.account_number || "",
         payment_date: payment.payment_date || "",
         payment_time: payment.payment_time || "",
-        due_date: (payment as any).payment_due_date || "",
-        auto_remind: (payment as any).auto_remind ?? true,
+        due_date: payment.payment_due_date || "",
+        auto_remind: payment.auto_remind ?? true,
         notes: payment.notes || "",
       });
     } else {

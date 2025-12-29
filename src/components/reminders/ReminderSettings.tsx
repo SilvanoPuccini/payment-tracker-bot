@@ -20,6 +20,11 @@ import {
 import { useReminderSettings, useUpdateReminderSettings } from '@/hooks/useReminders';
 import { toast } from 'sonner';
 
+// Default templates as constants
+const DEFAULT_BEFORE_TEMPLATE = 'Hola {contact_name}, te recordamos que tienes un pago pendiente de {amount} con vencimiento el {due_date}.';
+const DEFAULT_ON_DUE_TEMPLATE = 'Hola {contact_name}, hoy vence tu pago de {amount}. Por favor realiza el pago para evitar recargos.';
+const DEFAULT_AFTER_TEMPLATE = 'Hola {contact_name}, tu pago de {amount} venció hace {days_overdue} días. Por favor regulariza tu situación.';
+
 export function ReminderSettings() {
   const { data: settings, isLoading } = useReminderSettings();
   const updateSettings = useUpdateReminderSettings();
@@ -31,15 +36,9 @@ export function ReminderSettings() {
   const [preferredHour, setPreferredHour] = useState(9);
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(false);
-  const [beforeDueTemplate, setBeforeDueTemplate] = useState(
-    'Hola {contact_name}, te recordamos que tienes un pago pendiente de {amount} con vencimiento el {due_date}.'
-  );
-  const [onDueTemplate, setOnDueTemplate] = useState(
-    'Hola {contact_name}, hoy vence tu pago de {amount}. Por favor realiza el pago para evitar recargos.'
-  );
-  const [afterDueTemplate, setAfterDueTemplate] = useState(
-    'Hola {contact_name}, tu pago de {amount} venció hace {days_overdue} días. Por favor regulariza tu situación.'
-  );
+  const [beforeDueTemplate, setBeforeDueTemplate] = useState(DEFAULT_BEFORE_TEMPLATE);
+  const [onDueTemplate, setOnDueTemplate] = useState(DEFAULT_ON_DUE_TEMPLATE);
+  const [afterDueTemplate, setAfterDueTemplate] = useState(DEFAULT_AFTER_TEMPLATE);
 
   // Load settings when data is available
   useEffect(() => {
@@ -51,9 +50,9 @@ export function ReminderSettings() {
       setPreferredHour(settings.preferred_reminder_hour ?? 9);
       setWhatsappEnabled(settings.whatsapp_enabled ?? true);
       setEmailEnabled(settings.email_enabled ?? false);
-      setBeforeDueTemplate(settings.before_due_template || beforeDueTemplate);
-      setOnDueTemplate(settings.on_due_template || onDueTemplate);
-      setAfterDueTemplate(settings.after_due_template || afterDueTemplate);
+      setBeforeDueTemplate(settings.before_due_template || DEFAULT_BEFORE_TEMPLATE);
+      setOnDueTemplate(settings.on_due_template || DEFAULT_ON_DUE_TEMPLATE);
+      setAfterDueTemplate(settings.after_due_template || DEFAULT_AFTER_TEMPLATE);
     }
   }, [settings]);
 

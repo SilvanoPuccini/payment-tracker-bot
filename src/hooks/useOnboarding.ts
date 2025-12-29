@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const ONBOARDING_KEY = 'paytrack_onboarding_complete';
 
@@ -15,11 +15,7 @@ export function useOnboarding() {
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    checkOnboardingStatus();
-  }, [user, profile]);
-
-  const checkOnboardingStatus = async () => {
+  const checkOnboardingStatus = useCallback(async () => {
     if (!user) {
       setNeedsOnboarding(false);
       setIsLoading(false);
@@ -54,7 +50,11 @@ export function useOnboarding() {
     }
 
     setIsLoading(false);
-  };
+  }, [user, profile]);
+
+  useEffect(() => {
+    checkOnboardingStatus();
+  }, [checkOnboardingStatus]);
 
   const completeOnboarding = async (data: OnboardingData) => {
     if (!user) return { error: new Error('No user logged in') };
