@@ -34,8 +34,18 @@ import {
 } from '@/lib/pdf-generator';
 import { formatCurrency, type CurrencyCode } from '@/lib/currency';
 import { toast } from 'sonner';
+import type { Tables } from '@/integrations/supabase/types';
 
 type ReportType = 'summary' | 'detailed' | 'by_contact' | 'overdue';
+
+// Extended payment type with relations
+interface PaymentWithContact extends Tables<'payments'> {
+  payment_due_date?: string | null;
+  contacts?: {
+    name: string;
+    phone?: string;
+  } | null;
+}
 
 export function ReportGenerator() {
   const { profile } = useAuth();
@@ -55,7 +65,7 @@ export function ReportGenerator() {
 
   const currency = (profile?.currency || 'PEN') as CurrencyCode;
 
-  const filteredPayments = payments?.filter(p => {
+  const filteredPayments = (payments as PaymentWithContact[] | undefined)?.filter(p => {
     const paymentDate = new Date(p.payment_date || p.created_at);
     const from = new Date(dateFrom);
     const to = new Date(dateTo);
@@ -88,17 +98,17 @@ export function ReportGenerator() {
         // Overdue payments report
         const overduePayments = filteredPayments
           .filter(p => {
-            const dueDate = (p as any).payment_due_date;
+            const dueDate = p.payment_due_date;
             return dueDate && new Date(dueDate) < new Date() && p.status === 'pending';
           })
           .map(p => ({
             date: p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
-            contact: (p as any).contacts?.name || 'Sin contacto',
-            phone: (p as any).contacts?.phone || '',
+            contact: p.contacts?.name || 'Sin contacto',
+            phone: p.contacts?.phone || '',
             amount: p.amount || 0,
-            dueDate: (p as any).payment_due_date || '',
+            dueDate: p.payment_due_date || '',
             daysOverdue: Math.floor(
-              (new Date().getTime() - new Date((p as any).payment_due_date).getTime()) /
+              (new Date().getTime() - new Date(p.payment_due_date || '').getTime()) /
               (1000 * 60 * 60 * 24)
             ),
           }));
@@ -168,7 +178,7 @@ export function ReportGenerator() {
           },
           payments: filteredPayments.map(p => ({
             date: p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
-            contact: (p as any).contacts?.name || 'Sin contacto',
+            contact: p.contacts?.name || 'Sin contacto',
             amount: p.amount || 0,
             method: p.method || 'Otro',
             status: p.status === 'confirmed' ? 'Confirmado' :
