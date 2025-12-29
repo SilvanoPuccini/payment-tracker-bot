@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, CreditCard, Users, BarChart3, Plus, Settings, User, LogOut, Menu } from 'lucide-react';
+import { Home, CreditCard, Users, BarChart3, Plus, Settings, User, LogOut, Menu, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -28,6 +28,7 @@ const rightNavItems: NavItem[] = [
 ];
 
 const moreMenuItems: NavItem[] = [
+  { icon: Bell, label: 'Recordatorios', path: '/reminders' },
   { icon: Settings, label: 'Configuracion', path: '/settings' },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];

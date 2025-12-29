@@ -53,6 +53,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
+import { generatePaymentReport, downloadPDF, type ReportData } from "@/lib/pdf-generator";
+import { formatCurrency as formatCurrencyLib, type CurrencyCode } from "@/lib/currency";
+import * as XLSX from "xlsx";
 
 const paymentMethodData = [
   { name: "Transferencia", value: 35, color: "hsl(173, 80%, 40%)" },
@@ -97,33 +100,109 @@ export default function Reports() {
   };
 
   const handleExportPDF = () => {
-    window.print();
-    toast.success("Usa 'Guardar como PDF' en el diálogo de impresión");
+    if (!payments || payments.length === 0) {
+      toast.error("No hay pagos para exportar");
+      return;
+    }
+
+    const currency = (profile?.currency || 'PEN') as CurrencyCode;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const confirmedPayments = payments.filter(p => p.status === 'confirmed');
+    const pendingPayments = payments.filter(p => p.status === 'pending');
+    const rejectedPayments = payments.filter(p => p.status === 'rejected');
+
+    const reportData: ReportData = {
+      title: 'Reporte de Pagos',
+      subtitle: `Periodo: ${dateRange === 'week' ? 'Esta semana' : dateRange === 'month' ? 'Este mes' : dateRange === 'quarter' ? 'Este trimestre' : 'Este año'}`,
+      dateRange: {
+        from: startOfMonth,
+        to: now,
+      },
+      summary: {
+        totalPayments: payments.length,
+        confirmedAmount: confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+        pendingAmount: pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+        rejectedAmount: rejectedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+        contactsCount: contactStats?.total || 0,
+      },
+      payments: payments.slice(0, 50).map(p => ({
+        date: p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
+        contact: (p as any).contacts?.name || 'Sin contacto',
+        amount: p.amount || 0,
+        method: p.method || 'Otro',
+        status: p.status === 'confirmed' ? 'Confirmado' : p.status === 'pending' ? 'Pendiente' : p.status === 'rejected' ? 'Rechazado' : 'Cancelado',
+      })),
+      currency,
+      generatedBy: profile?.full_name || 'Usuario',
+      businessName: profile?.business_name || undefined,
+    };
+
+    try {
+      const doc = generatePaymentReport(reportData);
+      downloadPDF(doc, `reporte_pagos_${now.toISOString().split('T')[0]}`);
+      toast.success("Reporte PDF descargado");
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error("Error al generar el PDF");
+    }
   };
 
   const handleExportExcel = () => {
-    const data = monthlyData?.map(item => ({
-      Mes: item.month,
-      Pagos: item.payments,
-      Confirmados: item.confirmed,
-      Mensajes: item.messages
-    })) || [];
-
-    if (data.length === 0) {
+    if (!payments || payments.length === 0) {
       toast.error("No hay datos para exportar");
       return;
     }
 
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(row => Object.values(row).join(',')).join('\n');
-    const csv = `${headers}\n${rows}`;
+    // Prepare payment data for Excel
+    const paymentData = payments.map(p => ({
+      'Fecha': p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
+      'Contacto': (p as any).contacts?.name || 'Sin contacto',
+      'Monto': p.amount || 0,
+      'Moneda': p.currency || 'PEN',
+      'Estado': p.status === 'confirmed' ? 'Confirmado' : p.status === 'pending' ? 'Pendiente' : p.status === 'rejected' ? 'Rechazado' : 'Cancelado',
+      'Metodo': p.method || 'Otro',
+      'Referencia': p.reference_number || '',
+      'Banco': p.bank_name || '',
+      'Notas': p.notes || '',
+    }));
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `pagos_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    toast.success("Archivo CSV descargado");
+    // Create workbook with multiple sheets
+    const wb = XLSX.utils.book_new();
+
+    // Payments sheet
+    const wsPayments = XLSX.utils.json_to_sheet(paymentData);
+    XLSX.utils.book_append_sheet(wb, wsPayments, 'Pagos');
+
+    // Summary sheet
+    const confirmedPayments = payments.filter(p => p.status === 'confirmed');
+    const pendingPayments = payments.filter(p => p.status === 'pending');
+    const summaryData = [
+      { 'Metrica': 'Total de Pagos', 'Valor': payments.length },
+      { 'Metrica': 'Pagos Confirmados', 'Valor': confirmedPayments.length },
+      { 'Metrica': 'Pagos Pendientes', 'Valor': pendingPayments.length },
+      { 'Metrica': 'Monto Confirmado', 'Valor': confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0) },
+      { 'Metrica': 'Monto Pendiente', 'Valor': pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0) },
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
+
+    // Monthly stats sheet if available
+    if (monthlyData && monthlyData.length > 0) {
+      const monthlySheetData = monthlyData.map(item => ({
+        'Mes': item.month,
+        'Pagos': item.payments,
+        'Confirmados': item.confirmed,
+        'Mensajes': item.messages
+      }));
+      const wsMonthly = XLSX.utils.json_to_sheet(monthlySheetData);
+      XLSX.utils.book_append_sheet(wb, wsMonthly, 'Mensual');
+    }
+
+    // Download file
+    XLSX.writeFile(wb, `reporte_pagos_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success("Archivo Excel descargado");
   };
 
   const handleViewMetrics = () => {
@@ -146,20 +225,20 @@ export default function Reports() {
     }
 
     const data = topContacts.map(c => ({
-      Nombre: c.name,
-      Telefono: c.phone || '',
-      TotalPagado: c.total_paid || 0
+      'Nombre': c.name,
+      'Telefono': c.phone || '',
+      'Email': c.email || '',
+      'Total Pagado': c.total_paid || 0,
+      'Pagos Realizados': c.payment_count || 0,
+      'Confiabilidad': `${c.reliability_score || 100}%`,
+      'Estado': c.status === 'active' ? 'Activo' : 'Inactivo',
     }));
 
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(row => Object.values(row).join(',')).join('\n');
-    const csv = `${headers}\n${rows}`;
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Contactos');
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `clientes_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+    XLSX.writeFile(wb, `clientes_${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success("Cartera de clientes descargada");
   };
 

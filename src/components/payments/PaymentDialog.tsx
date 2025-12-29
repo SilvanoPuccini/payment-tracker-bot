@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, DollarSign, CreditCard, Calendar, FileText, Hash, Building2 } from "lucide-react";
+import { Loader2, DollarSign, CreditCard, Calendar, FileText, Hash, Building2, Bell, CalendarClock } from "lucide-react";
 import { useCreatePayment, useUpdatePayment } from "@/hooks/usePayments";
 import { useContacts } from "@/hooks/useContacts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -80,6 +81,8 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
     account_number: "",
     payment_date: "",
     payment_time: "",
+    due_date: "",
+    auto_remind: true,
     notes: "",
   });
 
@@ -98,6 +101,8 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         account_number: payment.account_number || "",
         payment_date: payment.payment_date || "",
         payment_time: payment.payment_time || "",
+        due_date: (payment as any).payment_due_date || "",
+        auto_remind: (payment as any).auto_remind ?? true,
         notes: payment.notes || "",
       });
     } else {
@@ -115,6 +120,8 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         account_number: "",
         payment_date: today,
         payment_time: now,
+        due_date: "",
+        auto_remind: true,
         notes: "",
       });
     }
@@ -135,6 +142,8 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
       account_number: formData.account_number || null,
       payment_date: formData.payment_date || null,
       payment_time: formData.payment_time || null,
+      payment_due_date: formData.due_date || null,
+      auto_remind: formData.auto_remind,
       notes: formData.notes || null,
     };
 
@@ -302,6 +311,40 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 onChange={(e) => setFormData({ ...formData, payment_time: e.target.value })}
                 disabled={isPending}
               />
+            </div>
+          </div>
+
+          {/* Due Date & Auto Remind */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="due_date" className="flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                Fecha de vencimiento
+              </Label>
+              <Input
+                id="due_date"
+                type="date"
+                value={formData.due_date}
+                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                disabled={isPending}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-muted-foreground" />
+                Recordatorio automatico
+              </Label>
+              <div className="flex items-center gap-3 h-10">
+                <Switch
+                  id="auto_remind"
+                  checked={formData.auto_remind}
+                  onCheckedChange={(checked) => setFormData({ ...formData, auto_remind: checked })}
+                  disabled={isPending || !formData.due_date}
+                />
+                <Label htmlFor="auto_remind" className="text-sm text-muted-foreground font-normal">
+                  {formData.auto_remind && formData.due_date ? 'Activado' : 'Desactivado'}
+                </Label>
+              </div>
             </div>
           </div>
 

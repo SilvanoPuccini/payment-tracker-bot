@@ -22,6 +22,7 @@ import Contacts from "./pages/Contacts";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
+import Reminders from "./pages/Reminders";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -104,6 +105,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reminders"
+              element={
+                <ProtectedRoute>
+                  <Reminders />
                 </ProtectedRoute>
               }
             />

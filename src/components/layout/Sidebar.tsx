@@ -5,6 +5,7 @@ import {
   CreditCard,
   Users,
   BarChart3,
+  Bell,
   Zap
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
@@ -14,6 +15,7 @@ const navigation = [
   { name: "Mensajes", href: "/messages", icon: MessageSquare },
   { name: "Pagos", href: "/payments", icon: CreditCard },
   { name: "Contactos", href: "/contacts", icon: Users },
+  { name: "Recordatorios", href: "/reminders", icon: Bell },
   { name: "Reportes", href: "/reports", icon: BarChart3 },
 ];
 
