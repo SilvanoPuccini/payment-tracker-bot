@@ -16,6 +16,7 @@ import Onboarding from "./pages/Onboarding";
 
 // Public pages
 import Pricing from "./pages/Pricing";
+import Checkout from "./pages/Checkout";
 
 // Protected pages
 import Index from "./pages/Index";
@@ -27,6 +28,11 @@ import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Reminders from "./pages/Reminders";
 import NotFound from "./pages/NotFound";
+
+// Admin pages
+import Admin from "./pages/Admin";
+import AdminUsers from "./pages/AdminUsers";
+import { AdminRoute } from "@/components/admin/AdminRoute";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +60,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/checkout" element={<Checkout />} />
 
             {/* Protected routes */}
             <Route
@@ -118,6 +125,24 @@ const App = () => (
                 <ProtectedRoute>
                   <Reminders />
                 </ProtectedRoute>
+              }
+            />
+
+            {/* Admin routes */}
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <Admin />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminRoute>
+                  <AdminUsers />
+                </AdminRoute>
               }
             />
 
