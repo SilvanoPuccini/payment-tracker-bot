@@ -14,6 +14,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Onboarding from "./pages/Onboarding";
 
+// Public pages
+import Pricing from "./pages/Pricing";
+
 // Protected pages
 import Index from "./pages/Index";
 import Messages from "./pages/Messages";
@@ -50,6 +53,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/pricing" element={<Pricing />} />
 
             {/* Protected routes */}
             <Route
