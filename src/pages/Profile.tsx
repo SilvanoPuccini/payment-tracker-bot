@@ -22,6 +22,7 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { CURRENCIES, type CurrencyCode } from "@/lib/currency";
 
 export default function Profile() {
   const { user, profile, updateProfile } = useAuth();
@@ -326,14 +327,11 @@ export default function Profile() {
                     onChange={(e) => setCurrency(e.target.value)}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value="PEN">Soles (PEN)</option>
-                    <option value="USD">Dólares (USD)</option>
-                    <option value="EUR">Euros (EUR)</option>
-                    <option value="CLP">Pesos Chilenos (CLP)</option>
-                    <option value="MXN">Pesos MX (MXN)</option>
-                    <option value="COP">Pesos CO (COP)</option>
-                    <option value="ARS">Pesos AR (ARS)</option>
-                    <option value="BRL">Reales (BRL)</option>
+                    {Object.entries(CURRENCIES).map(([code, info]) => (
+                      <option key={code} value={code}>
+                        {info.flag} {info.name} ({code})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
