@@ -2,10 +2,23 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { formatCurrency, CurrencyCode } from './currency';
 
+// AutoTable options interface
+interface AutoTableOptions {
+  head?: string[][];
+  body?: (string | number)[][];
+  startY?: number;
+  theme?: 'striped' | 'grid' | 'plain';
+  headStyles?: Record<string, unknown>;
+  styles?: Record<string, unknown>;
+  columnStyles?: Record<number, Record<string, unknown>>;
+  margin?: { left?: number; right?: number; top?: number; bottom?: number };
+  tableWidth?: 'auto' | 'wrap' | number;
+}
+
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
   interface jsPDF {
-    autoTable: (options: any) => jsPDF;
+    autoTable: (options: AutoTableOptions) => jsPDF;
   }
 }
 

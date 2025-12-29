@@ -33,6 +33,21 @@ interface RegistrationStats {
   count: number;
 }
 
+// Subscription relation type from Supabase query
+interface SubscriptionRelation {
+  plan_id: string;
+  status: string;
+}
+
+interface ProfileWithSubscription {
+  id: string;
+  full_name: string | null;
+  created_at: string;
+  updated_at: string;
+  is_admin: boolean | null;
+  subscriptions: SubscriptionRelation[] | null;
+}
+
 export function useIsAdmin() {
   const { profile } = useAuth();
   return profile?.is_admin === true;
@@ -139,12 +154,13 @@ export function useAdminUsers(page = 1, limit = 20) {
 
       // Get auth users for email (this requires service role, so we'll use a workaround)
       // For now, we'll just show the profile data
-      const users: AdminUser[] = (profiles || []).map((p) => ({
+      const typedProfiles = profiles as ProfileWithSubscription[] | null;
+      const users: AdminUser[] = (typedProfiles || []).map((p) => ({
         id: p.id,
         email: `user-${p.id.slice(0, 8)}@paytrack.app`, // Placeholder
         full_name: p.full_name,
-        plan_id: (p.subscriptions as any)?.[0]?.plan_id || "free",
-        status: (p.subscriptions as any)?.[0]?.status || "active",
+        plan_id: p.subscriptions?.[0]?.plan_id || "free",
+        status: p.subscriptions?.[0]?.status || "active",
         created_at: p.created_at,
         last_sign_in_at: p.updated_at,
         payments_count: paymentCountMap[p.id] || 0,
