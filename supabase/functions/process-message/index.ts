@@ -27,6 +27,21 @@ interface PaymentAnalysis {
   requiresReview: boolean;
 }
 
+// OpenAI message content types
+interface TextContent {
+  type: 'text';
+  text: string;
+}
+
+interface ImageContent {
+  type: 'image_url';
+  image_url: {
+    url: string;
+  };
+}
+
+type MessageContent = TextContent | ImageContent;
+
 const systemPrompt = `Eres un asistente experto en análisis de mensajes financieros para detección de pagos.
 
 Tu trabajo es analizar mensajes de WhatsApp para:
@@ -97,7 +112,7 @@ serve(async (req) => {
     }
 
     // Build the user message content
-    const userContent: any[] = [];
+    const userContent: MessageContent[] = [];
     
     let textMessage = message || '';
     if (contactName) {

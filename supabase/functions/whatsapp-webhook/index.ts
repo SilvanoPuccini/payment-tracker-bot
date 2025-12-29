@@ -26,6 +26,14 @@ interface WhatsAppContact {
   wa_id: string;
 }
 
+interface WhatsAppStatus {
+  id: string;
+  status: 'sent' | 'delivered' | 'read' | 'failed';
+  timestamp: string;
+  recipient_id: string;
+  errors?: Array<{ code: number; title: string }>;
+}
+
 interface WhatsAppWebhookPayload {
   object: string;
   entry: Array<{
@@ -39,7 +47,7 @@ interface WhatsAppWebhookPayload {
         };
         contacts?: WhatsAppContact[];
         messages?: WhatsAppMessage[];
-        statuses?: any[];
+        statuses?: WhatsAppStatus[];
       };
       field: string;
     }>;
@@ -275,7 +283,7 @@ async function createPaymentPromise(
 async function logWebhookEvent(
   userId: string | null,
   eventType: string,
-  payload: any,
+  payload: Record<string, unknown>,
   status: string,
   errorMessage?: string,
   processingTimeMs?: number

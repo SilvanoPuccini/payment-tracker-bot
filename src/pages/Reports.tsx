@@ -47,7 +47,7 @@ import { toast } from "sonner";
 import { useMonthlyStats, useWeeklyActivity, useTopContacts, useDashboardStats } from "@/hooks/useDashboard";
 import { useContactStats } from "@/hooks/useContacts";
 import { useMessageStats } from "@/hooks/useMessages";
-import { usePaymentStats, usePayments } from "@/hooks/usePayments";
+import { usePaymentStats, usePayments, type PaymentWithContact } from "@/hooks/usePayments";
 import { useAuth } from "@/contexts/AuthContext";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useNavigate } from "react-router-dom";
@@ -128,9 +128,9 @@ export default function Reports() {
         rejectedAmount: rejectedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
         contactsCount: contactStats?.total || 0,
       },
-      payments: payments.slice(0, 50).map(p => ({
+      payments: payments.slice(0, 50).map((p: PaymentWithContact) => ({
         date: p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
-        contact: (p as any).contacts?.name || 'Sin contacto',
+        contact: p.contact?.name || 'Sin contacto',
         amount: p.amount || 0,
         method: p.method || 'Otro',
         status: p.status === 'confirmed' ? 'Confirmado' : p.status === 'pending' ? 'Pendiente' : p.status === 'rejected' ? 'Rechazado' : 'Cancelado',
@@ -157,9 +157,9 @@ export default function Reports() {
     }
 
     // Prepare payment data for Excel
-    const paymentData = payments.map(p => ({
+    const paymentData = payments.map((p: PaymentWithContact) => ({
       'Fecha': p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
-      'Contacto': (p as any).contacts?.name || 'Sin contacto',
+      'Contacto': p.contact?.name || 'Sin contacto',
       'Monto': p.amount || 0,
       'Moneda': p.currency || 'PEN',
       'Estado': p.status === 'confirmed' ? 'Confirmado' : p.status === 'pending' ? 'Pendiente' : p.status === 'rejected' ? 'Rechazado' : 'Cancelado',
