@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import type { Tables } from '@/integrations/supabase/types';
+
+type Payment = Tables<'payments'>;
 
 // Types
 export interface Notification {
@@ -12,7 +15,7 @@ export interface Notification {
   title: string;
   message: string | null;
   icon: string | null;
-  data: Record<string, any> | null;
+  data: Record<string, string | number | boolean | null> | null;
   action_url: string | null;
   read: boolean;
   read_at: string | null;
@@ -180,7 +183,7 @@ export function useCreateNotification() {
       title: string;
       message?: string;
       icon?: string;
-      data?: Record<string, any>;
+      data?: Record<string, string | number | boolean | null>;
       action_url?: string;
     }) => {
       if (!user?.id) throw new Error('No authenticated user');
@@ -253,7 +256,7 @@ export function useRealtimeNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const payment = payload.new as any;
+          const payment = payload.new as Payment;
           toast.success('Nuevo pago detectado', {
             description: `Monto: ${payment.currency} ${payment.amount}`,
             action: {
@@ -275,8 +278,8 @@ export function useRealtimeNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const payment = payload.new as any;
-          const oldPayment = payload.old as any;
+          const payment = payload.new as Payment;
+          const oldPayment = payload.old as Partial<Payment>;
 
           // Check if status changed to confirmed
           if (oldPayment.status !== 'confirmed' && payment.status === 'confirmed') {

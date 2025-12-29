@@ -40,9 +40,12 @@ export const mockContact = {
   created_at: new Date().toISOString(),
 };
 
+// Type for mock query builder methods
+type MockQueryBuilder = Record<string, ReturnType<typeof vi.fn>>;
+
 // Mock del cliente Supabase
 const createMockQueryBuilder = () => {
-  const builder: Record<string, any> = {};
+  const builder: MockQueryBuilder = {};
   
   const chainMethods = [
     'select', 'insert', 'update', 'delete', 'upsert',
