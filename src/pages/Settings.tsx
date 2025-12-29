@@ -22,6 +22,7 @@ import {
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useSettings, useUpdateSettings, useTestWebhookConnection } from "@/hooks/useSettings";
+import { ReminderSettings } from "@/components/reminders/ReminderSettings";
 
 export default function Settings() {
   const { data: settings, isLoading } = useSettings();
@@ -387,6 +388,15 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Reminder Settings Section */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+            <Bell className="h-5 w-5 text-primary" />
+            Recordatorios de Cobro
+          </h2>
+          <ReminderSettings />
         </div>
 
         {/* Save Button */}

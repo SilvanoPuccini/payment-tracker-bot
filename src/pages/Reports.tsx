@@ -53,6 +53,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
+import { ReportGenerator } from "@/components/reports/ReportGenerator";
 import { generatePaymentReport, downloadPDF, type ReportData } from "@/lib/pdf-generator";
 import { formatCurrency as formatCurrencyLib, type CurrencyCode } from "@/lib/currency";
 import * as XLSX from "xlsx";
@@ -637,6 +638,9 @@ export default function Reports() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Report Generator */}
+        <ReportGenerator />
 
         {/* Quick Reports */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

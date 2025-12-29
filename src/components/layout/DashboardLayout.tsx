@@ -1,12 +1,16 @@
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { BottomNavigation } from "./BottomNavigation";
+import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  // Activate realtime notifications for authenticated users
+  useRealtimeNotifications();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop Sidebar - hidden on mobile */}
