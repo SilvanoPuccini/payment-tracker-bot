@@ -1,3 +1,4 @@
+import React from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,17 +15,14 @@ import {
   BarChart3,
   Download,
   TrendingUp,
-  TrendingDown,
   DollarSign,
   Users,
   MessageSquare,
   CheckCircle2,
   Calendar,
   FileText,
-  PieChart,
   ArrowUpRight,
   ArrowDownRight,
-  Printer,
   Loader2
 } from "lucide-react";
 import {
@@ -58,21 +56,42 @@ import { generatePaymentReport, downloadPDF, type ReportData } from "@/lib/pdf-g
 import { formatCurrency as formatCurrencyLib, type CurrencyCode } from "@/lib/currency";
 import * as XLSX from "xlsx";
 
-const paymentMethodData = [
-  { name: "Transferencia", value: 35, color: "hsl(173, 80%, 40%)" },
-  { name: "Efectivo", value: 25, color: "hsl(142, 71%, 45%)" },
-  { name: "Depósito", value: 18, color: "hsl(38, 92%, 50%)" },
-  { name: "Débito", value: 12, color: "hsl(222, 47%, 50%)" },
-  { name: "Crédito", value: 7, color: "hsl(280, 60%, 50%)" },
-  { name: "Otro", value: 3, color: "hsl(222, 30%, 40%)" },
-];
+// Payment method colors
+const METHOD_COLORS: Record<string, string> = {
+  transfer: "hsl(173, 80%, 40%)",
+  transferencia: "hsl(173, 80%, 40%)",
+  cash: "hsl(142, 71%, 45%)",
+  efectivo: "hsl(142, 71%, 45%)",
+  deposit: "hsl(38, 92%, 50%)",
+  deposito: "hsl(38, 92%, 50%)",
+  depósito: "hsl(38, 92%, 50%)",
+  debit: "hsl(222, 47%, 50%)",
+  debito: "hsl(222, 47%, 50%)",
+  débito: "hsl(222, 47%, 50%)",
+  credit: "hsl(280, 60%, 50%)",
+  credito: "hsl(280, 60%, 50%)",
+  crédito: "hsl(280, 60%, 50%)",
+  other: "hsl(222, 30%, 40%)",
+  otro: "hsl(222, 30%, 40%)",
+};
 
-const detectionStats = [
-  { label: "Precisión de detección", value: 94.2, target: 95 },
-  { label: "Mensajes procesados", value: 98.5, target: 99 },
-  { label: "Tiempo de respuesta", value: 87.3, target: 90 },
-  { label: "Confirmaciones automáticas", value: 76.8, target: 80 },
-];
+const METHOD_LABELS: Record<string, string> = {
+  transfer: "Transferencia",
+  transferencia: "Transferencia",
+  cash: "Efectivo",
+  efectivo: "Efectivo",
+  deposit: "Depósito",
+  deposito: "Depósito",
+  depósito: "Depósito",
+  debit: "Débito",
+  debito: "Débito",
+  débito: "Débito",
+  credit: "Crédito",
+  credito: "Crédito",
+  crédito: "Crédito",
+  other: "Otro",
+  otro: "Otro",
+};
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState("month");
@@ -90,6 +109,59 @@ export default function Reports() {
   const { data: payments, isLoading: loadingPayments } = usePayments();
 
   const hasNoData = !loadingPayments && (!payments || payments.length === 0);
+
+  // Calculate payment method distribution from real data
+  const paymentMethodData = React.useMemo(() => {
+    if (!payments || payments.length === 0) return [];
+
+    const methodCounts: Record<string, number> = {};
+    payments.forEach(p => {
+      const method = (p.method || 'otro').toLowerCase();
+      methodCounts[method] = (methodCounts[method] || 0) + 1;
+    });
+
+    const total = payments.length;
+    return Object.entries(methodCounts)
+      .map(([method, count]) => ({
+        name: METHOD_LABELS[method] || method.charAt(0).toUpperCase() + method.slice(1),
+        value: Math.round((count / total) * 100),
+        color: METHOD_COLORS[method] || METHOD_COLORS.other,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [payments]);
+
+  // Calculate real system stats
+  const systemStats = React.useMemo(() => {
+    if (!payments || !paymentStats) {
+      return [
+        { label: "Pagos confirmados", value: 0, target: 80 },
+        { label: "Tasa de detección", value: 0, target: 90 },
+        { label: "Contactos activos", value: 0, target: 100 },
+        { label: "Promedio confianza", value: 0, target: 85 },
+      ];
+    }
+
+    const totalPayments = (paymentStats.confirmedCount || 0) + (paymentStats.pendingCount || 0) + (paymentStats.rejectedCount || 0);
+    const confirmationRate = totalPayments > 0
+      ? Math.round((paymentStats.confirmedCount || 0) / totalPayments * 100)
+      : 0;
+
+    // Calculate average confidence from payments
+    const avgConfidence = payments.length > 0
+      ? Math.round(payments.reduce((sum, p) => sum + (p.confidence_score || 0), 0) / payments.length)
+      : 0;
+
+    const activeContactsRate = contactStats?.total
+      ? Math.round((contactStats.active || 0) / contactStats.total * 100)
+      : 0;
+
+    return [
+      { label: "Pagos confirmados", value: confirmationRate, target: 80 },
+      { label: "Tasa de detección", value: avgConfidence, target: 85 },
+      { label: "Contactos activos", value: activeContactsRate, target: 80 },
+      { label: "Pagos este mes", value: Math.min(dashboardStats?.totalPaymentsThisMonth || 0, 100), target: 50 },
+    ];
+  }, [payments, paymentStats, contactStats, dashboardStats]);
 
   const formatCurrency = (amount: number) => {
     const currency = profile?.currency || 'PEN';
@@ -206,19 +278,6 @@ export default function Reports() {
     toast.success("Archivo Excel descargado");
   };
 
-  const handleViewMetrics = () => {
-    const metrics = detectionStats.map(s => `${s.label}: ${s.value}%`).join('\n');
-    toast.info(
-      <div className="space-y-1">
-        <p className="font-semibold">Métricas de IA</p>
-        {detectionStats.map(s => (
-          <p key={s.label} className="text-sm">{s.label}: {s.value}%</p>
-        ))}
-      </div>,
-      { duration: 5000 }
-    );
-  };
-
   const handleExportClients = () => {
     if (!topContacts || topContacts.length === 0) {
       toast.error("No hay contactos para exportar");
@@ -282,10 +341,6 @@ export default function Reports() {
                 <SelectItem value="year">Este año</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={handleExportPDF}>
-              <Printer className="h-4 w-4 mr-2" />
-              Imprimir
-            </Button>
             <Button size="sm" className="gradient-primary text-primary-foreground" onClick={handleExportPDF}>
               <Download className="h-4 w-4 mr-2" />
               Exportar PDF
@@ -362,14 +417,14 @@ export default function Reports() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Mensajes analizados</p>
+                  <p className="text-xs text-muted-foreground">Mensajes totales</p>
                   <p className="text-2xl font-bold mt-1">
-                    {isLoading ? "---" : (messageStats?.totalToday || 0)}
+                    {isLoading ? "---" : (messageStats?.total || 0)}
                   </p>
                   <div className="flex items-center gap-1 mt-1">
-                    <ArrowUpRight className="h-3 w-3 text-success" />
-                    <span className="text-xs text-success">+12.8%</span>
-                    <span className="text-xs text-muted-foreground">vs mes anterior</span>
+                    <span className="text-xs text-muted-foreground">
+                      {messageStats?.totalToday || 0} hoy
+                    </span>
                   </div>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/20">
@@ -387,9 +442,9 @@ export default function Reports() {
                     {isLoading ? "---" : (contactStats?.active || 0)}
                   </p>
                   <div className="flex items-center gap-1 mt-1">
-                    <ArrowUpRight className="h-3 w-3 text-success" />
-                    <span className="text-xs text-success">+5.2%</span>
-                    <span className="text-xs text-muted-foreground">vs mes anterior</span>
+                    <span className="text-xs text-muted-foreground">
+                      de {contactStats?.total || 0} totales
+                    </span>
                   </div>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/20">
@@ -477,45 +532,54 @@ export default function Reports() {
               <CardDescription>Distribución por canal</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <RechartsPieChart>
-                  <Pie
-                    data={paymentMethodData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {paymentMethodData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(222, 47%, 11%)",
-                      border: "1px solid hsl(222, 30%, 20%)",
-                      borderRadius: "8px",
-                    }}
-                    formatter={(value: number) => [`${value}%`, ""]}
-                  />
-                </RechartsPieChart>
-              </ResponsiveContainer>
-              <div className="space-y-2 mt-4">
-                {paymentMethodData.map((method) => (
-                  <div key={method.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: method.color }}
+              {paymentMethodData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[280px] text-center">
+                  <BarChart3 className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">No hay datos de métodos</p>
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <RechartsPieChart>
+                      <Pie
+                        data={paymentMethodData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {paymentMethodData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(222, 47%, 11%)",
+                          border: "1px solid hsl(222, 30%, 20%)",
+                          borderRadius: "8px",
+                        }}
+                        formatter={(value: number) => [`${value}%`, ""]}
                       />
-                      <span className="text-sm text-muted-foreground">{method.name}</span>
-                    </div>
-                    <span className="text-sm font-medium">{method.value}%</span>
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-2 mt-4">
+                    {paymentMethodData.map((method) => (
+                      <div key={method.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="h-3 w-3 rounded-full"
+                            style={{ backgroundColor: method.color }}
+                          />
+                          <span className="text-sm text-muted-foreground">{method.name}</span>
+                        </div>
+                        <span className="text-sm font-medium">{method.value}%</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -607,20 +671,20 @@ export default function Reports() {
           </Card>
         </div>
 
-        {/* Detection Performance */}
+        {/* System Performance */}
         <Card className="glass-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Rendimiento del Sistema</CardTitle>
-                <CardDescription>Métricas de detección y procesamiento de IA</CardDescription>
+                <CardDescription>Métricas basadas en tus datos reales</CardDescription>
               </div>
-              <Badge variant="success">Operativo</Badge>
+              <Badge variant="success">Activo</Badge>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {detectionStats.map((stat) => (
+              {systemStats.map((stat) => (
                 <div key={stat.label} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">{stat.label}</span>
@@ -630,7 +694,7 @@ export default function Reports() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Objetivo: {stat.target}%</span>
                     <span className={stat.value >= stat.target ? "text-success" : "text-warning"}>
-                      {stat.value >= stat.target ? "Alcanzado" : `${(stat.target - stat.value).toFixed(1)}% restante`}
+                      {stat.value >= stat.target ? "Alcanzado" : `${Math.max(0, stat.target - stat.value)}% restante`}
                     </span>
                   </div>
                 </div>
@@ -642,8 +706,8 @@ export default function Reports() {
         {/* Report Generator */}
         <ReportGenerator />
 
-        {/* Quick Reports */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Quick Exports */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card
             className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
             onClick={handleExportPDF}
@@ -670,24 +734,8 @@ export default function Reports() {
                   <BarChart3 className="h-5 w-5 text-success" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">Análisis de Pagos</p>
-                  <p className="text-xs text-muted-foreground">Exportar CSV</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card
-            className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-            onClick={handleViewMetrics}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/20">
-                  <PieChart className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Rendimiento IA</p>
-                  <p className="text-xs text-muted-foreground">Ver métricas</p>
+                  <p className="font-medium text-sm">Exportar Pagos</p>
+                  <p className="text-xs text-muted-foreground">Descargar Excel</p>
                 </div>
               </div>
             </CardContent>
@@ -698,12 +746,12 @@ export default function Reports() {
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/50">
-                  <Users className="h-5 w-5 text-foreground" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/20">
+                  <Users className="h-5 w-5 text-warning" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">Cartera de Clientes</p>
-                  <p className="text-xs text-muted-foreground">Exportar CSV</p>
+                  <p className="text-xs text-muted-foreground">Descargar Excel</p>
                 </div>
               </div>
             </CardContent>

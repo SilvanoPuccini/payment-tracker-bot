@@ -142,22 +142,31 @@ export function ReportGenerator() {
           status: p.status === 'confirmed' ? 'Confirmado' :
                   p.status === 'pending' ? 'Pendiente' :
                   p.status === 'rejected' ? 'Rechazado' : 'Cancelado',
-          reference: p.reference_number || '',
         }));
 
-        doc = generateContactReport(
-          {
+        // Calculate reliability score based on confirmed vs total payments
+        const totalPayments = filteredPayments.length;
+        const confirmedCount = confirmedPayments.length;
+        const reliabilityScore = totalPayments > 0
+          ? Math.round((confirmedCount / totalPayments) * 100)
+          : 100;
+
+        doc = generateContactReport({
+          contact: {
             name: contact.name,
             phone: contact.phone || '',
             email: contact.email || undefined,
-            totalPaid: confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-            totalPending: pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-            paymentCount: filteredPayments.length,
           },
-          contactPayments,
+          summary: {
+            totalPaid: confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+            pendingAmount: pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+            paymentCount: filteredPayments.length,
+            reliabilityScore,
+          },
+          payments: contactPayments,
           currency,
-          profile?.full_name || 'Usuario'
-        );
+          generatedBy: profile?.full_name || 'Usuario',
+        });
         filename = `reporte_${contact.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
 
       } else {
