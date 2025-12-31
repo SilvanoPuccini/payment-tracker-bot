@@ -102,20 +102,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    console.log('AuthContext signOut: Starting...');
     try {
       // Clear local storage first - use correct key
       localStorage.removeItem('paytrack_onboarding_complete');
       localStorage.removeItem('onboarding_skipped');
+      console.log('AuthContext signOut: localStorage cleared');
 
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-
-      // Clear state
+      // Clear state first
       setUser(null);
       setProfile(null);
       setSession(null);
+      console.log('AuthContext signOut: State cleared');
+
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('AuthContext signOut: Supabase error:', error);
+      } else {
+        console.log('AuthContext signOut: Supabase signOut successful');
+      }
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('AuthContext signOut: Caught error:', error);
       // Force clear state even if signOut fails
       setUser(null);
       setProfile(null);
@@ -123,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('paytrack_onboarding_complete');
       localStorage.removeItem('onboarding_skipped');
     }
+    console.log('AuthContext signOut: Complete');
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
