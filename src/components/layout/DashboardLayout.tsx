@@ -13,26 +13,33 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   useRealtimeNotifications();
 
   return (
-    <div className="min-h-screen bg-pt-bg">
-      {/* Desktop Sidebar - hidden on mobile */}
-      <div className="hidden md:block">
+    <div className="min-h-screen bg-[var(--pt-bg)]">
+      {/* Desktop Sidebar - only on large screens */}
+      <div className="hidden lg:block">
         <Sidebar />
       </div>
 
       {/* Main Content */}
-      <div className="md:pl-64">
+      <div className="lg:pl-64">
+        {/* Header - different for mobile/desktop */}
         <Header />
-        <main className="pt-page">
-          <div className="gradient-glow fixed inset-0 pointer-events-none opacity-40" />
-          <div className="relative z-10 px-4 py-5 pb-28 md:pb-6">
+
+        <main className="min-h-screen pb-24 lg:pb-6">
+          {/* Ambient glow effect */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--pt-primary)]/5 rounded-full blur-3xl -mr-48 -mt-48" />
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-[var(--pt-primary)]/5 rounded-full blur-3xl -ml-48 -mb-48" />
+          </div>
+
+          <div className="relative z-10 px-4 py-5">
             <PlanLimitBanner />
             {children}
           </div>
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation with integrated FAB */}
-      <div className="md:hidden">
+      {/* Mobile Bottom Navigation - hidden on large screens */}
+      <div className="lg:hidden">
         <BottomNav />
       </div>
     </div>

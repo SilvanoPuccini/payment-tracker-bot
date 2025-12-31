@@ -14,10 +14,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (isLoading || onboardingLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--pt-bg)]">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Cargando...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--pt-primary)]" />
+          <p className="text-sm text-[var(--pt-text-secondary)]">Cargando...</p>
         </div>
       </div>
     );
