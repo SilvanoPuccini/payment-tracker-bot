@@ -146,9 +146,10 @@ export default function Profile() {
       }
 
       toast.success("Avatar actualizado correctamente");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error uploading avatar:", error);
-      toast.error(error.message || "Error al subir la imagen");
+      const errorMessage = error instanceof Error ? error.message : "Error al subir la imagen";
+      toast.error(errorMessage);
     } finally {
       setIsUploadingAvatar(false);
     }

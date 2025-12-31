@@ -34,8 +34,18 @@ import {
 } from '@/lib/pdf-generator';
 import { formatCurrency, type CurrencyCode } from '@/lib/currency';
 import { toast } from 'sonner';
+import type { Tables } from '@/integrations/supabase/types';
 
 type ReportType = 'summary' | 'detailed' | 'by_contact' | 'overdue';
+
+// Extended payment type with relations
+interface PaymentWithContact extends Tables<'payments'> {
+  payment_due_date?: string | null;
+  contacts?: {
+    name: string;
+    phone?: string;
+  } | null;
+}
 
 export function ReportGenerator() {
   const { profile } = useAuth();
@@ -55,7 +65,7 @@ export function ReportGenerator() {
 
   const currency = (profile?.currency || 'PEN') as CurrencyCode;
 
-  const filteredPayments = payments?.filter(p => {
+  const filteredPayments = (payments as PaymentWithContact[] | undefined)?.filter(p => {
     const paymentDate = new Date(p.payment_date || p.created_at);
     const from = new Date(dateFrom);
     const to = new Date(dateTo);
@@ -88,17 +98,17 @@ export function ReportGenerator() {
         // Overdue payments report
         const overduePayments = filteredPayments
           .filter(p => {
-            const dueDate = (p as any).payment_due_date;
+            const dueDate = p.payment_due_date;
             return dueDate && new Date(dueDate) < new Date() && p.status === 'pending';
           })
           .map(p => ({
             date: p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
-            contact: (p as any).contacts?.name || 'Sin contacto',
-            phone: (p as any).contacts?.phone || '',
+            contact: p.contacts?.name || 'Sin contacto',
+            phone: p.contacts?.phone || '',
             amount: p.amount || 0,
-            dueDate: (p as any).payment_due_date || '',
+            dueDate: p.payment_due_date || '',
             daysOverdue: Math.floor(
-              (new Date().getTime() - new Date((p as any).payment_due_date).getTime()) /
+              (new Date().getTime() - new Date(p.payment_due_date || '').getTime()) /
               (1000 * 60 * 60 * 24)
             ),
           }));
@@ -132,22 +142,31 @@ export function ReportGenerator() {
           status: p.status === 'confirmed' ? 'Confirmado' :
                   p.status === 'pending' ? 'Pendiente' :
                   p.status === 'rejected' ? 'Rechazado' : 'Cancelado',
-          reference: p.reference_number || '',
         }));
 
-        doc = generateContactReport(
-          {
+        // Calculate reliability score based on confirmed vs total payments
+        const totalPayments = filteredPayments.length;
+        const confirmedCount = confirmedPayments.length;
+        const reliabilityScore = totalPayments > 0
+          ? Math.round((confirmedCount / totalPayments) * 100)
+          : 100;
+
+        doc = generateContactReport({
+          contact: {
             name: contact.name,
             phone: contact.phone || '',
             email: contact.email || undefined,
-            totalPaid: confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-            totalPending: pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-            paymentCount: filteredPayments.length,
           },
-          contactPayments,
+          summary: {
+            totalPaid: confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+            pendingAmount: pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+            paymentCount: filteredPayments.length,
+            reliabilityScore,
+          },
+          payments: contactPayments,
           currency,
-          profile?.full_name || 'Usuario'
-        );
+          generatedBy: profile?.full_name || 'Usuario',
+        });
         filename = `reporte_${contact.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
 
       } else {
@@ -168,7 +187,7 @@ export function ReportGenerator() {
           },
           payments: filteredPayments.map(p => ({
             date: p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
-            contact: (p as any).contacts?.name || 'Sin contacto',
+            contact: p.contacts?.name || 'Sin contacto',
             amount: p.amount || 0,
             method: p.method || 'Otro',
             status: p.status === 'confirmed' ? 'Confirmado' :

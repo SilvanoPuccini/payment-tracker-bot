@@ -62,40 +62,55 @@ export function QuickActions() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3 animate-slide-up" style={{ animationDelay: "50ms" }}>
-        <Button variant="default" className="gap-2" onClick={() => setDialogOpen(true)}>
+      <div className="flex flex-wrap items-center gap-2 animate-slide-up" style={{ animationDelay: "50ms" }}>
+        <Button
+          className="gap-2 gradient-primary text-white rounded-xl shadow-button hover:shadow-glow"
+          onClick={() => setDialogOpen(true)}
+        >
           <Plus className="h-4 w-4" />
-          Registrar Pago
+          <span className="hidden sm:inline">Registrar Pago</span>
+          <span className="sm:hidden">Nuevo</span>
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
+            <Button
+              variant="outline"
+              className="gap-2 bg-stitch-surface border-stitch text-stitch-text hover:bg-stitch-surface-elevated hover:text-stitch-text rounded-xl"
+            >
               <Filter className="h-4 w-4" />
-              Filtros
+              <span className="hidden sm:inline">Filtros</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => navigate('/payments')}>
+          <DropdownMenuContent className="bg-stitch-surface border-stitch">
+            <DropdownMenuItem onClick={() => navigate('/payments')} className="text-stitch-text hover:bg-stitch-surface-elevated">
               Todos los pagos
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/payments?status=confirmed')}>
+            <DropdownMenuItem onClick={() => navigate('/payments?status=confirmed')} className="text-stitch-text hover:bg-stitch-surface-elevated">
               Confirmados
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/payments?status=pending')}>
+            <DropdownMenuItem onClick={() => navigate('/payments?status=pending')} className="text-stitch-text hover:bg-stitch-surface-elevated">
               Pendientes
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/payments?status=rejected')}>
+            <DropdownMenuItem onClick={() => navigate('/payments?status=rejected')} className="text-stitch-text hover:bg-stitch-surface-elevated">
               Rechazados
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="ghost" className="gap-2" onClick={handleSync}>
+        <Button
+          variant="ghost"
+          className="gap-2 text-stitch-muted hover:text-stitch-text hover:bg-stitch-surface rounded-xl"
+          onClick={handleSync}
+        >
           <RefreshCw className="h-4 w-4" />
-          Sincronizar
+          <span className="hidden sm:inline">Sincronizar</span>
         </Button>
-        <Button variant="ghost" className="gap-2" onClick={handleExportCSV}>
+        <Button
+          variant="ghost"
+          className="gap-2 text-stitch-muted hover:text-stitch-text hover:bg-stitch-surface rounded-xl"
+          onClick={handleExportCSV}
+        >
           <Download className="h-4 w-4" />
-          Exportar CSV
+          <span className="hidden sm:inline">CSV</span>
         </Button>
       </div>
       <PaymentDialog open={dialogOpen} onOpenChange={setDialogOpen} />

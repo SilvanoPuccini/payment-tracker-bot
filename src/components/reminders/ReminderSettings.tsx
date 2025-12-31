@@ -20,40 +20,35 @@ import {
 import { useReminderSettings, useUpdateReminderSettings } from '@/hooks/useReminders';
 import { toast } from 'sonner';
 
+// Default templates as constants
+const DEFAULT_BEFORE_TEMPLATE = 'Hola {contact_name}, te recordamos que tienes un pago pendiente de {amount} con vencimiento el {due_date}.';
+const DEFAULT_ON_DUE_TEMPLATE = 'Hola {contact_name}, hoy vence tu pago de {amount}. Por favor realiza el pago para evitar recargos.';
+const DEFAULT_AFTER_TEMPLATE = 'Hola {contact_name}, tu pago de {amount} venció hace {days_overdue} días. Por favor regulariza tu situación.';
+
 export function ReminderSettings() {
   const { data: settings, isLoading } = useReminderSettings();
   const updateSettings = useUpdateReminderSettings();
 
   const [autoRemindEnabled, setAutoRemindEnabled] = useState(true);
-  const [remindOnDue, setRemindOnDue] = useState(true);
   const [remindBeforeDays, setRemindBeforeDays] = useState<number[]>([3, 1]);
   const [remindAfterDays, setRemindAfterDays] = useState<number[]>([1, 3, 7]);
-  const [preferredHour, setPreferredHour] = useState(9);
-  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
-  const [emailEnabled, setEmailEnabled] = useState(false);
-  const [beforeDueTemplate, setBeforeDueTemplate] = useState(
-    'Hola {contact_name}, te recordamos que tienes un pago pendiente de {amount} con vencimiento el {due_date}.'
-  );
-  const [onDueTemplate, setOnDueTemplate] = useState(
-    'Hola {contact_name}, hoy vence tu pago de {amount}. Por favor realiza el pago para evitar recargos.'
-  );
-  const [afterDueTemplate, setAfterDueTemplate] = useState(
-    'Hola {contact_name}, tu pago de {amount} venció hace {days_overdue} días. Por favor regulariza tu situación.'
-  );
+  const [sendHour, setSendHour] = useState(10);
+  const [weekendSend, setWeekendSend] = useState(false);
+  const [beforeDueTemplate, setBeforeDueTemplate] = useState(DEFAULT_BEFORE_TEMPLATE);
+  const [onDueTemplate, setOnDueTemplate] = useState(DEFAULT_ON_DUE_TEMPLATE);
+  const [afterDueTemplate, setAfterDueTemplate] = useState(DEFAULT_AFTER_TEMPLATE);
 
   // Load settings when data is available
   useEffect(() => {
     if (settings) {
       setAutoRemindEnabled(settings.auto_remind_enabled ?? true);
-      setRemindOnDue(settings.remind_on_due ?? true);
       setRemindBeforeDays(settings.remind_before_days || [3, 1]);
       setRemindAfterDays(settings.remind_after_days || [1, 3, 7]);
-      setPreferredHour(settings.preferred_reminder_hour ?? 9);
-      setWhatsappEnabled(settings.whatsapp_enabled ?? true);
-      setEmailEnabled(settings.email_enabled ?? false);
-      setBeforeDueTemplate(settings.before_due_template || beforeDueTemplate);
-      setOnDueTemplate(settings.on_due_template || onDueTemplate);
-      setAfterDueTemplate(settings.after_due_template || afterDueTemplate);
+      setSendHour(settings.send_hour ?? 10);
+      setWeekendSend(settings.weekend_send ?? false);
+      setBeforeDueTemplate(settings.before_due_template || DEFAULT_BEFORE_TEMPLATE);
+      setOnDueTemplate(settings.on_due_template || DEFAULT_ON_DUE_TEMPLATE);
+      setAfterDueTemplate(settings.after_due_template || DEFAULT_AFTER_TEMPLATE);
     }
   }, [settings]);
 
@@ -61,12 +56,10 @@ export function ReminderSettings() {
     try {
       await updateSettings.mutateAsync({
         auto_remind_enabled: autoRemindEnabled,
-        remind_on_due: remindOnDue,
         remind_before_days: remindBeforeDays,
         remind_after_days: remindAfterDays,
-        preferred_reminder_hour: preferredHour,
-        whatsapp_enabled: whatsappEnabled,
-        email_enabled: emailEnabled,
+        send_hour: sendHour,
+        weekend_send: weekendSend,
         before_due_template: beforeDueTemplate,
         on_due_template: onDueTemplate,
         after_due_template: afterDueTemplate,
@@ -151,39 +144,6 @@ export function ReminderSettings() {
 
           <Separator />
 
-          {/* Channels */}
-          <div className="space-y-4">
-            <Label className="text-base">Canales de notificacion</Label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <MessageSquare className="h-5 w-5 text-success" />
-                  <span>WhatsApp</span>
-                </div>
-                <Switch
-                  checked={whatsappEnabled}
-                  onCheckedChange={setWhatsappEnabled}
-                  disabled={!autoRemindEnabled}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
-                  </svg>
-                  <span>Email</span>
-                </div>
-                <Switch
-                  checked={emailEnabled}
-                  onCheckedChange={setEmailEnabled}
-                  disabled={!autoRemindEnabled}
-                />
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
           {/* Preferred Hour */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
@@ -195,8 +155,8 @@ export function ReminderSettings() {
                 type="number"
                 min={0}
                 max={23}
-                value={preferredHour}
-                onChange={(e) => setPreferredHour(Number(e.target.value))}
+                value={sendHour}
+                onChange={(e) => setSendHour(Number(e.target.value))}
                 className="w-20"
                 disabled={!autoRemindEnabled}
               />
@@ -205,6 +165,23 @@ export function ReminderSettings() {
             <p className="text-xs text-muted-foreground">
               Los recordatorios se enviaran a esta hora (zona horaria local)
             </p>
+          </div>
+
+          <Separator />
+
+          {/* Weekend Send */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-base">Enviar en fines de semana</Label>
+              <p className="text-sm text-muted-foreground">
+                Enviar recordatorios tambien los sabados y domingos
+              </p>
+            </div>
+            <Switch
+              checked={weekendSend}
+              onCheckedChange={setWeekendSend}
+              disabled={!autoRemindEnabled}
+            />
           </div>
         </CardContent>
       </Card>
@@ -262,23 +239,6 @@ export function ReminderSettings() {
                 Agregar
               </Button>
             </div>
-          </div>
-
-          <Separator />
-
-          {/* On Due Date */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-base">El dia del vencimiento</Label>
-              <p className="text-sm text-muted-foreground">
-                Enviar recordatorio el dia exacto del vencimiento
-              </p>
-            </div>
-            <Switch
-              checked={remindOnDue}
-              onCheckedChange={setRemindOnDue}
-              disabled={!autoRemindEnabled}
-            />
           </div>
 
           <Separator />

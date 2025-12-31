@@ -20,7 +20,7 @@ import {
   CalendarClock,
   RotateCcw,
 } from 'lucide-react';
-import { useReminders, useUpcomingReminders, useCancelReminder, useRescheduleReminder } from '@/hooks/useReminders';
+import { useReminders, useUpcomingReminders, useCancelReminder, useRescheduleReminder, type PaymentReminder } from '@/hooks/useReminders';
 import { ReminderSettings } from '@/components/reminders/ReminderSettings';
 import { formatCurrency } from '@/lib/currency';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -84,7 +84,7 @@ export default function Reminders() {
     return format(date, "d 'de' MMMM 'a las' HH:mm", { locale: es });
   };
 
-  const ReminderCard = ({ reminder }: { reminder: any }) => {
+  const ReminderCard = ({ reminder }: { reminder: PaymentReminder }) => {
     const status = statusConfig[reminder.status as keyof typeof statusConfig];
     const type = reminderTypeConfig[reminder.reminder_type as keyof typeof reminderTypeConfig];
     const StatusIcon = status.icon;
