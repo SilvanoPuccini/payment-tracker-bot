@@ -102,10 +102,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setSession(null);
+    try {
+      // Clear local storage first
+      localStorage.removeItem('onboarding_skipped');
+
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+
+      // Clear state
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Force clear state even if signOut fails
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      localStorage.removeItem('onboarding_skipped');
+    }
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
