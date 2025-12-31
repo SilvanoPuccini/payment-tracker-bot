@@ -57,27 +57,58 @@ export function useOnboarding() {
   }, [checkOnboardingStatus]);
 
   const completeOnboarding = async (data: OnboardingData) => {
-    if (!user) return { error: new Error('No user logged in') };
+    if (!user) {
+      console.error('completeOnboarding: No user logged in');
+      return { error: new Error('No user logged in') };
+    }
+
+    console.log('completeOnboarding: Starting save for user:', user.id);
+    console.log('completeOnboarding: Data to save:', data);
 
     try {
-      const { error } = await supabase
+      // First, check if profile exists
+      const { data: existingProfile, error: selectError } = await supabase
         .from('profiles')
-        .update({
-          company_name: data.businessName,
-          currency: data.currency,
-          timezone: data.timezone,
-          onboarding_completed: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
+        .select('id, user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (selectError) {
+        console.error('completeOnboarding: Error checking profile:', selectError);
+      }
+
+      console.log('completeOnboarding: Existing profile:', existingProfile);
+
+      // Update the profile
+      const updateData = {
+        company_name: data.businessName,
+        currency: data.currency,
+        timezone: data.timezone,
+        onboarding_completed: true,
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log('completeOnboarding: Update data:', updateData);
+
+      const { data: updatedData, error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('user_id', user.id)
+        .select();
+
+      if (error) {
+        console.error('completeOnboarding: Supabase update error:', error);
+        throw error;
+      }
+
+      console.log('completeOnboarding: Update successful:', updatedData);
 
       localStorage.setItem(ONBOARDING_KEY, 'true');
       setNeedsOnboarding(false);
 
       return { error: null };
     } catch (error) {
+      console.error('completeOnboarding: Caught error:', error);
       return { error };
     }
   };

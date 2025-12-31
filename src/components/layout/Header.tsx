@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, Bell, Settings, LogOut, User, Zap, Crown, Search, X, Home, CreditCard, Users, BarChart3 } from "lucide-react";
+import { Menu, Bell, Settings, LogOut, User, Zap, Crown, Search, X, LayoutDashboard, MessageSquare, CreditCard, Users, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,10 +17,13 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useSubscription } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
 
+// Menu items matching desktop Sidebar exactly
 const menuItems = [
-  { label: 'Inicio', href: '/', icon: Home },
+  { label: 'Inicio', href: '/', icon: LayoutDashboard },
+  { label: 'Mensajes', href: '/messages', icon: MessageSquare },
   { label: 'Pagos', href: '/payments', icon: CreditCard },
   { label: 'Contactos', href: '/contacts', icon: Users },
+  { label: 'Recordatorios', href: '/reminders', icon: Bell },
   { label: 'Reportes', href: '/reports', icon: BarChart3 },
 ];
 
@@ -34,14 +37,35 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
+    console.log("handleSignOut: Starting sign out...");
     try {
+      // Close menu first
       setMobileMenuOpen(false);
+
+      // Show loading toast
+      const loadingToast = toast.loading("Cerrando sesión...");
+
+      // Wait for sign out
       await signOut();
+
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast);
       toast.success("Sesión cerrada correctamente");
-      navigate("/login", { replace: true });
+
+      console.log("handleSignOut: Sign out successful, navigating to login");
+
+      // Small delay to ensure state is cleared
+      setTimeout(() => {
+        navigate("/login", { replace: true });
+      }, 100);
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("handleSignOut: Error signing out:", error);
       toast.error("Error al cerrar sesión");
+
+      // Force navigate anyway
+      setTimeout(() => {
+        navigate("/login", { replace: true });
+      }, 500);
     }
   };
 
@@ -250,6 +274,21 @@ export function Header() {
                 </button>
               )}
             </nav>
+
+            {/* Webhook Status - Like Desktop */}
+            <div className="p-3 border-t border-[var(--pt-border)]">
+              <div className="rounded-xl bg-[var(--pt-surface-elevated)] border border-[var(--pt-border)] p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--pt-primary)]/15">
+                    <MessageSquare className="h-4 w-4 text-[var(--pt-primary)]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">Webhook Activo</p>
+                    <p className="text-xs text-[var(--pt-primary)]">● Conectado</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Footer - User & Sign Out */}
             <div className="p-3 border-t border-[var(--pt-border)]">

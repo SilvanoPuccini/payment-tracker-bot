@@ -35,6 +35,7 @@ export interface Profile {
   timezone: string | null;
   currency: string | null;
   language: string | null;
+  onboarding_completed: boolean | null;
   created_at: string;
   updated_at: string;
 }
