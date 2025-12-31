@@ -248,7 +248,7 @@ const Index = () => {
                           />
                         </div>
                         <span className="text-[10px] text-[var(--pt-text-muted)]">
-                          {day.day?.slice(0, 3) || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index]}
+                          {day.day?.slice(0, 3) || ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][index]}
                         </span>
                       </div>
                     );

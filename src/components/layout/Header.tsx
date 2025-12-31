@@ -1,5 +1,6 @@
-import { Menu, Bell, Settings, LogOut, User, Zap, Crown } from "lucide-react";
+import { Menu, Bell, Settings, LogOut, User, Zap, Crown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import {
@@ -46,39 +47,42 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-[var(--pt-bg)]/95 backdrop-blur-md border-b border-[var(--pt-border)] px-4">
-      {/* Left: Menu button (mobile) / Logo (desktop) */}
+      {/* Mobile: Menu button only */}
       <div className="flex items-center gap-3">
-        {/* Mobile menu button */}
-        <button className="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-[var(--pt-surface)] transition-colors">
+        <button className="lg:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-[var(--pt-surface)] transition-colors">
           <Menu className="w-6 h-6 text-white" />
         </button>
 
-        {/* Desktop logo */}
-        <div className="hidden md:flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center">
-            <span className="text-white font-bold text-sm">P</span>
+        {/* Desktop: Search bar */}
+        <div className="hidden lg:flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pt-text-muted)]" />
+            <Input
+              type="search"
+              placeholder="Buscar pagos, contactos..."
+              className="w-72 pl-10 bg-[var(--pt-surface)] border-[var(--pt-border)] text-white placeholder:text-[var(--pt-text-muted)] focus:border-[var(--pt-primary)] rounded-xl h-10"
+            />
           </div>
-          <span className="text-lg font-semibold text-white">PayTrack</span>
         </div>
       </div>
 
-      {/* Right: Notifications + Avatar */}
+      {/* Right side */}
       <div className="flex items-center gap-2">
-        {/* Upgrade Button - Show for Free plan users (desktop only) */}
+        {/* Upgrade Button - desktop only */}
         {isFree && (
           <Button
             onClick={() => navigate("/pricing")}
             size="sm"
-            className="hidden md:flex gradient-primary text-white rounded-full shadow-button text-xs px-3 h-8"
+            className="hidden lg:flex gradient-primary text-white rounded-full shadow-button text-xs px-3 h-8"
           >
             <Zap className="h-3.5 w-3.5 mr-1" />
-            Upgrade
+            Mejorar Plan
           </Button>
         )}
 
-        {/* Plan Badge for Pro/Business (desktop only) */}
+        {/* Plan Badge - desktop only */}
         {!isFree && (
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--pt-primary)]/15 text-[var(--pt-primary)] text-xs font-semibold">
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--pt-primary)]/15 text-[var(--pt-primary)] text-xs font-semibold">
             <Crown className="h-3.5 w-3.5" />
             {currentPlan.name}
           </div>
@@ -136,7 +140,7 @@ export function Header() {
                 className="text-[var(--pt-primary)] hover:bg-[var(--pt-surface-elevated)] focus:bg-[var(--pt-surface-elevated)] cursor-pointer"
               >
                 <Zap className="mr-2 h-4 w-4" />
-                Upgrade a Pro
+                Mejorar a Pro
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator className="bg-[var(--pt-border)]" />
