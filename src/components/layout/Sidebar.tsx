@@ -11,7 +11,7 @@ import {
 import { Link, useLocation } from "react-router-dom";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Inicio", href: "/", icon: LayoutDashboard },
   { name: "Mensajes", href: "/messages", icon: MessageSquare },
   { name: "Pagos", href: "/payments", icon: CreditCard },
   { name: "Contactos", href: "/contacts", icon: Users },

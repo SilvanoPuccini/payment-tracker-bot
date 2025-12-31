@@ -1,4 +1,4 @@
-import { Search, LogOut, Settings, User, Zap, Crown, Bell } from "lucide-react";
+import { Menu, Bell, Settings, LogOut, User, Zap, Crown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useSubscription } from "@/hooks/useSubscription";
+import { cn } from "@/lib/utils";
 
 export function Header() {
   const { user, profile, signOut } = useAuth();
@@ -24,7 +25,7 @@ export function Header() {
 
   const handleSignOut = async () => {
     await signOut();
-    toast.success("Sesion cerrada correctamente");
+    toast.success("Sesión cerrada correctamente");
     navigate("/login");
   };
 
@@ -44,44 +45,44 @@ export function Header() {
     return "U";
   };
 
-  const displayName = profile?.full_name || user?.email?.split("@")[0] || "Usuario";
-
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between bg-stitch-bg border-b border-stitch px-5">
-      {/* Mobile: App title, Desktop: Search */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 md:hidden">
-          <div className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center">
-            <span className="text-white font-bold text-sm">P</span>
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-[var(--pt-bg)]/95 backdrop-blur-md border-b border-[var(--pt-border)] px-4">
+      {/* Mobile: Menu button only */}
+      <div className="flex items-center gap-3">
+        <button className="lg:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-[var(--pt-surface)] transition-colors">
+          <Menu className="w-6 h-6 text-white" />
+        </button>
+
+        {/* Desktop: Search bar */}
+        <div className="hidden lg:flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pt-text-muted)]" />
+            <Input
+              type="search"
+              placeholder="Buscar pagos, contactos..."
+              className="w-72 pl-10 bg-[var(--pt-surface)] border-[var(--pt-border)] text-white placeholder:text-[var(--pt-text-muted)] focus:border-[var(--pt-primary)] rounded-xl h-10"
+            />
           </div>
-          <span className="text-lg font-semibold text-stitch-text">PayTrack</span>
-        </div>
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stitch-muted" />
-          <Input
-            type="search"
-            placeholder="Buscar pagos, contactos..."
-            className="w-80 pl-10 bg-stitch-surface border-stitch text-stitch-text placeholder:text-stitch-muted focus:border-stitch-primary rounded-xl"
-          />
         </div>
       </div>
 
+      {/* Right side */}
       <div className="flex items-center gap-2">
-        {/* Upgrade Button - Show for Free plan users */}
+        {/* Upgrade Button - desktop only */}
         {isFree && (
           <Button
             onClick={() => navigate("/pricing")}
             size="sm"
-            className="hidden sm:flex gradient-primary text-white rounded-xl shadow-button"
+            className="hidden lg:flex gradient-primary text-white rounded-full shadow-button text-xs px-3 h-8"
           >
-            <Zap className="h-4 w-4 mr-1" />
-            Upgrade
+            <Zap className="h-3.5 w-3.5 mr-1" />
+            Mejorar Plan
           </Button>
         )}
 
-        {/* Plan Badge for Pro/Business */}
+        {/* Plan Badge - desktop only */}
         {!isFree && (
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stitch-primary/15 text-stitch-primary text-xs font-semibold">
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--pt-primary)]/15 text-[var(--pt-primary)] text-xs font-semibold">
             <Crown className="h-3.5 w-3.5" />
             {currentPlan.name}
           </div>
@@ -89,48 +90,66 @@ export function Header() {
 
         {/* Notifications */}
         <Link to="/notifications">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative text-stitch-muted hover:text-stitch-text hover:bg-stitch-surface rounded-xl"
-          >
-            <Bell className="h-5 w-5" />
+          <button className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-[var(--pt-surface)] transition-colors">
+            <Bell className="h-5 w-5 text-white" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-stitch-red text-white text-xs flex items-center justify-center font-medium">
+              <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-[var(--pt-red)] text-white text-[10px] flex items-center justify-center font-bold">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
-          </Button>
+          </button>
         </Link>
 
-        {/* User Menu */}
+        {/* User Avatar Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 rounded-xl bg-stitch-surface border border-stitch px-3 py-2 hover:bg-stitch-surface-elevated transition-colors">
-              <div className="h-8 w-8 rounded-xl gradient-primary flex items-center justify-center text-sm font-bold text-white">
+            <button className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-[var(--pt-border)] hover:ring-[var(--pt-primary)]/50 transition-all">
+              <div className={cn(
+                "w-full h-full flex items-center justify-center text-sm font-bold text-white",
+                "bg-gradient-to-br from-blue-500 to-blue-600"
+              )}>
                 {getInitials()}
-              </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-sm font-medium text-stitch-text">{displayName}</p>
-                <p className="text-xs text-stitch-muted">{user?.email}</p>
               </div>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-stitch-surface border-stitch">
-            <DropdownMenuLabel className="text-stitch-text">Mi Cuenta</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-stitch-border" />
-            <DropdownMenuItem onClick={() => navigate("/profile")} className="text-stitch-text hover:bg-stitch-surface-elevated focus:bg-stitch-surface-elevated">
+          <DropdownMenuContent align="end" className="w-56 bg-[var(--pt-surface)] border-[var(--pt-border)]">
+            <DropdownMenuLabel className="text-white">
+              <div>
+                <p className="font-semibold">{profile?.full_name || 'Usuario'}</p>
+                <p className="text-xs text-[var(--pt-text-muted)] font-normal">{user?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-[var(--pt-border)]" />
+            <DropdownMenuItem
+              onClick={() => navigate("/profile")}
+              className="text-white hover:bg-[var(--pt-surface-elevated)] focus:bg-[var(--pt-surface-elevated)] cursor-pointer"
+            >
               <User className="mr-2 h-4 w-4" />
               Perfil
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/settings")} className="text-stitch-text hover:bg-stitch-surface-elevated focus:bg-stitch-surface-elevated">
+            <DropdownMenuItem
+              onClick={() => navigate("/settings")}
+              className="text-white hover:bg-[var(--pt-surface-elevated)] focus:bg-[var(--pt-surface-elevated)] cursor-pointer"
+            >
               <Settings className="mr-2 h-4 w-4" />
-              Configuracion
+              Configuración
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-stitch-border" />
-            <DropdownMenuItem onClick={handleSignOut} className="text-stitch-red hover:bg-stitch-surface-elevated focus:bg-stitch-surface-elevated focus:text-stitch-red">
+            {isFree && (
+              <DropdownMenuItem
+                onClick={() => navigate("/pricing")}
+                className="text-[var(--pt-primary)] hover:bg-[var(--pt-surface-elevated)] focus:bg-[var(--pt-surface-elevated)] cursor-pointer"
+              >
+                <Zap className="mr-2 h-4 w-4" />
+                Mejorar a Pro
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator className="bg-[var(--pt-border)]" />
+            <DropdownMenuItem
+              onClick={handleSignOut}
+              className="text-[var(--pt-red)] hover:bg-[var(--pt-surface-elevated)] focus:bg-[var(--pt-surface-elevated)] focus:text-[var(--pt-red)] cursor-pointer"
+            >
               <LogOut className="mr-2 h-4 w-4" />
-              Cerrar sesion
+              Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
