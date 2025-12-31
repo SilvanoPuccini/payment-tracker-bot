@@ -103,7 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear local storage first
+      // Clear local storage first - use correct key
+      localStorage.removeItem('paytrack_onboarding_complete');
       localStorage.removeItem('onboarding_skipped');
 
       // Sign out from Supabase
@@ -119,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setProfile(null);
       setSession(null);
+      localStorage.removeItem('paytrack_onboarding_complete');
       localStorage.removeItem('onboarding_skipped');
     }
   };
