@@ -15,11 +15,9 @@ import {
   FileText,
   Download,
   Printer,
-  Mail,
   Loader2,
   Calendar,
   Filter,
-  Eye,
 } from 'lucide-react';
 import { usePayments } from '@/hooks/usePayments';
 import { useContacts } from '@/hooks/useContacts';
@@ -196,7 +194,7 @@ export function ReportGenerator() {
           })),
           currency,
           generatedBy: profile?.full_name || 'Usuario',
-          businessName: profile?.business_name || undefined,
+          businessName: profile?.company_name || undefined,
         };
 
         doc = generatePaymentReport(reportData);

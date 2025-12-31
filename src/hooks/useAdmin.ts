@@ -8,24 +8,16 @@ interface AdminStats {
   activeUsers: number;
   totalPayments: number;
   totalRevenue: number;
-  mrr: number;
-  planDistribution: {
-    free: number;
-    pro: number;
-    business: number;
-  };
 }
 
 interface AdminUser {
   id: string;
-  email: string;
+  email: string | null;
   full_name: string | null;
-  plan_id: string;
   status: string;
   created_at: string;
   last_sign_in_at: string | null;
   payments_count: number;
-  is_admin: boolean;
 }
 
 interface RegistrationStats {
@@ -33,24 +25,9 @@ interface RegistrationStats {
   count: number;
 }
 
-// Subscription relation type from Supabase query
-interface SubscriptionRelation {
-  plan_id: string;
-  status: string;
-}
-
-interface ProfileWithSubscription {
-  id: string;
-  full_name: string | null;
-  created_at: string;
-  updated_at: string;
-  is_admin: boolean | null;
-  subscriptions: SubscriptionRelation[] | null;
-}
-
+// Simple admin check - for now always returns false since is_admin column doesn't exist
 export function useIsAdmin() {
-  const { profile } = useAuth();
-  return profile?.is_admin === true;
+  return false;
 }
 
 export function useAdminStats() {
@@ -78,34 +55,19 @@ export function useAdminStats() {
         .from("payments")
         .select("*", { count: "exact", head: true });
 
-      // Get plan distribution
-      const { data: subscriptions } = await supabase
-        .from("subscriptions")
-        .select("plan_id");
+      // Get total revenue from confirmed payments
+      const { data: confirmedPayments } = await supabase
+        .from("payments")
+        .select("amount")
+        .eq("status", "confirmed");
 
-      const planDistribution = {
-        free: 0,
-        pro: 0,
-        business: 0,
-      };
-
-      subscriptions?.forEach((sub) => {
-        if (sub.plan_id === "free") planDistribution.free++;
-        else if (sub.plan_id === "pro") planDistribution.pro++;
-        else if (sub.plan_id === "business") planDistribution.business++;
-      });
-
-      // Calculate MRR
-      const mrr = planDistribution.pro * 9.99 + planDistribution.business * 29.99;
-      const totalRevenue = mrr * 12; // Estimated annual
+      const totalRevenue = confirmedPayments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
       return {
         totalUsers: totalUsers || 0,
         activeUsers: activeUsers || 0,
         totalPayments: totalPayments || 0,
         totalRevenue,
-        mrr,
-        planDistribution,
       };
     },
     enabled: !!user,
@@ -121,27 +83,17 @@ export function useAdminUsers(page = 1, limit = 20) {
     queryFn: async (): Promise<{ users: AdminUser[]; total: number }> => {
       const offset = (page - 1) * limit;
 
-      // Get users with subscription info
+      // Get users
       const { data: profiles, error, count } = await supabase
         .from("profiles")
-        .select(`
-          id,
-          full_name,
-          created_at,
-          updated_at,
-          is_admin,
-          subscriptions (
-            plan_id,
-            status
-          )
-        `, { count: "exact" })
+        .select("*", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) throw error;
 
       // Get payment counts for each user
-      const userIds = profiles?.map((p) => p.id) || [];
+      const userIds = profiles?.map((p) => p.user_id) || [];
       const { data: paymentCounts } = await supabase
         .from("payments")
         .select("user_id")
@@ -152,19 +104,14 @@ export function useAdminUsers(page = 1, limit = 20) {
         paymentCountMap[p.user_id] = (paymentCountMap[p.user_id] || 0) + 1;
       });
 
-      // Get auth users for email (this requires service role, so we'll use a workaround)
-      // For now, we'll just show the profile data
-      const typedProfiles = profiles as ProfileWithSubscription[] | null;
-      const users: AdminUser[] = (typedProfiles || []).map((p) => ({
+      const users: AdminUser[] = (profiles || []).map((p) => ({
         id: p.id,
-        email: `user-${p.id.slice(0, 8)}@paytrack.app`, // Placeholder
+        email: p.email,
         full_name: p.full_name,
-        plan_id: p.subscriptions?.[0]?.plan_id || "free",
-        status: p.subscriptions?.[0]?.status || "active",
+        status: "active",
         created_at: p.created_at,
         last_sign_in_at: p.updated_at,
-        payments_count: paymentCountMap[p.id] || 0,
-        is_admin: p.is_admin || false,
+        payments_count: paymentCountMap[p.user_id] || 0,
       }));
 
       return {
@@ -217,50 +164,5 @@ export function useRegistrationStats(days = 30) {
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-}
-
-export function useUpdateUserPlan() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, planId }: { userId: string; planId: string }) => {
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({ plan_id: planId })
-        .eq("user_id", userId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
-      toast.success("Plan actualizado correctamente");
-    },
-    onError: () => {
-      toast.error("Error al actualizar el plan");
-    },
-  });
-}
-
-export function useToggleAdminStatus() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ is_admin: isAdmin })
-        .eq("id", userId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      toast.success("Estado de admin actualizado");
-    },
-    onError: () => {
-      toast.error("Error al actualizar estado de admin");
-    },
   });
 }
