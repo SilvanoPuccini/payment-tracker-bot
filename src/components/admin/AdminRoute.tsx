@@ -8,9 +8,9 @@ interface AdminRouteProps {
 }
 
 export function AdminRoute({ children }: AdminRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -22,9 +22,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!profile?.is_admin) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
+  // For now, admin functionality is disabled since is_admin column doesn't exist
+  // TODO: Create user_roles table for proper admin role management
+  return <Navigate to="/" replace />;
 }

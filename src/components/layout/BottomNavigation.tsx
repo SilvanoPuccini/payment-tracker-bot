@@ -161,12 +161,12 @@ export function BottomNavigation() {
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 mb-4">
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-emerald-500/20 text-emerald-400">
-                        {profile.business_name?.[0] || profile.full_name?.[0] || '?'}
+                        {profile.company_name?.[0] || profile.full_name?.[0] || '?'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate text-white">
-                        {profile.business_name || profile.full_name || 'Usuario'}
+                        {profile.company_name || profile.full_name || 'Usuario'}
                       </p>
                       <p className="text-xs text-slate-400 truncate">
                         {profile.full_name}

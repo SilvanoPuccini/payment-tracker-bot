@@ -7,9 +7,6 @@ import {
   DollarSign,
   TrendingUp,
   Loader2,
-  UserCheck,
-  Zap,
-  Building
 } from "lucide-react";
 import { useAdminStats, useRegistrationStats } from "@/hooks/useAdmin";
 
@@ -58,23 +55,6 @@ export default function Admin() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                MRR
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${stats?.mrr.toFixed(2) || "0.00"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Ingresos mensuales recurrentes
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
                 Pagos Procesados
               </CardTitle>
               <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -90,147 +70,90 @@ export default function Admin() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Revenue Anual Est.
+                Revenue Total
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${stats?.totalRevenue?.toFixed(2) || "0.00"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                De pagos confirmados
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Usuarios Activos
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                ${stats?.totalRevenue.toFixed(2) || "0.00"}
-              </div>
+              <div className="text-2xl font-bold">{stats?.activeUsers || 0}</div>
               <p className="text-xs text-muted-foreground">
-                Basado en MRR actual
+                Últimos 30 días
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Plan Distribution */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribución de Planes</CardTitle>
-              <CardDescription>
-                Usuarios por tipo de plan
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Free */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
-                      <UserCheck className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Free</p>
-                      <p className="text-xs text-muted-foreground">Plan gratuito</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">{stats?.planDistribution.free || 0}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {stats?.totalUsers ? Math.round((stats.planDistribution.free / stats.totalUsers) * 100) : 0}%
-                    </p>
-                  </div>
+        {/* Registrations Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Registros Recientes</CardTitle>
+            <CardDescription>
+              Últimos 30 días
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingRegistrations ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Simple bar chart */}
+                <div className="flex items-end gap-1 h-32">
+                  {registrations?.slice(-14).map((day) => {
+                    const maxCount = Math.max(...(registrations?.map(d => d.count) || [1]));
+                    const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
+
+                    return (
+                      <div
+                        key={day.date}
+                        className="flex-1 bg-primary/20 hover:bg-primary/30 rounded-t transition-colors relative group"
+                        style={{ height: `${Math.max(height, 4)}%` }}
+                      >
+                        {day.count > 0 && (
+                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-popover px-2 py-1 rounded text-xs hidden group-hover:block shadow">
+                            {day.count}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Hace 14 días</span>
+                  <span>Hoy</span>
                 </div>
 
-                {/* Pro */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/50">
-                      <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Pro</p>
-                      <p className="text-xs text-muted-foreground">$9.99/mes</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">{stats?.planDistribution.pro || 0}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {stats?.totalUsers ? Math.round((stats.planDistribution.pro / stats.totalUsers) * 100) : 0}%
-                    </p>
-                  </div>
-                </div>
-
-                {/* Business */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/50">
-                      <Building className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Business</p>
-                      <p className="text-xs text-muted-foreground">$29.99/mes</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">{stats?.planDistribution.business || 0}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {stats?.totalUsers ? Math.round((stats.planDistribution.business / stats.totalUsers) * 100) : 0}%
-                    </p>
+                {/* Summary */}
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Total registros (30d)</span>
+                    <span className="font-medium">
+                      {registrations?.reduce((sum, d) => sum + d.count, 0) || 0}
+                    </span>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Registrations Chart (Simplified) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Registros Recientes</CardTitle>
-              <CardDescription>
-                Últimos 30 días
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingRegistrations ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {/* Simple bar chart */}
-                  <div className="flex items-end gap-1 h-32">
-                    {registrations?.slice(-14).map((day, index) => {
-                      const maxCount = Math.max(...(registrations?.map(d => d.count) || [1]));
-                      const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
-
-                      return (
-                        <div
-                          key={day.date}
-                          className="flex-1 bg-primary/20 hover:bg-primary/30 rounded-t transition-colors relative group"
-                          style={{ height: `${Math.max(height, 4)}%` }}
-                        >
-                          {day.count > 0 && (
-                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-popover px-2 py-1 rounded text-xs hidden group-hover:block shadow">
-                              {day.count}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Hace 14 días</span>
-                    <span>Hoy</span>
-                  </div>
-
-                  {/* Summary */}
-                  <div className="pt-4 border-t">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total registros (30d)</span>
-                      <span className="font-medium">
-                        {registrations?.reduce((sum, d) => sum + d.count, 0) || 0}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
         <Card>
@@ -247,9 +170,6 @@ export default function Admin() {
               </Badge>
               <Badge variant="outline" className="cursor-pointer hover:bg-muted">
                 Ver logs del sistema
-              </Badge>
-              <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                Configurar webhooks
               </Badge>
             </div>
           </CardContent>

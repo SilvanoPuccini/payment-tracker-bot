@@ -1,13 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Payment = Tables<'payments'>;
 
-// Types
+// Types - Note: notifications table doesn't exist yet, so we use local state
 export interface Notification {
   id: string;
   user_id: string;
@@ -22,27 +21,25 @@ export interface Notification {
   created_at: string;
 }
 
-// Fetch notifications
+// Local notifications state (until notifications table is created)
+const localNotifications: Notification[] = [];
+
+// Fetch notifications - returns empty array since table doesn't exist
 export function useNotifications(limit = 20) {
   const { user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  return useQuery({
-    queryKey: ['notifications', user?.id, limit],
-    queryFn: async () => {
-      if (!user?.id) return [];
+  useEffect(() => {
+    if (user?.id) {
+      setNotifications(localNotifications.filter(n => n.user_id === user.id).slice(0, limit));
+    }
+  }, [user?.id, limit]);
 
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return data as Notification[];
-    },
-    enabled: !!user?.id,
-  });
+  return {
+    data: notifications,
+    isLoading: false,
+    error: null,
+  };
 }
 
 // Fetch unread count
@@ -50,203 +47,71 @@ export function useUnreadNotificationCount() {
   const { user } = useAuth();
   const [count, setCount] = useState(0);
 
-  // Initial fetch
-  const { data } = useQuery({
-    queryKey: ['notifications', 'unread-count', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return 0;
-
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('read', false);
-
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: !!user?.id,
-  });
-
   useEffect(() => {
-    if (data !== undefined) {
-      setCount(data);
+    if (user?.id) {
+      const unread = localNotifications.filter(n => n.user_id === user.id && !n.read).length;
+      setCount(unread);
     }
-  }, [data]);
-
-  // Realtime subscription
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel('notifications-count')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          // Refetch count on any change
-          supabase
-            .from('notifications')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .eq('read', false)
-            .then(({ count }) => {
-              setCount(count || 0);
-            });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [user?.id]);
 
-  return count;
+  return { data: count };
 }
 
 // Mark notification as read
 export function useMarkNotificationRead() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, read_at: new Date().toISOString() })
-        .eq('id', notificationId);
-
-      if (error) throw error;
+  return {
+    mutateAsync: async (notificationId: string) => {
+      const notification = localNotifications.find(n => n.id === notificationId);
+      if (notification) {
+        notification.read = true;
+        notification.read_at = new Date().toISOString();
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
-  });
+    isPending: false,
+  };
 }
 
 // Mark all notifications as read
 export function useMarkAllNotificationsRead() {
-  const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  return useMutation({
-    mutationFn: async () => {
-      if (!user?.id) throw new Error('No authenticated user');
-
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, read_at: new Date().toISOString() })
-        .eq('user_id', user.id)
-        .eq('read', false);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  return {
+    mutateAsync: async () => {
+      if (!user?.id) return;
+      localNotifications.forEach(n => {
+        if (n.user_id === user.id) {
+          n.read = true;
+          n.read_at = new Date().toISOString();
+        }
+      });
       toast.success('Todas las notificaciones marcadas como leidas');
     },
-  });
+    isPending: false,
+  };
 }
 
 // Delete notification
 export function useDeleteNotification() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId);
-
-      if (error) throw error;
+  return {
+    mutateAsync: async (notificationId: string) => {
+      const index = localNotifications.findIndex(n => n.id === notificationId);
+      if (index > -1) {
+        localNotifications.splice(index, 1);
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
-  });
+    isPending: false,
+  };
 }
 
-// Create notification (usually called from backend, but useful for testing)
-export function useCreateNotification() {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  return useMutation({
-    mutationFn: async (notification: {
-      type: string;
-      title: string;
-      message?: string;
-      icon?: string;
-      data?: Record<string, string | number | boolean | null>;
-      action_url?: string;
-    }) => {
-      if (!user?.id) throw new Error('No authenticated user');
-
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: user.id,
-          ...notification,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
-  });
-}
-
-// Realtime notifications hook - shows toasts for new notifications
+// Realtime notifications hook - shows toasts for new payments
 export function useRealtimeNotifications() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel('realtime-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const notification = payload.new as Notification;
-
-          // Show toast notification
-          const icon = notification.icon || getDefaultIcon(notification.type);
-
-          toast(notification.title, {
-            description: notification.message || undefined,
-            icon: icon,
-            action: notification.action_url
-              ? {
-                  label: 'Ver',
-                  onClick: () => {
-                    window.location.href = notification.action_url!;
-                  },
-                }
-              : undefined,
-          });
-
-          // Invalidate queries to update UI
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        }
-      )
+      .channel('realtime-payments')
       .on(
         'postgres_changes',
         {
@@ -266,7 +131,6 @@ export function useRealtimeNotifications() {
               },
             },
           });
-          queryClient.invalidateQueries({ queryKey: ['payments'] });
         }
       )
       .on(
@@ -287,7 +151,6 @@ export function useRealtimeNotifications() {
               description: `${payment.currency} ${payment.amount} confirmado`,
             });
           }
-          queryClient.invalidateQueries({ queryKey: ['payments'] });
         }
       )
       .subscribe();
@@ -295,31 +158,5 @@ export function useRealtimeNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, queryClient]);
-}
-
-function getDefaultIcon(type: string): string {
-  switch (type) {
-    case 'payment_received':
-    case 'payment':
-      return '💰';
-    case 'payment_confirmed':
-      return '✅';
-    case 'reminder':
-    case 'reminder_sent':
-      return '⏰';
-    case 'promise':
-    case 'promise_created':
-      return '📅';
-    case 'promise_overdue':
-      return '⚠️';
-    case 'message':
-      return '💬';
-    case 'alert':
-      return '🔔';
-    case 'system':
-      return '⚙️';
-    default:
-      return '📢';
-  }
+  }, [user?.id]);
 }
