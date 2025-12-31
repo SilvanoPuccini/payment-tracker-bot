@@ -1,38 +1,28 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
 import { useOnboarding, OnboardingData } from '@/hooks/useOnboarding';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, Loader2, Settings, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, Home, Zap } from 'lucide-react';
 
+// Monedas con banderas emoji
 const CURRENCIES = [
-  { value: 'PEN', label: 'Soles (PEN)', symbol: 'S/' },
-  { value: 'USD', label: 'Dolares (USD)', symbol: '$' },
-  { value: 'ARS', label: 'Pesos Argentinos (ARS)', symbol: '$' },
-  { value: 'CLP', label: 'Pesos Chilenos (CLP)', symbol: '$' },
-  { value: 'COP', label: 'Pesos Colombianos (COP)', symbol: '$' },
-  { value: 'MXN', label: 'Pesos Mexicanos (MXN)', symbol: '$' },
-  { value: 'EUR', label: 'Euros (EUR)', symbol: 'E' },
+  { value: 'PEN', label: 'Soles', flag: '🇵🇪' },
+  { value: 'USD', label: 'Dólares', flag: '🇺🇸' },
+  { value: 'ARS', label: 'Pesos', flag: '🇦🇷' },
+  { value: 'CLP', label: 'Pesos', flag: '🇨🇱' },
+  { value: 'MXN', label: 'Pesos', flag: '🇲🇽' },
+  { value: 'EUR', label: 'Euros', flag: '🇪🇺' },
 ];
 
-const TIMEZONES = [
-  { value: 'America/Lima', label: 'Lima, Peru (GMT-5)' },
-  { value: 'America/Buenos_Aires', label: 'Buenos Aires, Argentina (GMT-3)' },
-  { value: 'America/Santiago', label: 'Santiago, Chile (GMT-3)' },
-  { value: 'America/Bogota', label: 'Bogota, Colombia (GMT-5)' },
-  { value: 'America/Mexico_City', label: 'Ciudad de Mexico (GMT-6)' },
-  { value: 'Europe/Madrid', label: 'Madrid, Espana (GMT+1)' },
-];
+// Mapeo de moneda a timezone
+const CURRENCY_TIMEZONE: Record<string, string> = {
+  PEN: 'America/Lima',
+  USD: 'America/New_York',
+  ARS: 'America/Buenos_Aires',
+  CLP: 'America/Santiago',
+  MXN: 'America/Mexico_City',
+  EUR: 'Europe/Madrid',
+};
 
 export function OnboardingFlow() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -64,247 +54,285 @@ export function OnboardingFlow() {
     navigate('/');
   };
 
-  const handleComplete = async (goToSettings: boolean) => {
+  const handleCurrencySelect = (currency: string) => {
+    setFormData({
+      ...formData,
+      currency,
+      timezone: CURRENCY_TIMEZONE[currency] || 'America/Lima',
+    });
+  };
+
+  const handleComplete = async (connectWhatsApp: boolean) => {
     setIsSubmitting(true);
     const { error } = await completeOnboarding(formData);
     setIsSubmitting(false);
 
     if (error) {
-      toast.error('Error al guardar configuracion');
+      toast.error('Error al guardar configuración');
       return;
     }
 
-    toast.success('Configuracion completada!');
-    navigate(goToSettings ? '/settings' : '/');
+    toast.success('¡Configuración completada!');
+    navigate(connectWhatsApp ? '/settings' : '/');
   };
 
-  const renderProgress = () => (
-    <div className="flex gap-2 mb-8">
+  // Barra de progreso
+  const ProgressBar = () => (
+    <div className="flex gap-2 px-6 pt-6 pb-4">
       {Array.from({ length: totalSteps }).map((_, i) => (
         <div
           key={i}
-          className={"h-2 flex-1 rounded-full transition-all duration-300 " + (i <= currentStep ? 'bg-emerald-500' : 'bg-slate-700')}
+          className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+            i <= currentStep ? 'bg-[var(--pt-primary)]' : 'bg-[var(--pt-surface-elevated)]'
+          }`}
         />
       ))}
     </div>
   );
 
-  const renderStep0 = () => (
-    <div className="text-center space-y-6">
-      <div className="text-7xl">&#128075;</div>
-      <h1 className="text-3xl font-bold text-foreground">
-        Bienvenido a PayTrack!
+  // Step 0: Bienvenida
+  const WelcomeStep = () => (
+    <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+      {/* Emoji con círculo de fondo */}
+      <div className="w-32 h-32 rounded-full bg-[var(--pt-surface)] flex items-center justify-center mb-8 shadow-lg">
+        <span className="text-7xl animate-wave">👋</span>
+      </div>
+
+      <h1 className="text-3xl font-bold text-white mb-2">
+        ¡Bienvenido a
       </h1>
-      <p className="text-lg text-muted-foreground">
-        Configuremos tu cuenta en 2 minutos
+      <h1 className="text-3xl font-bold text-[var(--pt-primary)] mb-4">
+        PayTrack!
+      </h1>
+
+      <p className="text-[var(--pt-text-secondary)] text-lg mb-12 max-w-xs">
+        Gestiona tus pagos de forma simple con WhatsApp e Inteligencia Artificial
       </p>
-      <Button
-        size="lg"
-        className="bg-emerald-500 hover:bg-emerald-600 text-white mt-4"
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Botón Comenzar */}
+      <button
         onClick={handleNext}
+        className="w-full py-4 px-6 rounded-2xl bg-[var(--pt-primary)] text-white font-bold text-lg flex items-center justify-center gap-2 shadow-button hover:bg-[var(--pt-primary-hover)] transition-all active:scale-98"
       >
         Comenzar
-        <ArrowRight className="ml-2 h-5 w-5" />
-      </Button>
+        <ArrowRight className="w-5 h-5" />
+      </button>
+
+      {/* Link Saltar */}
+      <button
+        onClick={handleSkip}
+        className="mt-4 mb-8 text-[var(--pt-text-muted)] text-sm hover:text-[var(--pt-text-secondary)] transition-colors"
+      >
+        Saltar configuración
+      </button>
     </div>
   );
 
-  const renderStep1 = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <div className="text-5xl mb-4">&#127970;</div>
-        <h2 className="text-2xl font-bold text-foreground">Tu Negocio</h2>
-        <p className="text-muted-foreground">
-          Para personalizar tu experiencia
-        </p>
-      </div>
-      <div className="space-y-4">
-        <Label htmlFor="businessName">Nombre de tu negocio o empresa</Label>
-        <Input
-          id="businessName"
-          placeholder="Ej: Mi Tienda, Juan Perez Consultoria"
-          value={formData.businessName}
-          onChange={(e) =>
-            setFormData({ ...formData, businessName: e.target.value })
-          }
-          className="text-lg py-6"
-        />
-        <p className="text-sm text-muted-foreground">
-          Minimo 2 caracteres
-        </p>
-      </div>
-    </div>
-  );
+  // Step 1: Nombre del negocio
+  const BusinessNameStep = () => (
+    <div className="flex-1 flex flex-col px-6">
+      {/* Contenido centrado */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        {/* Emoji */}
+        <span className="text-7xl mb-8">🏢</span>
 
-  const renderStep2 = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <div className="text-5xl mb-4">&#127758;</div>
-        <h2 className="text-2xl font-bold text-foreground">
-          Configuracion Regional
+        <h2 className="text-2xl font-bold text-white mb-8">
+          ¿Cómo se llama<br />tu negocio?
         </h2>
-        <p className="text-muted-foreground">
-          Selecciona tu moneda y zona horaria
+
+        {/* Input */}
+        <input
+          type="text"
+          placeholder="Ej: Mi Tienda Online"
+          value={formData.businessName}
+          onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+          className="w-full py-4 px-5 rounded-2xl bg-[var(--pt-surface)] border border-[var(--pt-border)] text-white text-lg placeholder:text-[var(--pt-text-muted)] focus:outline-none focus:border-[var(--pt-primary)] transition-colors"
+        />
+
+        <p className="mt-3 text-[var(--pt-text-secondary)] text-sm">
+          Esto aparecerá en tus reportes y recordatorios de cobro
         </p>
       </div>
-      <div className="space-y-6">
-        <div className="space-y-3">
-          <Label>Moneda principal</Label>
-          <Select
-            value={formData.currency}
-            onValueChange={(value) =>
-              setFormData({ ...formData, currency: value })
-            }
-          >
-            <SelectTrigger className="text-lg py-6">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CURRENCIES.map((c) => (
-                <SelectItem key={c.value} value={c.value}>
-                  {c.symbol} {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-3">
-          <Label>Zona horaria</Label>
-          <Select
-            value={formData.timezone}
-            onValueChange={(value) =>
-              setFormData({ ...formData, timezone: value })
-            }
-          >
-            <SelectTrigger className="text-lg py-6">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIMEZONES.map((tz) => (
-                <SelectItem key={tz.value} value={tz.value}>
-                  {tz.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-          <p className="text-sm text-muted-foreground">
-            Ejemplo de formato:{' '}
-            <span className="text-foreground font-medium">
-              {CURRENCIES.find((c) => c.value === formData.currency)?.symbol}
-              1,500.00
-            </span>
-          </p>
-        </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between py-6">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 text-[var(--pt-text-secondary)] hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Atrás
+        </button>
+
+        <button
+          onClick={handleNext}
+          className="py-3 px-8 rounded-2xl bg-[var(--pt-primary)] text-white font-semibold flex items-center gap-2 shadow-button hover:bg-[var(--pt-primary-hover)] transition-all active:scale-98"
+        >
+          Continuar
+          <ArrowRight className="w-5 h-5" />
+        </button>
       </div>
     </div>
   );
 
-  const renderStep3 = () => (
-    <div className="text-center space-y-6">
-      <div className="text-7xl">&#127881;</div>
-      <h2 className="text-3xl font-bold text-foreground">Todo listo!</h2>
-      <p className="text-lg text-muted-foreground">
-        Tu cuenta esta configurada
-      </p>
-      <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700 text-left">
-        <h3 className="font-semibold mb-2">Resumen:</h3>
-        <ul className="space-y-1 text-sm text-muted-foreground">
-          <li>
-            <span className="text-foreground">Negocio:</span>{' '}
-            {formData.businessName}
-          </li>
-          <li>
-            <span className="text-foreground">Moneda:</span>{' '}
-            {CURRENCIES.find((c) => c.value === formData.currency)?.label}
-          </li>
-          <li>
-            <span className="text-foreground">Zona horaria:</span>{' '}
-            {TIMEZONES.find((tz) => tz.value === formData.timezone)?.label}
-          </li>
-        </ul>
+  // Step 2: Selección de moneda
+  const CurrencyStep = () => (
+    <div className="flex-1 flex flex-col px-6">
+      {/* Contenido */}
+      <div className="flex-1 flex flex-col items-center pt-8">
+        {/* Emoji */}
+        <span className="text-7xl mb-6">💰</span>
+
+        <h2 className="text-2xl font-bold text-white mb-2 text-center">
+          ¿En qué moneda<br />cobras?
+        </h2>
+
+        <p className="text-[var(--pt-text-secondary)] text-center mb-8">
+          Puedes agregar más monedas<br />después en la configuración.
+        </p>
+
+        {/* Grid de monedas */}
+        <div className="grid grid-cols-2 gap-3 w-full">
+          {CURRENCIES.map((currency) => (
+            <button
+              key={currency.value}
+              onClick={() => handleCurrencySelect(currency.value)}
+              className={`flex items-center gap-3 p-4 rounded-2xl transition-all ${
+                formData.currency === currency.value
+                  ? 'bg-[var(--pt-primary)]/15 border-2 border-[var(--pt-primary)]'
+                  : 'bg-[var(--pt-surface)] border border-[var(--pt-border)] hover:border-[var(--pt-border-strong)]'
+              }`}
+            >
+              <span className="text-3xl">{currency.flag}</span>
+              <div className="text-left">
+                <div className={`font-semibold ${
+                  formData.currency === currency.value ? 'text-[var(--pt-primary)]' : 'text-white'
+                }`}>
+                  {currency.value}
+                </div>
+                <div className={`text-sm ${
+                  formData.currency === currency.value ? 'text-[var(--pt-primary)]' : 'text-[var(--pt-text-muted)]'
+                }`}>
+                  {currency.label}
+                </div>
+              </div>
+              {formData.currency === currency.value && (
+                <div className="ml-auto w-6 h-6 rounded-full bg-[var(--pt-primary)] flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="flex flex-col gap-3 pt-4">
-        <Button
-          size="lg"
-          variant="outline"
-          className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
+
+      {/* Footer */}
+      <div className="flex items-center justify-between py-6">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 text-[var(--pt-text-secondary)] hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Atrás
+        </button>
+
+        <button
+          onClick={handleNext}
+          className="py-3 px-8 rounded-2xl bg-[var(--pt-primary)] text-white font-semibold flex items-center gap-2 shadow-button hover:bg-[var(--pt-primary-hover)] transition-all active:scale-98"
+        >
+          Continuar
+          <ArrowRight className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+
+  // Step 3: Todo listo
+  const CompleteStep = () => (
+    <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+      {/* Emoji */}
+      <span className="text-8xl mb-6">🎉</span>
+
+      <h2 className="text-3xl font-bold text-white mb-4">
+        ¡Todo listo!
+      </h2>
+
+      <p className="text-[var(--pt-text-secondary)] text-lg mb-12">
+        Tu cuenta está configurada y lista para usar.
+      </p>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Botones */}
+      <div className="w-full space-y-3 mb-8">
+        {/* Conectar WhatsApp - Principal */}
+        <button
           onClick={() => handleComplete(true)}
           disabled={isSubmitting}
+          className="w-full py-4 px-6 rounded-2xl bg-[var(--pt-primary)] text-white font-bold text-lg flex items-center justify-center gap-3 shadow-button hover:bg-[var(--pt-primary-hover)] transition-all active:scale-98 disabled:opacity-50"
         >
           {isSubmitting ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            <Loader2 className="w-6 h-6 animate-spin" />
           ) : (
-            <Settings className="mr-2 h-5 w-5" />
+            <>
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              </svg>
+              Conectar WhatsApp
+            </>
           )}
-          Conectar WhatsApp
-        </Button>
-        <Button
-          size="lg"
-          className="bg-emerald-500 hover:bg-emerald-600 text-white"
+        </button>
+
+        {/* Texto debajo del botón de WhatsApp */}
+        <div className="flex items-center justify-center gap-2 text-[var(--pt-text-secondary)] text-sm">
+          <Zap className="w-4 h-4 text-[var(--pt-yellow)]" />
+          Detecta pagos automáticamente
+        </div>
+
+        {/* Ir al Dashboard - Secundario */}
+        <button
           onClick={() => handleComplete(false)}
           disabled={isSubmitting}
+          className="w-full py-4 px-6 rounded-2xl bg-[var(--pt-surface)] border border-[var(--pt-border)] text-white font-semibold text-lg flex items-center justify-center gap-3 hover:bg-[var(--pt-surface-elevated)] transition-all active:scale-98 disabled:opacity-50"
         >
           {isSubmitting ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            <Loader2 className="w-6 h-6 animate-spin" />
           ) : (
-            <LayoutDashboard className="mr-2 h-5 w-5" />
+            <>
+              <Home className="w-5 h-5" />
+              Ir al Dashboard
+            </>
           )}
-          Ir al Dashboard
-        </Button>
+        </button>
+
+        {/* Texto inferior */}
+        <p className="text-[var(--pt-text-muted)] text-sm">
+          Configura WhatsApp después
+        </p>
       </div>
     </div>
   );
 
   const renderStep = () => {
     switch (currentStep) {
-      case 0: return renderStep0();
-      case 1: return renderStep1();
-      case 2: return renderStep2();
-      case 3: return renderStep3();
+      case 0: return <WelcomeStep />;
+      case 1: return <BusinessNameStep />;
+      case 2: return <CurrencyStep />;
+      case 3: return <CompleteStep />;
       default: return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-slate-800/50 border-slate-700 backdrop-blur">
-        <CardContent className="p-8">
-          {renderProgress()}
-          
-          <div className="min-h-[400px] flex flex-col justify-center">
-            {renderStep()}
-          </div>
-
-          {currentStep > 0 && currentStep < 3 && (
-            <div className="flex justify-between mt-8 pt-6 border-t border-slate-700">
-              <Button variant="ghost" onClick={handleBack}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Atras
-              </Button>
-              <Button
-                className="bg-emerald-500 hover:bg-emerald-600"
-                onClick={handleNext}
-              >
-                Continuar
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          {currentStep > 0 && currentStep < 3 && (
-            <div className="text-center mt-4">
-              <button
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                onClick={handleSkip}
-              >
-                Saltar por ahora
-              </button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-[var(--pt-bg)] flex flex-col">
+      <ProgressBar />
+      {renderStep()}
     </div>
   );
 }
