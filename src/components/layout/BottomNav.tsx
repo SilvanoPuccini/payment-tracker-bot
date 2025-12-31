@@ -6,23 +6,23 @@ import { PaymentDialog } from '@/components/payments/PaymentDialog';
 
 const navItems = [
   {
-    label: 'Home',
+    label: 'Inicio',
     href: '/',
     icon: Home,
   },
   {
-    label: 'Payments',
+    label: 'Pagos',
     href: '/payments',
     icon: CreditCard,
   },
   // FAB will be inserted here
   {
-    label: 'Contacts',
+    label: 'Contactos',
     href: '/contacts',
     icon: Users,
   },
   {
-    label: 'Reports',
+    label: 'Reportes',
     href: '/reports',
     icon: BarChart3,
   },

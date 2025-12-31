@@ -86,7 +86,7 @@ const Index = () => {
             Hola, {userName} <span className="animate-wave inline-block">👋</span>
           </h1>
           <p className="text-[var(--pt-text-secondary)] text-sm">
-            Here's your financial overview today.
+            Aquí está tu resumen financiero de hoy.
           </p>
         </div>
 
@@ -152,7 +152,7 @@ const Index = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-[var(--pt-text-secondary)] mb-1">Collected</p>
+                  <p className="text-xs text-[var(--pt-text-secondary)] mb-1">Cobrado</p>
                   <p className="text-3xl font-bold text-white">
                     {isLoading ? '---' : formatCurrency(stats?.totalAmountThisMonth || 0)}
                   </p>
@@ -167,7 +167,7 @@ const Index = () => {
                       <Clock className="w-5 h-5 text-[var(--pt-yellow)]" />
                     </div>
                   </div>
-                  <p className="text-xs text-[var(--pt-text-secondary)] mb-1">Pending</p>
+                  <p className="text-xs text-[var(--pt-text-secondary)] mb-1">Pendiente</p>
                   <p className="text-3xl font-bold text-white">
                     {isLoading ? '---' : formatCurrency(stats?.pendingAmount || 0)}
                   </p>
@@ -182,7 +182,7 @@ const Index = () => {
                       <Receipt className="w-5 h-5 text-[var(--pt-blue)]" />
                     </div>
                   </div>
-                  <p className="text-xs text-[var(--pt-text-secondary)] mb-1">This month</p>
+                  <p className="text-xs text-[var(--pt-text-secondary)] mb-1">Este mes</p>
                   <p className="text-3xl font-bold text-white">
                     {isLoading ? '---' : stats?.totalPaymentsThisMonth || 0}
                   </p>
@@ -192,14 +192,14 @@ const Index = () => {
 
             {/* Quick Actions */}
             <div className="animate-slide-up" style={{ animationDelay: '150ms' }}>
-              <p className="pt-section-header">QUICK ACTIONS</p>
+              <p className="pt-section-header">ACCIONES RÁPIDAS</p>
               <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                 <button
                   className="pt-btn-secondary !px-4 !py-3 whitespace-nowrap"
                   onClick={() => setDialogOpen(true)}
                 >
                   <Plus className="w-5 h-5" />
-                  New Payment
+                  Nuevo Pago
                 </button>
                 <button
                   className="pt-btn-secondary !px-4 !py-3 whitespace-nowrap"
@@ -213,7 +213,7 @@ const Index = () => {
                   onClick={() => navigate("/contacts")}
                 >
                   <Users className="w-5 h-5" />
-                  Contacts
+                  Contactos
                 </button>
               </div>
             </div>
@@ -221,12 +221,12 @@ const Index = () => {
             {/* Weekly Activity */}
             <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white">Weekly Activity</h3>
+                <h3 className="text-lg font-bold text-white">Actividad Semanal</h3>
                 <button
                   className="text-[var(--pt-primary)] text-sm font-semibold flex items-center gap-1"
                   onClick={() => navigate("/reports")}
                 >
-                  View Report
+                  Ver Reporte
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -260,7 +260,7 @@ const Index = () => {
             {/* Requires Attention */}
             {(overduePayments.length > 0 || pendingPayments.length > 0) && (
               <div className="animate-slide-up" style={{ animationDelay: '250ms' }}>
-                <p className="pt-section-header">REQUIRES ATTENTION</p>
+                <p className="pt-section-header">REQUIERE ATENCIÓN</p>
                 <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                   {overduePayments.length > 0 && (
                     <div className="pt-alert pt-alert-error min-w-[280px]">
@@ -268,7 +268,7 @@ const Index = () => {
                         <AlertTriangle className="w-5 h-5 text-[var(--pt-red)]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white text-sm">Overdue Payment</p>
+                        <p className="font-semibold text-white text-sm">Pago Vencido</p>
                         <p className="text-xs text-[var(--pt-text-secondary)] truncate">
                           {overduePayments[0]?.contact?.name || 'Unknown'} • {formatCurrency(overduePayments[0]?.amount || 0)}
                         </p>
@@ -287,9 +287,9 @@ const Index = () => {
                         <Calendar className="w-5 h-5 text-[var(--pt-yellow)]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white text-sm">Pending Payments</p>
+                        <p className="font-semibold text-white text-sm">Pagos Pendientes</p>
                         <p className="text-xs text-[var(--pt-text-secondary)]">
-                          {pendingPayments.length} payments need review
+                          {pendingPayments.length} pagos necesitan revisión
                         </p>
                       </div>
                     </div>
@@ -301,12 +301,12 @@ const Index = () => {
             {/* Recent Transactions */}
             <div className="animate-slide-up" style={{ animationDelay: '300ms' }}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white">Recent Transactions</h3>
+                <h3 className="text-lg font-bold text-white">Transacciones Recientes</h3>
                 <button
                   className="text-[var(--pt-primary)] text-sm font-semibold flex items-center gap-1"
                   onClick={() => navigate("/payments")}
                 >
-                  View All
+                  Ver Todo
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -352,7 +352,7 @@ const Index = () => {
                         {payment.status === 'confirmed' ? '+' : ''}{formatCurrency(payment.amount)}
                       </p>
                       {payment.status === 'pending' && (
-                        <p className="text-[10px] text-[var(--pt-yellow)]">Pending</p>
+                        <p className="text-[10px] text-[var(--pt-yellow)]">Pendiente</p>
                       )}
                     </div>
                   </div>
@@ -360,7 +360,7 @@ const Index = () => {
 
                 {recentPayments.length === 0 && (
                   <div className="text-center py-8">
-                    <p className="text-[var(--pt-text-secondary)]">No recent transactions</p>
+                    <p className="text-[var(--pt-text-secondary)]">No hay transacciones recientes</p>
                   </div>
                 )}
               </div>
