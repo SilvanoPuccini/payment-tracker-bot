@@ -4,15 +4,14 @@ import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PendingPayments } from "@/components/dashboard/PendingPayments";
-import { CreditCard, DollarSign, Clock, CheckCircle2, Plus, MessageSquare } from "lucide-react";
+import { CreditCard, DollarSign, Clock, CheckCircle2, Plus, Wallet } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
 import { usePayments } from "@/hooks/usePayments";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const { data: stats, isLoading } = useDashboardStats();
@@ -73,10 +72,10 @@ const Index = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl font-bold text-stitch-text">Dashboard</h1>
+            <p className="text-stitch-muted">
               Bienvenido de vuelta. Aquí está el resumen de hoy.
             </p>
           </div>
@@ -84,25 +83,41 @@ const Index = () => {
         </div>
 
         {hasNoData ? (
-          <EmptyState
-            icon={<span role="img" aria-label="money">💰</span>}
-            title="¡Bienvenido a PayTrack!"
-            description="Registra tu primer pago o conecta WhatsApp para empezar a detectar pagos automáticamente."
-            action={{
-              label: "Registrar pago manual",
-              onClick: () => setDialogOpen(true),
-              icon: <Plus className="h-4 w-4" />,
-            }}
-            secondaryAction={{
-              label: "Conectar WhatsApp",
-              onClick: () => navigate("/settings"),
-            }}
-            tip="También puedes agregar contactos primero en la sección Contactos."
-          />
+          /* Empty State - Stitch Design */
+          <div className="stitch-empty animate-scale-in">
+            <div className="stitch-empty-icon">
+              <Wallet className="h-10 w-10 text-stitch-primary" />
+            </div>
+            <h2 className="text-xl font-semibold text-stitch-text mb-2">
+              ¡Bienvenido a PayTrack!
+            </h2>
+            <p className="text-stitch-muted max-w-md mb-6">
+              Registra tu primer pago o conecta WhatsApp para empezar a detectar pagos automáticamente.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+              <Button
+                className="flex-1 gradient-primary text-white rounded-xl shadow-button"
+                onClick={() => setDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Registrar pago
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 bg-stitch-surface border-stitch text-stitch-text hover:bg-stitch-surface-elevated rounded-xl"
+                onClick={() => navigate("/settings")}
+              >
+                Conectar WhatsApp
+              </Button>
+            </div>
+            <p className="text-sm text-stitch-muted mt-4">
+              También puedes agregar contactos primero en la sección Contactos.
+            </p>
+          </div>
         ) : (
           <>
             {/* Stats Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
               {statsData.map((stat, index) => (
                 <StatsCard key={stat.title} {...stat} delay={index * 50} />
               ))}

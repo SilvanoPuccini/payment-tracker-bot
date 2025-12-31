@@ -1,64 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-
 @layer base {
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    /* Stitch Dark Theme - Forest Green */
+    --background: 152 30% 10%;
+    --foreground: 140 20% 92%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 152 25% 14%;
+    --card-foreground: 140 20% 92%;
 
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 152 25% 16%;
+    --popover-foreground: 140 20% 92%;
 
-    --primary: 173 80% 40%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 153 82% 40%;
+    --primary-foreground: 152 30% 10%;
 
-    --secondary: 222 47% 12%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 152 20% 20%;
+    --secondary-foreground: 140 20% 92%;
 
-    --muted: 222 30% 15%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 152 15% 22%;
+    --muted-foreground: 152 15% 58%;
 
-    --accent: 173 80% 40%;
-    --accent-foreground: 222 47% 6%;
+    --accent: 153 82% 40%;
+    --accent-foreground: 152 30% 10%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 140 20% 92%;
 
-    --success: 142 71% 45%;
-    --success-foreground: 222 47% 6%;
+    --success: 153 82% 40%;
+    --success-foreground: 152 30% 10%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 6%;
+    --warning: 48 96% 53%;
+    --warning-foreground: 152 30% 10%;
 
-    --border: 222 30% 18%;
-    --input: 222 30% 18%;
-    --ring: 173 80% 40%;
+    --border: 152 15% 20%;
+    --input: 152 15% 20%;
+    --ring: 153 82% 40%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    /* Custom fintech tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(173 80% 40%), hsl(190 80% 50%));
-    --gradient-card: linear-gradient(180deg, hsl(222 47% 10%), hsl(222 47% 8%));
-    --gradient-glow: radial-gradient(ellipse at top, hsl(173 80% 40% / 0.15), transparent 50%);
-    
-    --shadow-glow: 0 0 40px hsl(173 80% 40% / 0.2);
-    --shadow-card: 0 4px 24px hsl(222 47% 4% / 0.5);
-    --shadow-elevated: 0 8px 32px hsl(222 47% 4% / 0.6);
+    /* Stitch Custom Tokens */
+    --stitch-bg: #112119;
+    --stitch-surface: #1c2e26;
+    --stitch-surface-elevated: #243830;
+    --stitch-primary: #12ba66;
+    --stitch-primary-hover: #0ea85c;
+    --stitch-text: #e8efe9;
+    --stitch-text-muted: #8aa394;
+    --stitch-border: rgba(255, 255, 255, 0.1);
+    --stitch-border-strong: rgba(255, 255, 255, 0.15);
+    --stitch-yellow: #facc15;
+    --stitch-red: #ef4444;
+    --stitch-blue: #3b82f6;
 
-    --sidebar-background: 222 47% 7%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 173 80% 40%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 47% 12%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 30% 15%;
-    --sidebar-ring: 173 80% 40%;
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #12ba66, #0ea85c);
+    --gradient-card: linear-gradient(180deg, #1c2e26, #182822);
+    --gradient-glow: radial-gradient(ellipse at top, rgba(18, 186, 102, 0.15), transparent 50%);
+
+    /* Shadows */
+    --shadow-glow: 0 0 40px rgba(18, 186, 102, 0.2);
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+    --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-button: 0 4px 14px rgba(18, 186, 102, 0.3);
+
+    /* Sidebar */
+    --sidebar-background: 152 25% 12%;
+    --sidebar-foreground: 140 20% 92%;
+    --sidebar-primary: 153 82% 40%;
+    --sidebar-primary-foreground: 152 30% 10%;
+    --sidebar-accent: 152 20% 18%;
+    --sidebar-accent-foreground: 140 20% 92%;
+    --sidebar-border: 152 15% 18%;
+    --sidebar-ring: 153 82% 40%;
   }
 }
 
@@ -69,7 +87,293 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--stitch-bg);
+    color: var(--stitch-text);
+  }
+
+  /* Better focus styles */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* Stitch Card Styles */
+  .stitch-card {
+    background-color: var(--stitch-surface);
+    border: 1px solid var(--stitch-border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .stitch-card-elevated {
+    background-color: var(--stitch-surface-elevated);
+    border: 1px solid var(--stitch-border-strong);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Stitch Button Styles */
+  .stitch-btn-primary {
+    background: var(--gradient-primary);
+    color: white;
+    font-weight: 600;
+    padding: 14px 24px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-button);
+    transition: all 0.2s ease;
+  }
+
+  .stitch-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(18, 186, 102, 0.4);
+  }
+
+  .stitch-btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .stitch-btn-secondary {
+    background-color: var(--stitch-surface-elevated);
+    color: var(--stitch-text);
+    font-weight: 500;
+    padding: 14px 24px;
+    border-radius: 12px;
+    border: 1px solid var(--stitch-border);
+    transition: all 0.2s ease;
+  }
+
+  .stitch-btn-secondary:hover {
+    background-color: var(--stitch-surface);
+    border-color: var(--stitch-border-strong);
+  }
+
+  /* Stitch Input Styles */
+  .stitch-input {
+    background-color: var(--stitch-surface);
+    border: 1px solid var(--stitch-border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--stitch-text);
+    font-size: 16px;
+    transition: all 0.2s ease;
+  }
+
+  .stitch-input::placeholder {
+    color: var(--stitch-text-muted);
+  }
+
+  .stitch-input:focus {
+    border-color: var(--stitch-primary);
+    box-shadow: 0 0 0 3px rgba(18, 186, 102, 0.1);
+  }
+
+  /* Stitch Badge Styles */
+  .stitch-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .stitch-badge-success {
+    background-color: rgba(18, 186, 102, 0.15);
+    color: var(--stitch-primary);
+  }
+
+  .stitch-badge-warning {
+    background-color: rgba(250, 204, 21, 0.15);
+    color: var(--stitch-yellow);
+  }
+
+  .stitch-badge-danger {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--stitch-red);
+  }
+
+  /* Stitch Stat Card */
+  .stitch-stat {
+    background-color: var(--stitch-surface);
+    border: 1px solid var(--stitch-border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .stitch-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--stitch-text);
+  }
+
+  .stitch-stat-label {
+    font-size: 14px;
+    color: var(--stitch-text-muted);
+    margin-top: 4px;
+  }
+
+  /* Bottom Navigation */
+  .stitch-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--stitch-surface);
+    border-top: 1px solid var(--stitch-border);
+    padding: 12px 0;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 50;
+  }
+
+  .stitch-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 16px;
+    color: var(--stitch-text-muted);
+    font-size: 12px;
+    transition: color 0.2s ease;
+  }
+
+  .stitch-nav-item.active {
+    color: var(--stitch-primary);
+  }
+
+  .stitch-nav-item:hover {
+    color: var(--stitch-text);
+  }
+
+  /* FAB Button */
+  .stitch-fab {
+    position: fixed;
+    bottom: 88px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-button);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+    transition: all 0.2s ease;
+  }
+
+  .stitch-fab:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 24px rgba(18, 186, 102, 0.4);
+  }
+
+  /* Glass effect */
+  .stitch-glass {
+    background: rgba(28, 46, 38, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Progress bar */
+  .stitch-progress {
+    height: 8px;
+    background-color: var(--stitch-surface-elevated);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .stitch-progress-bar {
+    height: 100%;
+    background: var(--gradient-primary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+
+  /* Avatar */
+  .stitch-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: white;
+    font-size: 14px;
+  }
+
+  .stitch-avatar-lg {
+    width: 64px;
+    height: 64px;
+    font-size: 24px;
+    border-radius: 16px;
+  }
+
+  /* List Item */
+  .stitch-list-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background-color: var(--stitch-surface);
+    border: 1px solid var(--stitch-border);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+  }
+
+  .stitch-list-item:hover {
+    background-color: var(--stitch-surface-elevated);
+    border-color: var(--stitch-border-strong);
+  }
+
+  /* Divider */
+  .stitch-divider {
+    height: 1px;
+    background-color: var(--stitch-border);
+    margin: 16px 0;
+  }
+
+  /* Header */
+  .stitch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    padding-top: calc(16px + env(safe-area-inset-top));
+    background-color: var(--stitch-bg);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+
+  /* Page container with bottom nav padding */
+  .stitch-page {
+    min-height: 100vh;
+    padding-bottom: 100px; /* Space for bottom nav */
+  }
+
+  /* Empty State */
+  .stitch-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+  }
+
+  .stitch-empty-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background-color: var(--stitch-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
   }
 }
 
@@ -98,6 +402,10 @@
     box-shadow: var(--shadow-elevated);
   }
 
+  .shadow-button {
+    box-shadow: var(--shadow-button);
+  }
+
   .text-gradient {
     background: var(--gradient-primary);
     -webkit-background-clip: text;
@@ -106,10 +414,23 @@
   }
 
   .glass {
-    background: hsl(222 47% 8% / 0.8);
+    background: rgba(28, 46, 38, 0.8);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
+  /* Stitch Colors as utilities */
+  .bg-stitch-bg { background-color: var(--stitch-bg); }
+  .bg-stitch-surface { background-color: var(--stitch-surface); }
+  .bg-stitch-surface-elevated { background-color: var(--stitch-surface-elevated); }
+  .bg-stitch-primary { background-color: var(--stitch-primary); }
+  .text-stitch-text { color: var(--stitch-text); }
+  .text-stitch-muted { color: var(--stitch-text-muted); }
+  .text-stitch-primary { color: var(--stitch-primary); }
+  .border-stitch { border-color: var(--stitch-border); }
+  .border-stitch-strong { border-color: var(--stitch-border-strong); }
+
+  /* Animations */
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
@@ -125,6 +446,19 @@
   .animate-fade-in {
     animation: fade-in 0.3s ease-out;
   }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+  }
+
+  /* Safe area utilities */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
 }
 
 @keyframes float {
@@ -138,11 +472,11 @@
 }
 
 @keyframes slide-up {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(20px);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0);
   }
@@ -153,22 +487,58 @@
   to { opacity: 1; }
 }
 
-/* Custom scrollbar */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Custom scrollbar - Stitch style */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
-  border-radius: 4px;
+  background: var(--stitch-surface);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 4px;
+  background: var(--stitch-surface-elevated);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
+  background: var(--stitch-text-muted);
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .stitch-card {
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .stitch-stat-value {
+    font-size: 24px;
+  }
+
+  .stitch-btn-primary,
+  .stitch-btn-secondary {
+    padding: 12px 20px;
+    width: 100%;
+  }
+}
+
+/* Hide scrollbar for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
 }
