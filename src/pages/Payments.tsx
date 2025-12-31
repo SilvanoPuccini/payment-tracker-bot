@@ -1,19 +1,7 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -22,7 +10,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  CreditCard,
   Search,
   Filter,
   Download,
@@ -37,11 +24,10 @@ import {
   Eye,
   Trash2,
   Plus,
-  Loader2,
   Pencil,
-  MessageSquare
+  CreditCard,
+  ChevronRight,
 } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
 import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
@@ -58,27 +44,27 @@ import { es } from "date-fns/locale";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { StatsCardSkeleton, TableSkeleton } from "@/components/ui/skeletons";
+import { cn } from "@/lib/utils";
 
-const getStatusBadge = (status: string) => {
+const getStatusConfig = (status: string) => {
   switch (status) {
     case "confirmed":
-      return <Badge variant="success"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmado</Badge>;
+      return { label: "Confirmado", icon: CheckCircle2, className: "bg-stitch-primary/15 text-stitch-primary" };
     case "pending":
-      return <Badge variant="warning"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
+      return { label: "Pendiente", icon: Clock, className: "bg-stitch-yellow/15 text-stitch-yellow" };
     case "rejected":
-      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Rechazado</Badge>;
+      return { label: "Rechazado", icon: XCircle, className: "bg-stitch-red/15 text-stitch-red" };
     case "cancelled":
-      return <Badge variant="secondary"><XCircle className="h-3 w-3 mr-1" />Cancelado</Badge>;
+      return { label: "Cancelado", icon: XCircle, className: "bg-stitch-muted/15 text-stitch-muted" };
     default:
-      return null;
+      return { label: "Desconocido", icon: Clock, className: "bg-stitch-muted/15 text-stitch-muted" };
   }
 };
 
 const getConfidenceColor = (confidence: number) => {
-  if (confidence >= 90) return "bg-success";
-  if (confidence >= 70) return "bg-warning";
-  return "bg-destructive";
+  if (confidence >= 90) return "bg-stitch-primary";
+  if (confidence >= 70) return "bg-stitch-yellow";
+  return "bg-stitch-red";
 };
 
 export default function Payments() {
@@ -180,380 +166,419 @@ export default function Payments() {
     return paymentDate.toDateString() === today.toDateString();
   }) || [];
 
+  const statsCards = [
+    {
+      title: "Total detectado",
+      value: formatCurrency(stats?.totalAmount || 0, userCurrency),
+      icon: DollarSign,
+      color: "bg-stitch-primary/15 text-stitch-primary",
+    },
+    {
+      title: "Confirmados",
+      value: formatCurrency(stats?.confirmedAmount || 0, userCurrency),
+      icon: CheckCircle2,
+      color: "bg-stitch-primary/15 text-stitch-primary",
+    },
+    {
+      title: "Pendientes",
+      value: formatCurrency(stats?.pendingAmount || 0, userCurrency),
+      icon: Clock,
+      color: "bg-stitch-yellow/15 text-stitch-yellow",
+    },
+    {
+      title: "Confianza promedio",
+      value: `${(stats?.avgConfidence || 0).toFixed(1)}%`,
+      icon: TrendingUp,
+      color: "bg-stitch-primary/15 text-stitch-primary",
+    },
+  ];
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Pagos</h1>
-            <p className="text-muted-foreground">
-              Gestiona y revisa todos los pagos detectados por el sistema
+            <h1 className="text-2xl font-bold text-stitch-text">Pagos</h1>
+            <p className="text-stitch-muted">
+              Gestiona y revisa todos los pagos detectados
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              className="bg-stitch-surface border-stitch text-stitch-text hover:bg-stitch-surface-elevated rounded-xl"
+            >
               <Download className="h-4 w-4 mr-2" />
               Exportar
             </Button>
             <Button
               size="sm"
-              className="gradient-primary text-primary-foreground"
+              className="gradient-primary text-white rounded-xl shadow-button"
               onClick={handleOpenCreate}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Registrar pago
+              Nuevo pago
             </Button>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="glass-card">
-            <CardContent className="p-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          {statsCards.map((stat, index) => (
+            <div
+              key={stat.title}
+              className="stitch-card animate-slide-up"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg gradient-primary">
-                  <DollarSign className="h-5 w-5 text-primary-foreground" />
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", stat.color)}>
+                  <stat.icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(stats?.totalAmount || 0, userCurrency)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Total detectado</p>
+                  <p className="text-xl sm:text-2xl font-bold text-stitch-text">{stat.value}</p>
+                  <p className="text-xs text-stitch-muted">{stat.title}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/20">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(stats?.confirmedAmount || 0, userCurrency)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Confirmados</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/20">
-                  <Clock className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(stats?.pendingAmount || 0, userCurrency)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Pendientes</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{(stats?.avgConfidence || 0).toFixed(1)}%</p>
-                  <p className="text-xs text-muted-foreground">Confianza promedio</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Payments Table */}
-        <Card className="glass-card">
-          <CardHeader>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>Historial de Pagos</CardTitle>
-                <CardDescription>Lista completa de pagos detectados y registrados</CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar pagos..."
-                    className="pl-9 w-64"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-                  <SelectTrigger className="w-40">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="confirmed">Confirmados</SelectItem>
-                    <SelectItem value="pending">Pendientes</SelectItem>
-                    <SelectItem value="rejected">Rechazados</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="all" className="w-full">
-              <TabsList className="mb-4">
-                <TabsTrigger value="all">Todos ({payments?.length || 0})</TabsTrigger>
-                <TabsTrigger value="today">Hoy ({todayPayments.length})</TabsTrigger>
-              </TabsList>
-              <TabsContent value="all" className="m-0">
-                {isLoading ? (
-                  <TableSkeleton rows={8} columns={7} />
-                ) : filteredPayments.length === 0 ? (
-                  <EmptyState
-                    icon={<span role="img" aria-label="clipboard">📋</span>}
-                    title="Sin pagos registrados"
-                    description="Los pagos que detectemos aparecerán aquí. Puedes agregar uno manualmente o conectar WhatsApp."
-                    action={{
-                      label: "Registrar primer pago",
-                      onClick: handleOpenCreate,
-                      icon: <Plus className="h-4 w-4" />,
-                    }}
-                    secondaryAction={{
-                      label: "Conectar WhatsApp",
-                      onClick: () => navigate("/settings"),
-                    }}
-                    tip="Conecta WhatsApp para detectar pagos automáticamente."
-                  />
-                ) : (
-                  <>
-                    <div className="rounded-lg border border-border/50 overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableHead>Contacto</TableHead>
-                            <TableHead>Monto</TableHead>
-                            <TableHead>Método</TableHead>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Confianza</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredPayments.map((payment) => (
-                            <TableRow key={payment.id} className="hover:bg-muted/20">
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                                      {payment.contact?.name
-                                        ? payment.contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2)
-                                        : "??"
-                                      }
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <span className="font-medium text-sm">{payment.contact?.name || 'Desconocido'}</span>
-                                    <p className="text-xs text-muted-foreground">{payment.contact?.phone || ''}</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <span className="font-semibold text-foreground">
-                                  {formatCurrency(payment.amount, payment.currency)}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1.5">
-                                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span className="text-sm">{payment.method_detail || payment.method || 'N/A'}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1.5">
-                                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <div>
-                                    <p className="text-sm">{format(new Date(payment.created_at), 'dd/MM/yyyy', { locale: es })}</p>
-                                    <p className="text-xs text-muted-foreground">{format(new Date(payment.created_at), 'HH:mm', { locale: es })}</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Progress
-                                    value={payment.confidence_score}
-                                    className={`h-2 w-16 ${getConfidenceColor(payment.confidence_score)}`}
-                                  />
-                                  <span className="text-xs font-medium">{payment.confidence_score}%</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                              <TableCell className="text-right">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleOpenEdit(payment)}>
-                                      <Pencil className="h-4 w-4 mr-2" />
-                                      Editar
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                      <Eye className="h-4 w-4 mr-2" />
-                                      Ver detalle
-                                    </DropdownMenuItem>
-                                    {payment.status === 'pending' && (
-                                      <>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => handleConfirm(payment.id)}>
-                                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                                          Confirmar
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleReject(payment.id)}>
-                                          <XCircle className="h-4 w-4 mr-2" />
-                                          Rechazar
-                                        </DropdownMenuItem>
-                                      </>
-                                    )}
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => handleDelete(payment.id)}
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Eliminar
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+          ))}
+        </div>
 
-                    {/* Count */}
-                    <div className="flex items-center justify-between mt-4">
-                      <p className="text-sm text-muted-foreground">
-                        Mostrando {filteredPayments.length} pagos
-                      </p>
+        {/* Payments List */}
+        <div className="stitch-card animate-slide-up" style={{ animationDelay: "200ms" }}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-stitch pb-4 mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-stitch-text">Historial de Pagos</h3>
+              <p className="text-sm text-stitch-muted">Lista completa de pagos detectados</p>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stitch-muted" />
+                <Input
+                  placeholder="Buscar pagos..."
+                  className="pl-9 w-full sm:w-64 bg-stitch-surface-elevated border-stitch text-stitch-text placeholder:text-stitch-muted rounded-xl"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+                <SelectTrigger className="w-36 bg-stitch-surface-elevated border-stitch text-stitch-text rounded-xl">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent className="bg-stitch-surface border-stitch">
+                  <SelectItem value="all" className="text-stitch-text hover:bg-stitch-surface-elevated">Todos</SelectItem>
+                  <SelectItem value="confirmed" className="text-stitch-text hover:bg-stitch-surface-elevated">Confirmados</SelectItem>
+                  <SelectItem value="pending" className="text-stitch-text hover:bg-stitch-surface-elevated">Pendientes</SelectItem>
+                  <SelectItem value="rejected" className="text-stitch-text hover:bg-stitch-surface-elevated">Rechazados</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="mb-4 bg-stitch-surface-elevated border border-stitch rounded-xl p-1">
+              <TabsTrigger
+                value="all"
+                className="rounded-lg data-[state=active]:bg-stitch-primary data-[state=active]:text-white text-stitch-muted"
+              >
+                Todos ({payments?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger
+                value="today"
+                className="rounded-lg data-[state=active]:bg-stitch-primary data-[state=active]:text-white text-stitch-muted"
+              >
+                Hoy ({todayPayments.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="all" className="m-0">
+              {isLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="animate-pulse flex items-center justify-between p-4 rounded-xl bg-stitch-surface-elevated/50">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-stitch-surface-elevated" />
+                        <div className="space-y-2">
+                          <div className="h-4 w-24 bg-stitch-surface-elevated rounded" />
+                          <div className="h-3 w-16 bg-stitch-surface-elevated rounded" />
+                        </div>
+                      </div>
+                      <div className="h-6 w-20 bg-stitch-surface-elevated rounded-full" />
                     </div>
-                  </>
-                )}
-              </TabsContent>
-              <TabsContent value="today" className="m-0">
-                {todayPayments.length === 0 ? (
-                  <EmptyState
-                    icon={<span role="img" aria-label="calendar">📅</span>}
-                    title="Sin pagos hoy"
-                    description="Aún no hay pagos registrados para hoy. Los nuevos pagos aparecerán aquí."
-                    action={{
-                      label: "Registrar pago",
-                      onClick: handleOpenCreate,
-                      icon: <Plus className="h-4 w-4" />,
-                    }}
-                  />
-                ) : (
-                  <div className="rounded-lg border border-border/50 overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30 hover:bg-muted/30">
-                          <TableHead>Contacto</TableHead>
-                          <TableHead>Monto</TableHead>
-                          <TableHead>Método</TableHead>
-                          <TableHead>Hora</TableHead>
-                          <TableHead>Confianza</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {todayPayments.map((payment) => (
-                          <TableRow key={payment.id} className="hover:bg-muted/20">
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                                    {payment.contact?.name
-                                      ? payment.contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2)
-                                      : "??"
-                                    }
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="font-medium text-sm">{payment.contact?.name || 'Desconocido'}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <span className="font-semibold text-foreground">
-                                {formatCurrency(payment.amount, payment.currency)}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <span className="text-sm">{payment.method_detail || payment.method || 'N/A'}</span>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {format(new Date(payment.created_at), 'HH:mm', { locale: es })}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Progress
-                                  value={payment.confidence_score}
-                                  className={`h-2 w-16 ${getConfidenceColor(payment.confidence_score)}`}
-                                />
-                                <span className="text-xs font-medium">{payment.confidence_score}%</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                            <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleOpenEdit(payment)}>
-                                    <Pencil className="h-4 w-4 mr-2" />
-                                    Editar
-                                  </DropdownMenuItem>
-                                  {payment.status === 'pending' && (
-                                    <>
-                                      <DropdownMenuItem onClick={() => handleConfirm(payment.id)}>
-                                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                                        Confirmar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleReject(payment.id)}>
-                                        <XCircle className="h-4 w-4 mr-2" />
-                                        Rechazar
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => handleDelete(payment.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Eliminar
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  ))}
+                </div>
+              ) : filteredPayments.length === 0 ? (
+                <div className="stitch-empty py-16">
+                  <div className="stitch-empty-icon">
+                    <CreditCard className="h-10 w-10 text-stitch-muted" />
                   </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                  <h2 className="text-xl font-semibold text-stitch-text mb-2">Sin pagos registrados</h2>
+                  <p className="text-stitch-muted max-w-md mb-6">
+                    Los pagos que detectemos aparecerán aquí. Puedes agregar uno manualmente o conectar WhatsApp.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      className="gradient-primary text-white rounded-xl shadow-button"
+                      onClick={handleOpenCreate}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Registrar primer pago
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="bg-stitch-surface border-stitch text-stitch-text hover:bg-stitch-surface-elevated rounded-xl"
+                      onClick={() => navigate("/settings")}
+                    >
+                      Conectar WhatsApp
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredPayments.map((payment, index) => {
+                    const status = getStatusConfig(payment.status);
+                    const StatusIcon = status.icon;
+
+                    return (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between p-3 sm:p-4 rounded-xl hover:bg-stitch-surface-elevated transition-colors cursor-pointer group animate-fade-in"
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-stitch-surface-elevated group-hover:bg-stitch-primary/15 transition-colors flex-shrink-0">
+                            <span className="text-sm font-semibold text-stitch-text group-hover:text-stitch-primary transition-colors">
+                              {payment.contact?.name
+                                ? payment.contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2)
+                                : "??"
+                              }
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm text-stitch-text truncate">
+                                {payment.contact?.name || 'Desconocido'}
+                              </span>
+                              {payment.method && (
+                                <span className="hidden sm:flex items-center gap-1 text-xs text-stitch-muted">
+                                  <Building2 className="h-3 w-3" />
+                                  {payment.method_detail || payment.method}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-stitch-muted">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(payment.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 sm:gap-4">
+                          <div className="text-right">
+                            <p className="font-semibold text-stitch-text">
+                              {formatCurrency(payment.amount, payment.currency)}
+                            </p>
+                            <div className="hidden sm:flex items-center gap-1 justify-end">
+                              <div className="h-1.5 w-12 rounded-full bg-stitch-surface-elevated overflow-hidden">
+                                <div
+                                  className={cn("h-full rounded-full", getConfidenceColor(payment.confidence_score))}
+                                  style={{ width: `${payment.confidence_score}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-stitch-muted">{payment.confidence_score}%</span>
+                            </div>
+                          </div>
+
+                          <span className={cn("stitch-badge text-xs whitespace-nowrap", status.className)}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            <span className="hidden sm:inline">{status.label}</span>
+                          </span>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-stitch-muted hover:text-stitch-text hover:bg-stitch-surface-elevated rounded-lg"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-stitch-surface border-stitch">
+                              <DropdownMenuItem
+                                onClick={() => handleOpenEdit(payment)}
+                                className="text-stitch-text hover:bg-stitch-surface-elevated"
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-stitch-text hover:bg-stitch-surface-elevated">
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ver detalle
+                              </DropdownMenuItem>
+                              {payment.status === 'pending' && (
+                                <>
+                                  <DropdownMenuSeparator className="bg-stitch-border" />
+                                  <DropdownMenuItem
+                                    onClick={() => handleConfirm(payment.id)}
+                                    className="text-stitch-primary hover:bg-stitch-surface-elevated"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Confirmar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleReject(payment.id)}
+                                    className="text-stitch-yellow hover:bg-stitch-surface-elevated"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Rechazar
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              <DropdownMenuSeparator className="bg-stitch-border" />
+                              <DropdownMenuItem
+                                className="text-stitch-red hover:bg-stitch-surface-elevated"
+                                onClick={() => handleDelete(payment.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Count */}
+                  <div className="flex items-center justify-between pt-4 border-t border-stitch">
+                    <p className="text-sm text-stitch-muted">
+                      Mostrando {filteredPayments.length} pagos
+                    </p>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="today" className="m-0">
+              {todayPayments.length === 0 ? (
+                <div className="stitch-empty py-16">
+                  <div className="stitch-empty-icon">
+                    <Calendar className="h-10 w-10 text-stitch-muted" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-stitch-text mb-2">Sin pagos hoy</h2>
+                  <p className="text-stitch-muted max-w-md mb-6">
+                    Aún no hay pagos registrados para hoy.
+                  </p>
+                  <Button
+                    className="gradient-primary text-white rounded-xl shadow-button"
+                    onClick={handleOpenCreate}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Registrar pago
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {todayPayments.map((payment, index) => {
+                    const status = getStatusConfig(payment.status);
+                    const StatusIcon = status.icon;
+
+                    return (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between p-3 sm:p-4 rounded-xl hover:bg-stitch-surface-elevated transition-colors cursor-pointer group animate-fade-in"
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stitch-surface-elevated group-hover:bg-stitch-primary/15 transition-colors flex-shrink-0">
+                            <span className="text-sm font-semibold text-stitch-text group-hover:text-stitch-primary transition-colors">
+                              {payment.contact?.name
+                                ? payment.contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2)
+                                : "??"
+                              }
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-medium text-sm text-stitch-text truncate block">
+                              {payment.contact?.name || 'Desconocido'}
+                            </span>
+                            <span className="text-xs text-stitch-muted">
+                              {format(new Date(payment.created_at), 'HH:mm', { locale: es })}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="font-semibold text-stitch-text">
+                              {formatCurrency(payment.amount, payment.currency)}
+                            </p>
+                          </div>
+
+                          <span className={cn("stitch-badge text-xs", status.className)}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            <span className="hidden sm:inline">{status.label}</span>
+                          </span>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-stitch-muted hover:text-stitch-text hover:bg-stitch-surface-elevated rounded-lg"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-stitch-surface border-stitch">
+                              <DropdownMenuItem
+                                onClick={() => handleOpenEdit(payment)}
+                                className="text-stitch-text hover:bg-stitch-surface-elevated"
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
+                              {payment.status === 'pending' && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => handleConfirm(payment.id)}
+                                    className="text-stitch-primary hover:bg-stitch-surface-elevated"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Confirmar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleReject(payment.id)}
+                                    className="text-stitch-yellow hover:bg-stitch-surface-elevated"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Rechazar
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              <DropdownMenuSeparator className="bg-stitch-border" />
+                              <DropdownMenuItem
+                                className="text-stitch-red hover:bg-stitch-surface-elevated"
+                                onClick={() => handleDelete(payment.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
 
       {/* Payment Dialog */}

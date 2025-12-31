@@ -1,9 +1,6 @@
 import React from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -23,7 +20,8 @@ import {
   FileText,
   ArrowUpRight,
   ArrowDownRight,
-  Loader2
+  Loader2,
+  Plus,
 } from "lucide-react";
 import {
   Area,
@@ -47,32 +45,31 @@ import { useContactStats } from "@/hooks/useContacts";
 import { useMessageStats } from "@/hooks/useMessages";
 import { usePaymentStats, usePayments, type PaymentWithContact } from "@/hooks/usePayments";
 import { useAuth } from "@/contexts/AuthContext";
-import { EmptyState } from "@/components/ui/empty-state";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { ReportGenerator } from "@/components/reports/ReportGenerator";
 import { generatePaymentReport, downloadPDF, type ReportData } from "@/lib/pdf-generator";
-import { formatCurrency as formatCurrencyLib, type CurrencyCode } from "@/lib/currency";
+import { type CurrencyCode } from "@/lib/currency";
 import * as XLSX from "xlsx";
+import { cn } from "@/lib/utils";
 
-// Payment method colors
+// Payment method colors - Stitch palette
 const METHOD_COLORS: Record<string, string> = {
-  transfer: "hsl(173, 80%, 40%)",
-  transferencia: "hsl(173, 80%, 40%)",
-  cash: "hsl(142, 71%, 45%)",
-  efectivo: "hsl(142, 71%, 45%)",
-  deposit: "hsl(38, 92%, 50%)",
-  deposito: "hsl(38, 92%, 50%)",
-  depósito: "hsl(38, 92%, 50%)",
-  debit: "hsl(222, 47%, 50%)",
-  debito: "hsl(222, 47%, 50%)",
-  débito: "hsl(222, 47%, 50%)",
-  credit: "hsl(280, 60%, 50%)",
-  credito: "hsl(280, 60%, 50%)",
-  crédito: "hsl(280, 60%, 50%)",
-  other: "hsl(222, 30%, 40%)",
-  otro: "hsl(222, 30%, 40%)",
+  transfer: "#12ba66",
+  transferencia: "#12ba66",
+  cash: "#facc15",
+  efectivo: "#facc15",
+  deposit: "#3b82f6",
+  deposito: "#3b82f6",
+  depósito: "#3b82f6",
+  debit: "#8b5cf6",
+  debito: "#8b5cf6",
+  débito: "#8b5cf6",
+  credit: "#f97316",
+  credito: "#f97316",
+  crédito: "#f97316",
+  other: "#8aa394",
+  otro: "#8aa394",
 };
 
 const METHOD_LABELS: Record<string, string> = {
@@ -146,7 +143,6 @@ export default function Reports() {
       ? Math.round((paymentStats.confirmedCount || 0) / totalPayments * 100)
       : 0;
 
-    // Calculate average confidence from payments
     const avgConfidence = payments.length > 0
       ? Math.round(payments.reduce((sum, p) => sum + (p.confidence_score || 0), 0) / payments.length)
       : 0;
@@ -189,10 +185,7 @@ export default function Reports() {
     const reportData: ReportData = {
       title: 'Reporte de Pagos',
       subtitle: `Periodo: ${dateRange === 'week' ? 'Esta semana' : dateRange === 'month' ? 'Este mes' : dateRange === 'quarter' ? 'Este trimestre' : 'Este año'}`,
-      dateRange: {
-        from: startOfMonth,
-        to: now,
-      },
+      dateRange: { from: startOfMonth, to: now },
       summary: {
         totalPayments: payments.length,
         confirmedAmount: confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
@@ -228,7 +221,6 @@ export default function Reports() {
       return;
     }
 
-    // Prepare payment data for Excel
     const paymentData = payments.map((p: PaymentWithContact) => ({
       'Fecha': p.payment_date || new Date(p.created_at).toLocaleDateString('es-PE'),
       'Contacto': p.contact?.name || 'Sin contacto',
@@ -241,14 +233,10 @@ export default function Reports() {
       'Notas': p.notes || '',
     }));
 
-    // Create workbook with multiple sheets
     const wb = XLSX.utils.book_new();
-
-    // Payments sheet
     const wsPayments = XLSX.utils.json_to_sheet(paymentData);
     XLSX.utils.book_append_sheet(wb, wsPayments, 'Pagos');
 
-    // Summary sheet
     const confirmedPayments = payments.filter(p => p.status === 'confirmed');
     const pendingPayments = payments.filter(p => p.status === 'pending');
     const summaryData = [
@@ -261,7 +249,6 @@ export default function Reports() {
     const wsSummary = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
 
-    // Monthly stats sheet if available
     if (monthlyData && monthlyData.length > 0) {
       const monthlySheetData = monthlyData.map(item => ({
         'Mes': item.month,
@@ -273,7 +260,6 @@ export default function Reports() {
       XLSX.utils.book_append_sheet(wb, wsMonthly, 'Mensual');
     }
 
-    // Download file
     XLSX.writeFile(wb, `reporte_pagos_${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success("Archivo Excel descargado");
   };
@@ -297,7 +283,6 @@ export default function Reports() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, 'Contactos');
-
     XLSX.writeFile(wb, `clientes_${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success("Cartera de clientes descargada");
   };
@@ -317,456 +302,408 @@ export default function Reports() {
 
   const isLoading = loadingDashboard || loadingMonthly || loadingWeekly || loadingContacts;
 
+  const kpiCards = [
+    {
+      title: "Ingresos totales",
+      value: isLoading ? "---" : formatCurrency(dashboardStats?.totalAmountThisMonth || 0),
+      trend: dashboardStats?.paymentsTrend || 0,
+      icon: DollarSign,
+      color: "bg-stitch-primary/15 text-stitch-primary",
+    },
+    {
+      title: "Pagos procesados",
+      value: isLoading ? "---" : String((paymentStats?.confirmedCount || 0) + (paymentStats?.pendingCount || 0) + (paymentStats?.rejectedCount || 0)),
+      trend: dashboardStats?.confirmedTrend || 0,
+      icon: CheckCircle2,
+      color: "bg-stitch-primary/15 text-stitch-primary",
+    },
+    {
+      title: "Mensajes totales",
+      value: isLoading ? "---" : String(messageStats?.total || 0),
+      subtitle: `${messageStats?.totalToday || 0} hoy`,
+      icon: MessageSquare,
+      color: "bg-stitch-primary/15 text-stitch-primary",
+    },
+    {
+      title: "Contactos activos",
+      value: isLoading ? "---" : String(contactStats?.active || 0),
+      subtitle: `de ${contactStats?.total || 0} totales`,
+      icon: Users,
+      color: "bg-stitch-yellow/15 text-stitch-yellow",
+    },
+  ];
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Reportes</h1>
-            <p className="text-muted-foreground">
-              Analíticas y métricas del sistema de detección de pagos
+            <h1 className="text-2xl font-bold text-stitch-text">Reportes</h1>
+            <p className="text-stitch-muted">
+              Analíticas y métricas del sistema de detección
             </p>
           </div>
           <div className="flex gap-2">
             <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-36 bg-stitch-surface border-stitch text-stitch-text rounded-xl">
                 <Calendar className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Periodo" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">Esta semana</SelectItem>
-                <SelectItem value="month">Este mes</SelectItem>
-                <SelectItem value="quarter">Este trimestre</SelectItem>
-                <SelectItem value="year">Este año</SelectItem>
+              <SelectContent className="bg-stitch-surface border-stitch">
+                <SelectItem value="week" className="text-stitch-text hover:bg-stitch-surface-elevated">Esta semana</SelectItem>
+                <SelectItem value="month" className="text-stitch-text hover:bg-stitch-surface-elevated">Este mes</SelectItem>
+                <SelectItem value="quarter" className="text-stitch-text hover:bg-stitch-surface-elevated">Este trimestre</SelectItem>
+                <SelectItem value="year" className="text-stitch-text hover:bg-stitch-surface-elevated">Este año</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm" className="gradient-primary text-primary-foreground" onClick={handleExportPDF}>
+            <Button
+              size="sm"
+              className="gradient-primary text-white rounded-xl shadow-button"
+              onClick={handleExportPDF}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Exportar PDF
+              <span className="hidden sm:inline">Exportar PDF</span>
+              <span className="sm:hidden">PDF</span>
             </Button>
           </div>
         </div>
 
         {hasNoData ? (
-          <EmptyState
-            icon={<span role="img" aria-label="chart">📊</span>}
-            title="Sin datos para reportar"
-            description="Cuando tengas pagos registrados, podrás ver estadísticas detalladas aquí."
-            action={{
-              label: "Registrar primer pago",
-              onClick: () => setDialogOpen(true),
-              icon: <Plus className="h-4 w-4" />,
-            }}
-            secondaryAction={{
-              label: "Ver Dashboard",
-              onClick: () => navigate("/"),
-            }}
-          />
-        ) : (
-        <>
-        {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Ingresos totales</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {isLoading ? "---" : formatCurrency(dashboardStats?.totalAmountThisMonth || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-1">
-                    {(dashboardStats?.paymentsTrend || 0) >= 0 ? (
-                      <ArrowUpRight className="h-3 w-3 text-success" />
-                    ) : (
-                      <ArrowDownRight className="h-3 w-3 text-destructive" />
-                    )}
-                    <span className={`text-xs ${(dashboardStats?.paymentsTrend || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {(dashboardStats?.paymentsTrend || 0) >= 0 ? '+' : ''}{dashboardStats?.paymentsTrend?.toFixed(1) || 0}%
-                    </span>
-                    <span className="text-xs text-muted-foreground">vs mes anterior</span>
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl gradient-primary">
-                  <DollarSign className="h-6 w-6 text-primary-foreground" />
-                </div>
+          <div className="stitch-card">
+            <div className="stitch-empty py-16">
+              <div className="stitch-empty-icon">
+                <BarChart3 className="h-10 w-10 text-stitch-muted" />
               </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Pagos procesados</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {isLoading ? "---" : ((paymentStats?.confirmedCount || 0) + (paymentStats?.pendingCount || 0) + (paymentStats?.rejectedCount || 0))}
-                  </p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <ArrowUpRight className="h-3 w-3 text-success" />
-                    <span className="text-xs text-success">+{dashboardStats?.confirmedTrend?.toFixed(1) || 0}%</span>
-                    <span className="text-xs text-muted-foreground">vs mes anterior</span>
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/20">
-                  <CheckCircle2 className="h-6 w-6 text-success" />
-                </div>
+              <h2 className="text-xl font-semibold text-stitch-text mb-2">Sin datos para reportar</h2>
+              <p className="text-stitch-muted max-w-md mb-6">
+                Cuando tengas pagos registrados, podrás ver estadísticas detalladas aquí.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  className="gradient-primary text-white rounded-xl shadow-button"
+                  onClick={() => setDialogOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Registrar primer pago
+                </Button>
+                <Button
+                  variant="outline"
+                  className="bg-stitch-surface border-stitch text-stitch-text hover:bg-stitch-surface-elevated rounded-xl"
+                  onClick={() => navigate("/")}
+                >
+                  Ver Dashboard
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Mensajes totales</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {isLoading ? "---" : (messageStats?.total || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <span className="text-xs text-muted-foreground">
-                      {messageStats?.totalToday || 0} hoy
-                    </span>
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/20">
-                  <MessageSquare className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Contactos activos</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {isLoading ? "---" : (contactStats?.active || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <span className="text-xs text-muted-foreground">
-                      de {contactStats?.total || 0} totales
-                    </span>
-                  </div>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/20">
-                  <Users className="h-6 w-6 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Row */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Revenue Chart */}
-          <Card className="glass-card lg:col-span-2">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Ingresos por Mes</CardTitle>
-                  <CardDescription>Evolución de pagos detectados vs confirmados</CardDescription>
-                </div>
-                <Badge variant="secondary">2024</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingMonthly ? (
-                <div className="flex items-center justify-center h-[300px]">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : chartMonthlyData.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[300px] text-center">
-                  <BarChart3 className="h-10 w-10 text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">No hay datos disponibles</p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartMonthlyData}>
-                    <defs>
-                      <linearGradient id="colorPagos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(173, 80%, 40%)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(173, 80%, 40%)" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorConfirmados" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 20%)" />
-                    <XAxis dataKey="month" stroke="hsl(222, 30%, 50%)" fontSize={12} />
-                    <YAxis stroke="hsl(222, 30%, 50%)" fontSize={12} tickFormatter={(value) => `${value / 1000}k`} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(222, 47%, 11%)",
-                        border: "1px solid hsl(222, 30%, 20%)",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value: number) => [`S/. ${value.toLocaleString()}`, ""]}
-                    />
-                    <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey="pagos"
-                      name="Detectados"
-                      stroke="hsl(173, 80%, 40%)"
-                      fillOpacity={1}
-                      fill="url(#colorPagos)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="confirmados"
-                      name="Confirmados"
-                      stroke="hsl(142, 71%, 45%)"
-                      fillOpacity={1}
-                      fill="url(#colorConfirmados)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Payment Methods Pie Chart */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Métodos de Pago</CardTitle>
-              <CardDescription>Distribución por canal</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {paymentMethodData.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[280px] text-center">
-                  <BarChart3 className="h-10 w-10 text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">No hay datos de métodos</p>
-                </div>
-              ) : (
-                <>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <RechartsPieChart>
-                      <Pie
-                        data={paymentMethodData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {paymentMethodData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(222, 47%, 11%)",
-                          border: "1px solid hsl(222, 30%, 20%)",
-                          borderRadius: "8px",
-                        }}
-                        formatter={(value: number) => [`${value}%`, ""]}
-                      />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                  <div className="space-y-2 mt-4">
-                    {paymentMethodData.map((method) => (
-                      <div key={method.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: method.color }}
-                          />
-                          <span className="text-sm text-muted-foreground">{method.name}</span>
-                        </div>
-                        <span className="text-sm font-medium">{method.value}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Second Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Weekly Activity */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Actividad Semanal</CardTitle>
-              <CardDescription>Pagos detectados por día</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingWeekly ? (
-                <div className="flex items-center justify-center h-[250px]">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : chartWeeklyData.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[250px] text-center">
-                  <BarChart3 className="h-10 w-10 text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">No hay datos de esta semana</p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={chartWeeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 20%)" />
-                    <XAxis dataKey="day" stroke="hsl(222, 30%, 50%)" fontSize={12} />
-                    <YAxis stroke="hsl(222, 30%, 50%)" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(222, 47%, 11%)",
-                        border: "1px solid hsl(222, 30%, 20%)",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value: number) => [value, "Pagos"]}
-                    />
-                    <Bar dataKey="pagos" fill="hsl(173, 80%, 40%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Top Contacts */}
-          <Card className="glass-card">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Top Contactos</CardTitle>
-                  <CardDescription>Por volumen de pagos</CardDescription>
-                </div>
-                <Button variant="outline" size="sm">Ver todos</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingContacts ? (
-                <div className="flex items-center justify-center h-[200px]">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : !topContacts || topContacts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[200px] text-center">
-                  <Users className="h-10 w-10 text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">No hay datos de contactos</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {topContacts.map((contact, index) => (
-                    <div key={contact.id} className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium text-sm truncate">{contact.name}</p>
-                          <span className="font-semibold text-sm">{formatCurrency(contact.total_paid || 0)}</span>
-                        </div>
-                        <div className="flex items-center justify-between mt-0.5">
-                          <span className="text-xs text-muted-foreground">Top pagador</span>
-                          <span className="text-xs flex items-center gap-0.5 text-success">
-                            <TrendingUp className="h-3 w-3" />
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* System Performance */}
-        <Card className="glass-card">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Rendimiento del Sistema</CardTitle>
-                <CardDescription>Métricas basadas en tus datos reales</CardDescription>
-              </div>
-              <Badge variant="success">Activo</Badge>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {systemStats.map((stat) => (
-                <div key={stat.label} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">{stat.label}</span>
-                    <span className="text-sm font-semibold">{stat.value}%</span>
-                  </div>
-                  <Progress value={stat.value} className="h-2" />
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Objetivo: {stat.target}%</span>
-                    <span className={stat.value >= stat.target ? "text-success" : "text-warning"}>
-                      {stat.value >= stat.target ? "Alcanzado" : `${Math.max(0, stat.target - stat.value)}% restante`}
-                    </span>
+          </div>
+        ) : (
+          <>
+            {/* KPI Cards */}
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+              {kpiCards.map((kpi, index) => (
+                <div
+                  key={kpi.title}
+                  className="stitch-card animate-slide-up"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs text-stitch-muted">{kpi.title}</p>
+                      <p className="text-xl sm:text-2xl font-bold text-stitch-text mt-1">{kpi.value}</p>
+                      {kpi.trend !== undefined && (
+                        <div className="flex items-center gap-1 mt-1">
+                          {kpi.trend >= 0 ? (
+                            <ArrowUpRight className="h-3 w-3 text-stitch-primary" />
+                          ) : (
+                            <ArrowDownRight className="h-3 w-3 text-stitch-red" />
+                          )}
+                          <span className={cn("text-xs", kpi.trend >= 0 ? "text-stitch-primary" : "text-stitch-red")}>
+                            {kpi.trend >= 0 ? "+" : ""}{kpi.trend.toFixed(1)}%
+                          </span>
+                          <span className="text-xs text-stitch-muted hidden sm:inline">vs mes anterior</span>
+                        </div>
+                      )}
+                      {kpi.subtitle && (
+                        <span className="text-xs text-stitch-muted">{kpi.subtitle}</span>
+                      )}
+                    </div>
+                    <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", kpi.color)}>
+                      <kpi.icon className="h-5 w-5" />
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Report Generator */}
-        <ReportGenerator />
+            {/* Charts Row */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Revenue Chart */}
+              <div className="stitch-card lg:col-span-2 animate-slide-up" style={{ animationDelay: "200ms" }}>
+                <div className="flex items-center justify-between border-b border-stitch pb-4 mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stitch-text">Ingresos por Mes</h3>
+                    <p className="text-sm text-stitch-muted">Evolución de pagos detectados vs confirmados</p>
+                  </div>
+                  <span className="stitch-badge bg-stitch-primary/15 text-stitch-primary text-xs">2024</span>
+                </div>
+                {loadingMonthly ? (
+                  <div className="flex items-center justify-center h-[300px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-stitch-primary" />
+                  </div>
+                ) : chartMonthlyData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[300px] text-center">
+                    <BarChart3 className="h-10 w-10 text-stitch-muted mb-3" />
+                    <p className="text-stitch-muted">No hay datos disponibles</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={chartMonthlyData}>
+                      <defs>
+                        <linearGradient id="colorPagos" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#12ba66" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#12ba66" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorConfirmados" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#facc15" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#facc15" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                      <XAxis dataKey="month" stroke="#8aa394" fontSize={12} />
+                      <YAxis stroke="#8aa394" fontSize={12} tickFormatter={(value) => `${value / 1000}k`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#1c2e26",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: "12px",
+                        }}
+                        formatter={(value: number) => [`S/. ${value.toLocaleString()}`, ""]}
+                      />
+                      <Legend />
+                      <Area type="monotone" dataKey="pagos" name="Detectados" stroke="#12ba66" fillOpacity={1} fill="url(#colorPagos)" />
+                      <Area type="monotone" dataKey="confirmados" name="Confirmados" stroke="#facc15" fillOpacity={1} fill="url(#colorConfirmados)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
 
-        {/* Quick Exports */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Card
-            className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-            onClick={handleExportPDF}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
-                  <FileText className="h-5 w-5 text-primary" />
+              {/* Payment Methods Pie Chart */}
+              <div className="stitch-card animate-slide-up" style={{ animationDelay: "250ms" }}>
+                <div className="border-b border-stitch pb-4 mb-4">
+                  <h3 className="text-lg font-semibold text-stitch-text">Métodos de Pago</h3>
+                  <p className="text-sm text-stitch-muted">Distribución por canal</p>
                 </div>
+                {paymentMethodData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[280px] text-center">
+                    <BarChart3 className="h-10 w-10 text-stitch-muted mb-3" />
+                    <p className="text-stitch-muted">No hay datos de métodos</p>
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <RechartsPieChart>
+                        <Pie data={paymentMethodData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value">
+                          {paymentMethodData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#1c2e26", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
+                          formatter={(value: number) => [`${value}%`, ""]}
+                        />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                    <div className="space-y-2 mt-4">
+                      {paymentMethodData.map((method) => (
+                        <div key={method.name} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: method.color }} />
+                            <span className="text-sm text-stitch-muted">{method.name}</span>
+                          </div>
+                          <span className="text-sm font-medium text-stitch-text">{method.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Second Row */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Weekly Activity */}
+              <div className="stitch-card animate-slide-up" style={{ animationDelay: "300ms" }}>
+                <div className="border-b border-stitch pb-4 mb-4">
+                  <h3 className="text-lg font-semibold text-stitch-text">Actividad Semanal</h3>
+                  <p className="text-sm text-stitch-muted">Pagos detectados por día</p>
+                </div>
+                {loadingWeekly ? (
+                  <div className="flex items-center justify-center h-[250px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-stitch-primary" />
+                  </div>
+                ) : chartWeeklyData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[250px] text-center">
+                    <BarChart3 className="h-10 w-10 text-stitch-muted mb-3" />
+                    <p className="text-stitch-muted">No hay datos de esta semana</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={chartWeeklyData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                      <XAxis dataKey="day" stroke="#8aa394" fontSize={12} />
+                      <YAxis stroke="#8aa394" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#1c2e26", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
+                        formatter={(value: number) => [value, "Pagos"]}
+                      />
+                      <Bar dataKey="pagos" fill="#12ba66" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              {/* Top Contacts */}
+              <div className="stitch-card animate-slide-up" style={{ animationDelay: "350ms" }}>
+                <div className="flex items-center justify-between border-b border-stitch pb-4 mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stitch-text">Top Contactos</h3>
+                    <p className="text-sm text-stitch-muted">Por volumen de pagos</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-stitch-surface-elevated border-stitch text-stitch-text hover:bg-stitch-surface rounded-xl"
+                    onClick={() => navigate("/contacts")}
+                  >
+                    Ver todos
+                  </Button>
+                </div>
+                {loadingContacts ? (
+                  <div className="flex items-center justify-center h-[200px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-stitch-primary" />
+                  </div>
+                ) : !topContacts || topContacts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[200px] text-center">
+                    <Users className="h-10 w-10 text-stitch-muted mb-3" />
+                    <p className="text-stitch-muted">No hay datos de contactos</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {topContacts.map((contact, index) => (
+                      <div key={contact.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-stitch-surface-elevated transition-colors">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-stitch-primary/15 text-stitch-primary text-sm font-bold">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium text-sm text-stitch-text truncate">{contact.name}</p>
+                            <span className="font-semibold text-sm text-stitch-text">{formatCurrency(contact.total_paid || 0)}</span>
+                          </div>
+                          <div className="flex items-center justify-between mt-0.5">
+                            <span className="text-xs text-stitch-muted">{contact.payment_count || 0} pagos</span>
+                            <span className="text-xs flex items-center gap-0.5 text-stitch-primary">
+                              <TrendingUp className="h-3 w-3" />
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* System Performance */}
+            <div className="stitch-card animate-slide-up" style={{ animationDelay: "400ms" }}>
+              <div className="flex items-center justify-between border-b border-stitch pb-4 mb-4">
                 <div>
-                  <p className="font-medium text-sm">Reporte Mensual</p>
-                  <p className="text-xs text-muted-foreground">Descargar PDF</p>
+                  <h3 className="text-lg font-semibold text-stitch-text">Rendimiento del Sistema</h3>
+                  <p className="text-sm text-stitch-muted">Métricas basadas en tus datos reales</p>
+                </div>
+                <span className="stitch-badge bg-stitch-primary/15 text-stitch-primary text-xs">Activo</span>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {systemStats.map((stat) => (
+                  <div key={stat.label} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-stitch-muted">{stat.label}</span>
+                      <span className="text-sm font-semibold text-stitch-text">{stat.value}%</span>
+                    </div>
+                    <div className="stitch-progress">
+                      <div
+                        className="stitch-progress-bar"
+                        style={{ width: `${stat.value}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-stitch-muted">Objetivo: {stat.target}%</span>
+                      <span className={stat.value >= stat.target ? "text-stitch-primary" : "text-stitch-yellow"}>
+                        {stat.value >= stat.target ? "Alcanzado" : `${Math.max(0, stat.target - stat.value)}% restante`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Report Generator */}
+            <ReportGenerator />
+
+            {/* Quick Exports */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                className="stitch-card hover:border-stitch-primary/30 transition-all duration-300 cursor-pointer group animate-slide-up"
+                style={{ animationDelay: "450ms" }}
+                onClick={handleExportPDF}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stitch-primary/15 group-hover:bg-stitch-primary/25 transition-colors">
+                    <FileText className="h-5 w-5 text-stitch-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-stitch-text">Reporte Mensual</p>
+                    <p className="text-xs text-stitch-muted">Descargar PDF</p>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          <Card
-            className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-            onClick={handleExportExcel}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/20">
-                  <BarChart3 className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Exportar Pagos</p>
-                  <p className="text-xs text-muted-foreground">Descargar Excel</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card
-            className="glass-card hover:shadow-glow/20 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
-            onClick={handleExportClients}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/20">
-                  <Users className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Cartera de Clientes</p>
-                  <p className="text-xs text-muted-foreground">Descargar Excel</p>
+              <div
+                className="stitch-card hover:border-stitch-primary/30 transition-all duration-300 cursor-pointer group animate-slide-up"
+                style={{ animationDelay: "500ms" }}
+                onClick={handleExportExcel}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stitch-primary/15 group-hover:bg-stitch-primary/25 transition-colors">
+                    <BarChart3 className="h-5 w-5 text-stitch-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-stitch-text">Exportar Pagos</p>
+                    <p className="text-xs text-stitch-muted">Descargar Excel</p>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-        </>
+              <div
+                className="stitch-card hover:border-stitch-primary/30 transition-all duration-300 cursor-pointer group animate-slide-up"
+                style={{ animationDelay: "550ms" }}
+                onClick={handleExportClients}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stitch-yellow/15 group-hover:bg-stitch-yellow/25 transition-colors">
+                    <Users className="h-5 w-5 text-stitch-yellow" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-stitch-text">Cartera de Clientes</p>
+                    <p className="text-xs text-stitch-muted">Descargar Excel</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
       {/* Payment Dialog */}
-      <PaymentDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        payment={null}
-      />
+      <PaymentDialog open={dialogOpen} onOpenChange={setDialogOpen} payment={null} />
     </DashboardLayout>
   );
 }

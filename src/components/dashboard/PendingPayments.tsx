@@ -16,18 +16,18 @@ const getPriority = (createdAt: string) => {
 
 const priorityConfig = {
   critical: {
-    className: "border-destructive/50 bg-destructive/5",
-    badge: "bg-destructive text-destructive-foreground",
+    className: "border-stitch-red/50 bg-stitch-red/5",
+    badge: "bg-stitch-red/15 text-stitch-red",
     label: "Crítico",
   },
   high: {
-    className: "border-warning/50 bg-warning/5",
-    badge: "bg-warning text-warning-foreground",
+    className: "border-stitch-yellow/50 bg-stitch-yellow/5",
+    badge: "bg-stitch-yellow/15 text-stitch-yellow",
     label: "Alto",
   },
   medium: {
-    className: "border-muted-foreground/30 bg-muted/30",
-    badge: "bg-muted text-muted-foreground",
+    className: "border-stitch-muted/30 bg-stitch-surface-elevated/30",
+    badge: "bg-stitch-surface-elevated text-stitch-muted",
     label: "Medio",
   },
 };
@@ -45,49 +45,45 @@ export function PendingPayments() {
   };
 
   return (
-    <div className="rounded-xl bg-card border border-border shadow-card animate-slide-up" style={{ animationDelay: "250ms" }}>
-      <div className="flex items-center justify-between border-b border-border p-6">
+    <div className="stitch-card animate-slide-up" style={{ animationDelay: "250ms" }}>
+      <div className="flex items-center justify-between border-b border-stitch pb-4 mb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
-            <AlertTriangle className="h-5 w-5 text-warning" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stitch-yellow/15">
+            <AlertTriangle className="h-5 w-5 text-stitch-yellow" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Pagos Pendientes</h3>
-            <p className="text-sm text-muted-foreground">Requieren seguimiento</p>
+            <h3 className="text-lg font-semibold text-stitch-text">Pendientes</h3>
+            <p className="text-sm text-stitch-muted">Requieren seguimiento</p>
           </div>
         </div>
-        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-warning/20 px-2 text-xs font-bold text-warning">
+        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-stitch-yellow/15 px-2 text-xs font-bold text-stitch-yellow">
           {payments?.length || 0}
         </span>
       </div>
 
-      <div className="divide-y divide-border">
+      <div className="space-y-2">
         {isLoading ? (
-          <div className="divide-y divide-border">
+          <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-4">
-                  <Skeleton className="h-10 w-10 rounded-full" />
+              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-stitch-surface-elevated/50">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-xl bg-stitch-surface-elevated" />
                   <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-24 bg-stitch-surface-elevated" />
+                    <Skeleton className="h-3 w-16 bg-stitch-surface-elevated" />
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right space-y-2">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-12 rounded-full" />
-                  </div>
-                  <Skeleton className="h-8 w-8 rounded" />
-                </div>
+                <Skeleton className="h-4 w-16 bg-stitch-surface-elevated" />
               </div>
             ))}
           </div>
         ) : !payments || payments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center">
-            <Clock className="h-10 w-10 text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">No hay pagos pendientes</p>
-            <p className="text-xs text-muted-foreground mt-1">¡Todo está al día!</p>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-stitch-surface-elevated flex items-center justify-center mb-4">
+              <Clock className="h-7 w-7 text-stitch-primary" />
+            </div>
+            <p className="text-stitch-text font-medium">¡Todo al día!</p>
+            <p className="text-sm text-stitch-muted mt-1">No hay pagos pendientes</p>
           </div>
         ) : (
           payments.slice(0, 5).map((payment, index) => {
@@ -99,15 +95,15 @@ export function PendingPayments() {
               <div
                 key={payment.id}
                 className={cn(
-                  "flex items-center justify-between p-4 transition-colors hover:bg-secondary/30 animate-fade-in cursor-pointer",
-                  priorityKey === "critical" && "bg-destructive/5"
+                  "flex items-center justify-between p-3 rounded-xl transition-colors hover:bg-stitch-surface-elevated animate-fade-in cursor-pointer group",
+                  priorityKey === "critical" && "bg-stitch-red/5"
                 )}
                 style={{ animationDelay: `${(index + 1) * 50}ms` }}
                 onClick={() => navigate(`/payments?id=${payment.id}`)}
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
-                    <span className="text-sm font-semibold text-foreground">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stitch-surface-elevated group-hover:bg-stitch-primary/15 transition-colors">
+                    <span className="text-sm font-semibold text-stitch-text group-hover:text-stitch-primary transition-colors">
                       {payment.contact?.name
                         ? payment.contact.name.split(" ").map(n => n[0]).join("").slice(0, 2)
                         : "??"
@@ -115,23 +111,27 @@ export function PendingPayments() {
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-medium text-stitch-text">
                       {payment.contact?.name || 'Contacto desconocido'}
                     </p>
-                    <p className="text-xs text-muted-foreground">{timeAgo}</p>
+                    <p className="text-xs text-stitch-muted">{timeAgo}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-foreground">
+                    <p className="text-sm font-semibold text-stitch-text">
                       {formatCurrency(payment.amount, payment.currency)}
                     </p>
                     <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", priority.badge)}>
                       {priority.label}
                     </span>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-stitch-muted hover:text-stitch-primary hover:bg-stitch-primary/15 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -141,15 +141,17 @@ export function PendingPayments() {
         )}
       </div>
 
-      <div className="border-t border-border p-4">
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => navigate('/payments?status=pending')}
-        >
-          Ver todos los pendientes
-        </Button>
-      </div>
+      {payments && payments.length > 0 && (
+        <div className="border-t border-stitch pt-4 mt-4">
+          <Button
+            variant="outline"
+            className="w-full bg-stitch-surface-elevated border-stitch text-stitch-text hover:bg-stitch-surface hover:text-stitch-primary rounded-xl"
+            onClick={() => navigate('/payments?status=pending')}
+          >
+            Ver todos los pendientes
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
