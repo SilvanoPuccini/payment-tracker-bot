@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, CreditCard, Users, Settings } from 'lucide-react';
+import { Home, CreditCard, Users, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -19,9 +19,9 @@ const navItems = [
     icon: Users,
   },
   {
-    label: 'Ajustes',
-    href: '/settings',
-    icon: Settings,
+    label: 'Reportes',
+    href: '/reports',
+    icon: BarChart3,
   },
 ];
 
