@@ -11,8 +11,8 @@ export default function Onboarding() {
   // Show loading while checking auth and onboarding status
   if (authLoading || onboardingLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      <div className="min-h-screen bg-[var(--pt-bg)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--pt-primary)]" />
       </div>
     );
   }
