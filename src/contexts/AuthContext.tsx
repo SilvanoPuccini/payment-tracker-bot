@@ -135,26 +135,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
+    console.log('AuthContext updateProfile: Starting...');
+    console.log('AuthContext updateProfile: Updates:', updates);
+
     if (!user) {
+      console.error('AuthContext updateProfile: No user logged in');
       return { error: new Error('No user logged in') };
     }
 
+    console.log('AuthContext updateProfile: User ID:', user.id);
+
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select();
+
+      console.log('AuthContext updateProfile: Response data:', data);
 
       if (error) {
+        console.error('AuthContext updateProfile: Supabase error:', error);
         return { error: new Error(error.message) };
       }
 
       // Refresh profile
       const updatedProfile = await fetchProfile(user.id);
+      console.log('AuthContext updateProfile: Refreshed profile:', updatedProfile);
       setProfile(updatedProfile);
 
       return { error: null };
     } catch (error) {
+      console.error('AuthContext updateProfile: Caught error:', error);
       return { error: error as Error };
     }
   };

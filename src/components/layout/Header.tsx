@@ -206,26 +206,26 @@ export function Header() {
             onClick={() => setMobileMenuOpen(false)}
           />
 
-          {/* Drawer - Compact Design */}
-          <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-[var(--pt-bg)] border-r border-[var(--pt-border)] flex flex-col animate-slide-in-left">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-[var(--pt-border)]">
+          {/* Drawer - Ultra Compact Design */}
+          <div className="absolute left-0 top-0 bottom-0 w-[260px] bg-[var(--pt-bg)] border-r border-[var(--pt-border)] flex flex-col animate-slide-in-left">
+            {/* Header - Compact */}
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--pt-border)]">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[var(--pt-primary)] flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">P</span>
+                <div className="w-7 h-7 rounded-lg bg-[var(--pt-primary)] flex items-center justify-center">
+                  <span className="text-white font-bold text-xs">P</span>
                 </div>
-                <span className="text-white font-bold text-lg">PayTrack</span>
+                <span className="text-white font-semibold">PayTrack</span>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--pt-surface)] transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--pt-surface)] transition-colors"
               >
-                <X className="w-5 h-5 text-white" />
+                <X className="w-4 h-4 text-white" />
               </button>
             </div>
 
-            {/* Navigation - Scrollable */}
-            <nav className="flex-1 overflow-y-auto p-3">
+            {/* Navigation - Compact */}
+            <nav className="flex-1 overflow-y-auto px-2 py-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
@@ -234,82 +234,82 @@ export function Header() {
                     key={item.href}
                     onClick={() => handleNavClick(item.href)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-colors",
+                      "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg mb-0.5 transition-colors text-sm",
                       isActive
                         ? "bg-[var(--pt-primary)]/15 text-[var(--pt-primary)]"
                         : "text-white hover:bg-[var(--pt-surface)]"
                     )}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium text-sm">{item.label}</span>
+                    <Icon className="w-4 h-4" />
+                    <span className="font-medium">{item.label}</span>
                   </button>
                 );
               })}
 
-              <div className="h-px bg-[var(--pt-border)] my-3" />
+              <div className="h-px bg-[var(--pt-border)] my-2" />
 
               {/* Settings & Profile */}
               <button
                 onClick={() => handleNavClick('/profile')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-white hover:bg-[var(--pt-surface)] transition-colors"
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg mb-0.5 text-white hover:bg-[var(--pt-surface)] transition-colors text-sm"
               >
-                <User className="w-5 h-5" />
-                <span className="font-medium text-sm">Mi Perfil</span>
+                <User className="w-4 h-4" />
+                <span className="font-medium">Mi Perfil</span>
               </button>
               <button
                 onClick={() => handleNavClick('/settings')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-white hover:bg-[var(--pt-surface)] transition-colors"
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg mb-0.5 text-white hover:bg-[var(--pt-surface)] transition-colors text-sm"
               >
-                <Settings className="w-5 h-5" />
-                <span className="font-medium text-sm">Configuración</span>
+                <Settings className="w-4 h-4" />
+                <span className="font-medium">Configuración</span>
               </button>
 
               {isFree && (
                 <button
                   onClick={() => handleNavClick('/pricing')}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-[var(--pt-primary)] hover:bg-[var(--pt-surface)] transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg mb-0.5 text-[var(--pt-primary)] hover:bg-[var(--pt-surface)] transition-colors text-sm"
                 >
-                  <Zap className="w-5 h-5" />
-                  <span className="font-medium text-sm">Mejorar a Pro</span>
+                  <Zap className="w-4 h-4" />
+                  <span className="font-medium">Mejorar a Pro</span>
                 </button>
               )}
             </nav>
 
-            {/* Webhook Status - Like Desktop */}
-            <div className="p-3 border-t border-[var(--pt-border)]">
-              <div className="rounded-xl bg-[var(--pt-surface-elevated)] border border-[var(--pt-border)] p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--pt-primary)]/15">
-                    <MessageSquare className="h-4 w-4 text-[var(--pt-primary)]" />
+            {/* Webhook Status - Compact */}
+            <div className="px-2 py-2 border-t border-[var(--pt-border)]">
+              <div className="rounded-lg bg-[var(--pt-surface-elevated)] border border-[var(--pt-border)] px-2.5 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--pt-primary)]/15">
+                    <MessageSquare className="h-3.5 w-3.5 text-[var(--pt-primary)]" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white">Webhook Activo</p>
-                    <p className="text-xs text-[var(--pt-primary)]">● Conectado</p>
+                    <p className="text-xs font-medium text-white">Webhook Activo</p>
+                    <p className="text-[10px] text-[var(--pt-primary)]">● Conectado</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Footer - User & Sign Out */}
-            <div className="p-3 border-t border-[var(--pt-border)]">
+            {/* Footer - User & Sign Out - Compact */}
+            <div className="px-2 py-2 border-t border-[var(--pt-border)]">
               {/* User Info */}
-              <div className="flex items-center gap-3 px-3 py-2 mb-2">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold">
+              <div className="flex items-center gap-2 px-2 py-1.5 mb-1.5">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
                   {getInitials()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{profile?.full_name || 'Usuario'}</p>
-                  <p className="text-[var(--pt-text-muted)] text-xs truncate">{user?.email}</p>
+                  <p className="text-white text-xs font-medium truncate">{profile?.full_name || 'Usuario'}</p>
+                  <p className="text-[var(--pt-text-muted)] text-[10px] truncate">{user?.email}</p>
                 </div>
               </div>
 
               {/* Sign Out Button */}
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--pt-red)]/10 text-[var(--pt-red)] hover:bg-[var(--pt-red)]/20 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-lg bg-[var(--pt-red)]/10 text-[var(--pt-red)] hover:bg-[var(--pt-red)]/20 transition-colors text-sm"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="font-medium text-sm">Cerrar sesión</span>
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="font-medium">Cerrar sesión</span>
               </button>
             </div>
           </div>
