@@ -1,5 +1,4 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect, useCallback } from 'react';
 
 const ONBOARDING_KEY = 'paytrack_onboarding_complete';
@@ -11,7 +10,7 @@ export interface OnboardingData {
 }
 
 export function useOnboarding() {
-  const { user, profile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -66,42 +65,20 @@ export function useOnboarding() {
     console.log('completeOnboarding: Data to save:', data);
 
     try {
-      // First, check if profile exists
-      const { data: existingProfile, error: selectError } = await supabase
-        .from('profiles')
-        .select('id, user_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (selectError) {
-        console.error('completeOnboarding: Error checking profile:', selectError);
-      }
-
-      console.log('completeOnboarding: Existing profile:', existingProfile);
-
-      // Update the profile
-      const updateData = {
+      // Use updateProfile from AuthContext for consistency
+      const { error } = await updateProfile({
         company_name: data.businessName,
         currency: data.currency,
         timezone: data.timezone,
         onboarding_completed: true,
-        updated_at: new Date().toISOString(),
-      };
-
-      console.log('completeOnboarding: Update data:', updateData);
-
-      const { data: updatedData, error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('user_id', user.id)
-        .select();
+      });
 
       if (error) {
-        console.error('completeOnboarding: Supabase update error:', error);
+        console.error('completeOnboarding: updateProfile error:', error);
         throw error;
       }
 
-      console.log('completeOnboarding: Update successful:', updatedData);
+      console.log('completeOnboarding: Update successful');
 
       localStorage.setItem(ONBOARDING_KEY, 'true');
       setNeedsOnboarding(false);
