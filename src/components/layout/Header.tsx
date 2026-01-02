@@ -202,53 +202,37 @@ export function Header() {
         <div className="fixed inset-0 z-50 lg:hidden">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50"
             onClick={() => setMobileMenuOpen(false)}
           />
 
-          {/* Drawer - 75% altura, centrado verticalmente */}
-          <div className="absolute left-4 top-[12%] bottom-[13%] w-[280px] bg-[var(--pt-bg)] border border-[var(--pt-border)] rounded-2xl flex flex-col animate-slide-in-left shadow-elevated overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--pt-border)] bg-[var(--pt-surface)]">
+          {/* Drawer - Estilo como la imagen */}
+          <div className="absolute left-0 top-0 h-full w-[75%] max-w-[300px] bg-[#0d1f17] flex flex-col animate-slide-in-left">
+            {/* Logo */}
+            <div className="px-5 py-5">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[var(--pt-primary)] flex items-center justify-center shadow-button">
-                  <Zap className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-xl bg-[var(--pt-primary)] flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-white" />
                 </div>
-                <div>
-                  <span className="text-white font-bold text-base">PayTrack</span>
-                  <p className="text-[10px] text-[var(--pt-text-muted)]">WhatsApp Business</p>
-                </div>
+                <span className="text-white font-bold text-xl">PayTrack</span>
               </div>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--pt-surface-elevated)] hover:bg-[var(--pt-red)]/20 transition-colors"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
             </div>
 
-            {/* User Info - Top */}
-            <div className="px-4 py-3 border-b border-[var(--pt-border)] bg-[var(--pt-surface)]/50">
+            {/* User Info */}
+            <div className="px-5 py-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold ring-2 ring-[var(--pt-primary)]/30">
-                  {getInitials()}
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                  <span className="text-white text-lg font-bold">{getInitials()}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold truncate">{profile?.full_name || 'Usuario'}</p>
-                  <p className="text-[var(--pt-text-muted)] text-xs truncate">{user?.email}</p>
+                <div>
+                  <p className="text-[var(--pt-text-muted)] text-sm">Hola,</p>
+                  <p className="text-white font-semibold text-lg">{profile?.full_name?.split(' ')[0] || 'Usuario'}</p>
                 </div>
-                {!isFree && (
-                  <div className="px-2 py-1 rounded-full bg-[var(--pt-primary)]/15 text-[var(--pt-primary)] text-[10px] font-bold">
-                    PRO
-                  </div>
-                )}
               </div>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto px-3 py-3">
-              <p className="text-[10px] font-bold text-[var(--pt-text-muted)] uppercase tracking-wider px-2 mb-2">Navegación</p>
-
+            <nav className="flex-1 px-3 py-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
@@ -257,62 +241,52 @@ export function Header() {
                     key={item.href}
                     onClick={() => handleNavClick(item.href)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all text-sm",
+                      "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl mb-1 transition-all",
                       isActive
-                        ? "bg-[var(--pt-primary)] text-white shadow-button"
-                        : "text-white hover:bg-[var(--pt-surface-elevated)]"
+                        ? "bg-[var(--pt-primary)]/20 text-[var(--pt-primary)]"
+                        : "text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)]"
                     )}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                    {isActive && <div className="ml-auto w-2 h-2 rounded-full bg-white" />}
+                    <Icon className={cn("w-5 h-5", isActive && "text-[var(--pt-primary)]")} />
+                    <span className={cn("font-medium", isActive && "text-[var(--pt-primary)]")}>{item.label}</span>
                   </button>
                 );
               })}
 
-              <div className="h-px bg-[var(--pt-border)] my-3" />
+              {/* Mejorar Plan Button */}
+              {isFree && (
+                <button
+                  onClick={() => handleNavClick('/pricing')}
+                  className="w-full flex items-center justify-center gap-2 mt-4 px-4 py-3.5 rounded-full bg-[var(--pt-primary)] text-white font-semibold transition-all hover:bg-[var(--pt-primary-hover)]"
+                >
+                  <Zap className="w-5 h-5" />
+                  <span>Mejorar Plan</span>
+                </button>
+              )}
+            </nav>
 
-              <p className="text-[10px] font-bold text-[var(--pt-text-muted)] uppercase tracking-wider px-2 mb-2">Cuenta</p>
-
-              {/* Profile & Settings */}
-              <button
-                onClick={() => handleNavClick('/profile')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-white hover:bg-[var(--pt-surface-elevated)] transition-all text-sm"
-              >
-                <User className="w-5 h-5" />
-                <span className="font-medium">Mi Perfil</span>
-              </button>
+            {/* Bottom Section */}
+            <div className="px-3 py-4 border-t border-[var(--pt-border)]">
               <button
                 onClick={() => handleNavClick('/settings')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-white hover:bg-[var(--pt-surface-elevated)] transition-all text-sm"
+                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)] transition-all"
               >
                 <Settings className="w-5 h-5" />
                 <span className="font-medium">Configuración</span>
               </button>
-
-              {isFree && (
-                <>
-                  <div className="h-px bg-[var(--pt-border)] my-3" />
-                  <button
-                    onClick={() => handleNavClick('/pricing')}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-[var(--pt-primary)]/20 to-[var(--pt-blue)]/20 border border-[var(--pt-primary)]/30 text-[var(--pt-primary)] transition-all text-sm"
-                  >
-                    <Zap className="w-5 h-5" />
-                    <span className="font-semibold">Mejorar a Pro</span>
-                    <Crown className="w-4 h-4 ml-auto text-[var(--pt-yellow)]" />
-                  </button>
-                </>
-              )}
-            </nav>
-
-            {/* Footer - Sign Out */}
-            <div className="px-3 py-3 border-t border-[var(--pt-border)] bg-[var(--pt-surface)]/50">
+              <button
+                onClick={() => handleNavClick('/profile')}
+                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)] transition-all"
+              >
+                <User className="w-5 h-5" />
+                <span className="font-medium">Ayuda</span>
+              </button>
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pt-red)]/10 text-[var(--pt-red)] hover:bg-[var(--pt-red)]/20 transition-colors text-sm font-medium"
+                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--pt-red)] hover:bg-[var(--pt-red)]/10 transition-all"
               >
-                <LogOut className="w-4 h-4" />
-                <span>Cerrar sesión</span>
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Cerrar Sesión</span>
               </button>
             </div>
           </div>

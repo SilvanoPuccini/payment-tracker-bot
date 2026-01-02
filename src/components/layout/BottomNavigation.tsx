@@ -16,18 +16,18 @@ interface NavItem {
   badge?: number;
 }
 
-// Nav items sin FAB central
+// Nav items sin FAB central - 4 items totales
 const leftNavItems: NavItem[] = [
   { icon: Home, label: 'Inicio', path: '/' },
   { icon: CreditCard, label: 'Pagos', path: '/payments' },
 ];
 
 const rightNavItems: NavItem[] = [
-  { icon: Users, label: 'Contactos', path: '/contacts' },
   { icon: BarChart3, label: 'Reportes', path: '/reports' },
 ];
 
 const moreMenuItems: NavItem[] = [
+  { icon: Users, label: 'Contactos', path: '/contacts' },
   { icon: Bell, label: 'Recordatorios', path: '/reminders' },
   { icon: Settings, label: 'Configuracion', path: '/settings' },
   { icon: User, label: 'Perfil', path: '/profile' },
