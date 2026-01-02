@@ -24,7 +24,7 @@ export default function Pricing() {
   const handlePlanSelect = (plan: Plan) => {
     if (!user) {
       // Redirect to signup/login
-      navigate("/auth", { state: { selectedPlan: plan.id, billingCycle } });
+      navigate("/register", { state: { selectedPlan: plan.id, billingCycle } });
       return;
     }
 
@@ -70,15 +70,15 @@ export default function Pricing() {
             </button>
             <div className="flex items-center gap-4">
               {user ? (
-                <Button onClick={() => navigate("/dashboard")} variant="outline">
+                <Button onClick={() => navigate("/")} variant="outline">
                   Dashboard
                 </Button>
               ) : (
                 <>
-                  <Button onClick={() => navigate("/auth")} variant="ghost">
+                  <Button onClick={() => navigate("/login")} variant="ghost">
                     Iniciar sesión
                   </Button>
-                  <Button onClick={() => navigate("/auth")} className="bg-emerald-600 hover:bg-emerald-700">
+                  <Button onClick={() => navigate("/register")} className="bg-emerald-600 hover:bg-emerald-700">
                     Comenzar gratis
                   </Button>
                 </>
@@ -246,7 +246,7 @@ export default function Pricing() {
           </p>
           <Button
             size="lg"
-            onClick={() => navigate(user ? "/dashboard" : "/auth")}
+            onClick={() => navigate(user ? "/" : "/register")}
             className="bg-white text-emerald-600 hover:bg-emerald-50"
           >
             {user ? "Ir al Dashboard" : "Comenzar gratis"}
