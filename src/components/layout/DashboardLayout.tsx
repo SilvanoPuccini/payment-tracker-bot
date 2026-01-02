@@ -1,6 +1,6 @@
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { BottomNav } from "./BottomNav";
+import { BottomNavigation } from "./BottomNavigation";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 import { PlanLimitBanner } from "@/components/subscription/PlanLimitBanner";
 
@@ -40,7 +40,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Mobile Bottom Navigation - hidden on large screens */}
       <div className="lg:hidden">
-        <BottomNav />
+        <BottomNavigation />
       </div>
     </div>
   );
