@@ -13,6 +13,7 @@ export function useSettings() {
     queryFn: async () => {
       if (!user) throw new Error('No user logged in');
 
+      // Try to get existing settings
       const { data, error } = await supabase
         .from('user_settings')
         .select('*')
@@ -20,9 +21,42 @@ export function useSettings() {
         .maybeSingle();
 
       if (error) throw error;
-      
-      // Settings are created automatically via trigger on user signup
-      return data as Settings | null;
+
+      // If no settings exist, create them
+      if (!data) {
+        const { data: newSettings, error: insertError } = await supabase
+          .from('user_settings')
+          .insert({ user_id: user.id })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating settings:', insertError);
+          // Return default settings if insert fails
+          return {
+            id: '',
+            user_id: user.id,
+            webhook_url: null,
+            verify_token: 'paytrack_verify_2024',
+            whatsapp_phone_id: null,
+            whatsapp_business_id: null,
+            whatsapp_access_token: null,
+            auto_process: true,
+            min_confidence_threshold: 70,
+            low_confidence_alert: true,
+            notifications_enabled: true,
+            notify_new_payments: true,
+            notify_promises: true,
+            notify_errors: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as Settings;
+        }
+
+        return newSettings as Settings;
+      }
+
+      return data as Settings;
     },
     enabled: !!user,
   });
