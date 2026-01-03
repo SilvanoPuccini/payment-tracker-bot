@@ -14,7 +14,7 @@ export function useSettings() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('settings')
+        .from('user_settings')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -38,7 +38,7 @@ export function useUpdateSettings() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('settings')
+        .from('user_settings')
         .update(updates)
         .eq('user_id', user.id)
         .select()
@@ -67,7 +67,7 @@ export function useTestWebhookConnection() {
 
       // Get current settings
       const { data: settings } = await supabase
-        .from('settings')
+        .from('user_settings')
         .select('webhook_url, verify_token')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -113,7 +113,7 @@ export function useUpdateWhatsAppCredentials() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('settings')
+        .from('user_settings')
         .update(credentials)
         .eq('user_id', user.id)
         .select()
@@ -147,7 +147,7 @@ export function useUpdateNotificationPreferences() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('settings')
+        .from('user_settings')
         .update(preferences)
         .eq('user_id', user.id)
         .select()
@@ -180,7 +180,7 @@ export function useUpdateAISettings() {
       if (!user) throw new Error('No user logged in');
 
       const { data, error } = await supabase
-        .from('settings')
+        .from('user_settings')
         .update(aiSettings)
         .eq('user_id', user.id)
         .select()
