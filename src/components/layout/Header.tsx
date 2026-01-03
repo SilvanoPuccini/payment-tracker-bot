@@ -206,33 +206,33 @@ export function Header() {
             onClick={() => setMobileMenuOpen(false)}
           />
 
-          {/* Drawer - Estilo como la imagen */}
-          <div className="absolute left-0 top-0 h-[90%] w-[75%] max-w-[300px] bg-[#0d1f17] flex flex-col animate-slide-in-left rounded-br-3xl">
-            {/* Logo */}
-            <div className="px-5 py-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--pt-primary)] flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-white" />
+          {/* Drawer - Menú compacto al 80% */}
+          <div className="absolute left-0 top-0 h-[80vh] w-[70%] max-w-[260px] bg-[#0d1f17] flex flex-col animate-slide-in-left rounded-br-3xl overflow-hidden">
+            {/* Logo - compacto */}
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[var(--pt-primary)] flex items-center justify-center">
+                  <CreditCard className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-white font-bold text-xl">PayTrack</span>
+                <span className="text-white font-bold text-lg">PayTrack</span>
               </div>
             </div>
 
-            {/* User Info */}
-            <div className="px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                  <span className="text-white text-lg font-bold">{getInitials()}</span>
+            {/* User Info - compacto */}
+            <div className="px-4 py-2 border-b border-[var(--pt-border)]">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">{getInitials()}</span>
                 </div>
                 <div>
-                  <p className="text-[var(--pt-text-muted)] text-sm">Hola,</p>
-                  <p className="text-white font-semibold text-lg">{profile?.full_name?.split(' ')[0] || 'Usuario'}</p>
+                  <p className="text-[var(--pt-text-muted)] text-xs">Hola,</p>
+                  <p className="text-white font-semibold text-sm">{profile?.full_name?.split(' ')[0] || 'Usuario'}</p>
                 </div>
               </div>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 px-3 py-2">
+            {/* Navigation - compacto con scroll */}
+            <nav className="flex-1 px-2 py-2 overflow-y-auto">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
@@ -241,14 +241,14 @@ export function Header() {
                     key={item.href}
                     onClick={() => handleNavClick(item.href)}
                     className={cn(
-                      "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl mb-1 transition-all",
+                      "w-full flex items-center gap-3 px-3 py-2 rounded-xl mb-0.5 transition-all",
                       isActive
                         ? "bg-[var(--pt-primary)]/20 text-[var(--pt-primary)]"
                         : "text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)]"
                     )}
                   >
-                    <Icon className={cn("w-5 h-5", isActive && "text-[var(--pt-primary)]")} />
-                    <span className={cn("font-medium", isActive && "text-[var(--pt-primary)]")}>{item.label}</span>
+                    <Icon className={cn("w-4 h-4", isActive && "text-[var(--pt-primary)]")} />
+                    <span className={cn("text-sm font-medium", isActive && "text-[var(--pt-primary)]")}>{item.label}</span>
                   </button>
                 );
               })}
@@ -257,36 +257,36 @@ export function Header() {
               {isFree && (
                 <button
                   onClick={() => handleNavClick('/pricing')}
-                  className="w-full flex items-center justify-center gap-2 mt-4 px-4 py-3.5 rounded-full bg-[var(--pt-primary)] text-white font-semibold transition-all hover:bg-[var(--pt-primary-hover)]"
+                  className="w-full flex items-center justify-center gap-2 mt-2 px-3 py-2 rounded-full bg-[var(--pt-primary)] text-white text-sm font-semibold transition-all hover:bg-[var(--pt-primary-hover)]"
                 >
-                  <Zap className="w-5 h-5" />
+                  <Zap className="w-4 h-4" />
                   <span>Mejorar Plan</span>
                 </button>
               )}
             </nav>
 
-            {/* Bottom Section */}
-            <div className="px-3 py-4 border-t border-[var(--pt-border)]">
+            {/* Bottom Section - compacto */}
+            <div className="px-2 py-2 border-t border-[var(--pt-border)]">
               <button
                 onClick={() => handleNavClick('/settings')}
-                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)] transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)] transition-all"
               >
-                <Settings className="w-5 h-5" />
-                <span className="font-medium">Configuración</span>
+                <Settings className="w-4 h-4" />
+                <span className="text-sm font-medium">Configuración</span>
               </button>
               <button
                 onClick={() => handleNavClick('/profile')}
-                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)] transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)] transition-all"
               >
-                <User className="w-5 h-5" />
-                <span className="font-medium">Ayuda</span>
+                <User className="w-4 h-4" />
+                <span className="text-sm font-medium">Ayuda</span>
               </button>
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--pt-red)] hover:bg-[var(--pt-red)]/10 transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[var(--pt-red)] hover:bg-[var(--pt-red)]/10 transition-all"
               >
-                <LogOut className="w-5 h-5" />
-                <span className="font-medium">Cerrar Sesión</span>
+                <LogOut className="w-4 h-4" />
+                <span className="text-sm font-medium">Cerrar Sesión</span>
               </button>
             </div>
           </div>
