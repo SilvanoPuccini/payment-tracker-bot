@@ -207,7 +207,7 @@ export function Header() {
           />
 
           {/* Drawer - Estilo como la imagen */}
-          <div className="absolute left-0 top-0 h-full w-[75%] max-w-[300px] bg-[#0d1f17] flex flex-col animate-slide-in-left">
+          <div className="absolute left-0 top-0 h-[90%] w-[75%] max-w-[300px] bg-[#0d1f17] flex flex-col animate-slide-in-left rounded-br-3xl">
             {/* Logo */}
             <div className="px-5 py-5">
               <div className="flex items-center gap-3">
