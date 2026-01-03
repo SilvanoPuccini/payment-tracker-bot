@@ -22,18 +22,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch user profile
-  const fetchProfile = async (userId: string) => {
+  // Fetch user profile - tries user_id first, then id, creates if not exists
+  const fetchProfile = async (userId: string, userEmail?: string) => {
     try {
-      const { data, error } = await supabase
+      // Try to find by user_id first
+      let { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
 
+      // If not found, try by id (for old schema)
+      if (!data && !error) {
+        const result = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        data = result.data;
+        error = result.error;
+      }
+
       if (error) {
         console.error('Error fetching profile:', error);
-        return null;
+      }
+
+      // If still no profile, create one
+      if (!data) {
+        console.log('No profile found, creating one...');
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: userId,
+            email: userEmail || '',
+            onboarding_completed: false
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError);
+          // Return a default profile object
+          return {
+            id: userId,
+            user_id: userId,
+            email: userEmail || null,
+            full_name: null,
+            avatar_url: null,
+            phone: null,
+            company_name: null,
+            timezone: 'America/Lima',
+            currency: 'PEN',
+            language: 'es',
+            onboarding_completed: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as Profile;
+        }
+
+        return newProfile as Profile;
       }
 
       return data as Profile;
@@ -50,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile);
+        fetchProfile(session.user.id, session.user.email).then(setProfile);
       }
 
       setIsLoading(false);
@@ -63,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
+          const profile = await fetchProfile(session.user.id, session.user.email);
           setProfile(profile);
         } else {
           setProfile(null);
@@ -146,11 +193,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('AuthContext updateProfile: User ID:', user.id);
 
     try {
-      const { data, error } = await supabase
+      // Try updating by user_id first
+      let { data, error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('user_id', user.id)
         .select();
+
+      // If no rows updated, try by id (old schema)
+      if ((!data || data.length === 0) && !error) {
+        console.log('AuthContext updateProfile: No rows with user_id, trying id...');
+        const result = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', user.id)
+          .select();
+        data = result.data;
+        error = result.error;
+      }
 
       console.log('AuthContext updateProfile: Response data:', data);
 
@@ -160,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Refresh profile
-      const updatedProfile = await fetchProfile(user.id);
+      const updatedProfile = await fetchProfile(user.id, user.email);
       console.log('AuthContext updateProfile: Refreshed profile:', updatedProfile);
       setProfile(updatedProfile);
 
