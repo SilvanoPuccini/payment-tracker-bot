@@ -268,7 +268,7 @@ export default function Reminders() {
               </div>
             ) : scheduledReminders.length === 0 ? (
               <EmptyState
-                icon={Bell}
+                icon={<Bell className="h-12 w-12 text-muted-foreground" />}
                 title="Sin recordatorios programados"
                 description="Los recordatorios se programaran automaticamente cuando agregues pagos con fecha de vencimiento."
               />
@@ -288,7 +288,7 @@ export default function Reminders() {
               </div>
             ) : [...sentReminders, ...failedReminders].length === 0 ? (
               <EmptyState
-                icon={Clock}
+                icon={<Clock className="h-12 w-12 text-muted-foreground" />}
                 title="Sin historial de recordatorios"
                 description="Aqui aparecera el historial de recordatorios enviados y fallidos."
               />
