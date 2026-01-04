@@ -183,6 +183,7 @@ export default function Payments() {
     { id: 'all', label: 'Todo', count: payments?.length || 0 },
     { id: 'confirmed', label: 'Confirmado', count: payments?.filter(p => p.status === 'confirmed').length || 0 },
     { id: 'pending', label: 'Pendiente', count: payments?.filter(p => p.status === 'pending').length || 0 },
+    { id: 'rejected', label: 'Rechazado', count: payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').length || 0 },
   ];
 
   const PaymentItem = ({ payment, index }: { payment: PaymentWithContact; index: number }) => {
@@ -359,53 +360,53 @@ export default function Payments() {
         </div>
 
         {/* Stats Cards */}
-        <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2 animate-slide-up" style={{ animationDelay: '100ms' }}>
           {/* Total Card */}
-          <div className="snap-center min-w-[140px] flex-1 flex flex-col gap-1 rounded-2xl p-4 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-full bg-[var(--pt-blue)]/20 text-[var(--pt-blue)]">
-                <Receipt className="w-[18px] h-[18px]" />
+          <div className="snap-center min-w-[100px] flex-shrink-0 flex flex-col gap-1 rounded-2xl p-3 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="p-1 rounded-full bg-[var(--pt-blue)]/20 text-[var(--pt-blue)]">
+                <Receipt className="w-4 h-4" />
               </div>
-              <span className="text-gray-400 text-xs font-medium uppercase tracking-wider">Total</span>
+              <span className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">Total</span>
             </div>
-            <p className="text-white text-2xl font-bold">{payments?.length || 0}</p>
-            <p className="text-gray-400 text-xs">Transacciones</p>
+            <p className="text-white text-xl font-bold">{payments?.length || 0}</p>
+            <p className="text-gray-400 text-[10px]">Transacciones</p>
           </div>
 
           {/* Income Card - Featured */}
-          <div className="snap-center min-w-[160px] flex-1 flex flex-col gap-1 rounded-2xl p-4 bg-gradient-to-br from-[var(--pt-primary)] to-[var(--pt-primary-hover)] border border-white/10 shadow-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-full bg-white/20 text-white">
-                <PiggyBank className="w-[18px] h-[18px]" />
+          <div className="snap-center min-w-[120px] flex-shrink-0 flex flex-col gap-1 rounded-2xl p-3 bg-gradient-to-br from-[var(--pt-primary)] to-[var(--pt-primary-hover)] border border-white/10 shadow-lg">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="p-1 rounded-full bg-white/20 text-white">
+                <PiggyBank className="w-4 h-4" />
               </div>
-              <span className="text-white/70 text-xs font-medium uppercase tracking-wider">Ingresos</span>
+              <span className="text-white/70 text-[10px] font-medium uppercase tracking-wider">Ingresos</span>
             </div>
-            <p className="text-white text-2xl font-bold">{formatCurrency(stats?.confirmedAmount || 0)}</p>
-            <p className="text-white/60 text-xs">Este mes</p>
+            <p className="text-white text-xl font-bold truncate">{formatCurrency(stats?.confirmedAmount || 0)}</p>
+            <p className="text-white/60 text-[10px]">Este mes</p>
           </div>
 
           {/* Pending Card */}
-          <div className="snap-center min-w-[140px] flex-1 flex flex-col gap-1 rounded-2xl p-4 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-full bg-[var(--pt-yellow)]/20 text-[var(--pt-yellow)]">
-                <Clock className="w-[18px] h-[18px]" />
+          <div className="snap-center min-w-[120px] flex-shrink-0 flex flex-col gap-1 rounded-2xl p-3 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="p-1 rounded-full bg-[var(--pt-yellow)]/20 text-[var(--pt-yellow)]">
+                <Clock className="w-4 h-4" />
               </div>
-              <span className="text-gray-400 text-xs font-medium uppercase tracking-wider">Pendiente</span>
+              <span className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">Pendiente</span>
             </div>
-            <p className="text-white text-2xl font-bold">{formatCurrency(stats?.pendingAmount || 0)}</p>
-            <p className="text-gray-400 text-xs">Por cobrar</p>
+            <p className="text-white text-xl font-bold truncate">{formatCurrency(stats?.pendingAmount || 0)}</p>
+            <p className="text-gray-400 text-[10px]">Por cobrar</p>
           </div>
 
           {/* Rejected Card */}
-          <div className="snap-center min-w-[140px] flex-1 flex flex-col gap-1 rounded-2xl p-4 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-full bg-[var(--pt-red)]/20 text-[var(--pt-red)]">
-                <XCircle className="w-[18px] h-[18px]" />
+          <div className="snap-center min-w-[120px] flex-shrink-0 flex flex-col gap-1 rounded-2xl p-3 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="p-1 rounded-full bg-[var(--pt-red)]/20 text-[var(--pt-red)]">
+                <XCircle className="w-4 h-4" />
               </div>
-              <span className="text-gray-400 text-xs font-medium uppercase tracking-wider">Rechazado</span>
+              <span className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">Rechazado</span>
             </div>
-            <p className="text-white text-2xl font-bold">{formatCurrency(payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').reduce((sum, p) => sum + p.amount, 0) || 0)}</p>
-            <p className="text-gray-400 text-xs">Este mes</p>
+            <p className="text-white text-xl font-bold truncate">{formatCurrency(payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').reduce((sum, p) => sum + p.amount, 0) || 0)}</p>
+            <p className="text-gray-400 text-[10px]">Este mes</p>
           </div>
         </div>
 
