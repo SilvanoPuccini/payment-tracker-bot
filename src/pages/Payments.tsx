@@ -34,6 +34,7 @@ import type { PaymentStatus } from "@/types/database";
 import { format, isToday, isYesterday, isThisWeek, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
+import { PaymentDetailSheet } from "@/components/payments/PaymentDetailSheet";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,8 @@ export default function Payments() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithContact | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+  const [detailPayment, setDetailPayment] = useState<PaymentWithContact | null>(null);
   const { profile } = useAuth();
   const navigate = useNavigate();
 
@@ -143,8 +146,29 @@ export default function Payments() {
   };
 
   const handleOpenEdit = (payment: PaymentWithContact) => {
+    setDetailSheetOpen(false);
     setSelectedPayment(payment);
     setDialogOpen(true);
+  };
+
+  const handleOpenDetail = (payment: PaymentWithContact) => {
+    setDetailPayment(payment);
+    setDetailSheetOpen(true);
+  };
+
+  const handleConfirmFromDetail = async (id: string) => {
+    await handleConfirm(id);
+    setDetailSheetOpen(false);
+  };
+
+  const handleRejectFromDetail = async (id: string) => {
+    await handleReject(id);
+    setDetailSheetOpen(false);
+  };
+
+  const handleDeleteFromDetail = async (id: string) => {
+    await handleDelete(id);
+    setDetailSheetOpen(false);
   };
 
   const getInitials = (name: string) => {
@@ -167,11 +191,12 @@ export default function Payments() {
 
     return (
       <div
+        onClick={() => handleOpenDetail(payment)}
         className={cn(
-          "flex items-center gap-3 p-4 rounded-2xl border transition-all",
+          "flex items-center gap-3 p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.98]",
           isPending
-            ? "border-l-4 border-l-[var(--pt-yellow)] border-[var(--pt-border)] bg-[var(--pt-surface)]"
-            : "border-[var(--pt-border)] bg-[var(--pt-surface)]"
+            ? "border-l-4 border-l-[var(--pt-yellow)] border-[var(--pt-border)] bg-[var(--pt-surface)] hover:bg-[var(--pt-surface-elevated)]"
+            : "border-[var(--pt-border)] bg-[var(--pt-surface)] hover:bg-[var(--pt-surface-elevated)]"
         )}
       >
         {/* Avatar */}
@@ -226,6 +251,7 @@ export default function Payments() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={(e) => e.stopPropagation()}
               className="h-8 w-8 text-[var(--pt-text-muted)] hover:text-white hover:bg-[var(--pt-surface-elevated)] rounded-lg ml-1"
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -369,6 +395,18 @@ export default function Payments() {
             <p className="text-2xl font-bold text-white">{formatCurrency(stats?.pendingAmount || 0)}</p>
             <p className="text-xs text-[var(--pt-text-muted)]">Pendiente</p>
           </div>
+
+          {/* Rejected Card */}
+          <div className="pt-stat-card min-w-[140px]">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-[var(--pt-red)]/15 flex items-center justify-center">
+                <XCircle className="w-4 h-4 text-[var(--pt-red)]" />
+              </div>
+            </div>
+            <p className="text-[10px] text-[var(--pt-text-secondary)] uppercase font-bold">RECHAZADOS</p>
+            <p className="text-2xl font-bold text-white">{payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').length || 0}</p>
+            <p className="text-xs text-[var(--pt-text-muted)]">Este mes</p>
+          </div>
         </div>
 
         {/* Payment List */}
@@ -498,6 +536,18 @@ export default function Payments() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         payment={selectedPayment}
+      />
+
+      {/* Payment Detail Sheet */}
+      <PaymentDetailSheet
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+        payment={detailPayment}
+        onEdit={handleOpenEdit}
+        onConfirm={handleConfirmFromDetail}
+        onReject={handleRejectFromDetail}
+        onDelete={handleDeleteFromDetail}
+        currencySymbol={currencySymbol}
       />
     </DashboardLayout>
   );
