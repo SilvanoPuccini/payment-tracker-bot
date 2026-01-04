@@ -121,8 +121,15 @@ export function useCreatePayment() {
       return data as Payment;
     },
     onSuccess: () => {
+      // Invalidate all payment-related queries
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Pago registrado correctamente');
     },
     onError: (error) => {
@@ -152,9 +159,16 @@ export function useUpdatePayment() {
       return data as Payment;
     },
     onSuccess: (data) => {
+      // Invalidate all payment-related queries
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['payment', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Pago actualizado correctamente');
     },
     onError: (error) => {
@@ -188,8 +202,14 @@ export function useConfirmPayment() {
       return data as Payment;
     },
     onSuccess: () => {
+      // Invalidate all payment-related queries
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Pago confirmado');
     },
     onError: (error) => {
@@ -221,8 +241,13 @@ export function useRejectPayment() {
       return data as Payment;
     },
     onSuccess: () => {
+      // Invalidate all payment-related queries
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
       toast.success('Pago rechazado');
     },
     onError: (error) => {
@@ -249,8 +274,15 @@ export function useDeletePayment() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate all payment-related queries
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Pago eliminado');
     },
     onError: (error) => {
