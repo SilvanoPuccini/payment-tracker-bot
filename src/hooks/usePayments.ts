@@ -16,14 +16,6 @@ export interface PaymentWithContact extends Payment {
     phone: string;
     email?: string | null;
   } | null;
-  message?: {
-    id: string;
-    content: string | null;
-    media_url: string | null;
-    media_mime_type: string | null;
-    created_at: string;
-    confidence_score: number | null;
-  } | null;
 }
 
 // Fetch all payments for current user
@@ -44,14 +36,18 @@ export function usePayments(filters?: {
         .from('payments')
         .select(`
           *,
-          contact:contacts(id, name, phone, email),
-          message:messages(id, content, media_url, media_mime_type, created_at, confidence_score)
+          contact:contacts(id, name, phone, email)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (filters?.status) {
-        query = query.eq('status', filters.status);
+        // Handle 'rejected' filter to include both rejected and cancelled
+        if (filters.status === 'rejected') {
+          query = query.in('status', ['rejected', 'cancelled']);
+        } else {
+          query = query.eq('status', filters.status);
+        }
       }
       if (filters?.contactId) {
         query = query.eq('contact_id', filters.contactId);
@@ -65,7 +61,10 @@ export function usePayments(filters?: {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching payments:', error);
+        throw error;
+      }
       return data as PaymentWithContact[];
     },
     enabled: !!user,
@@ -85,8 +84,7 @@ export function usePayment(paymentId: string) {
         .from('payments')
         .select(`
           *,
-          contact:contacts(id, name, phone, email),
-          message:messages(id, content, media_url, media_mime_type, created_at, confidence_score)
+          contact:contacts(id, name, phone, email)
         `)
         .eq('id', paymentId)
         .eq('user_id', user.id)

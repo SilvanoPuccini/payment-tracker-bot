@@ -16,9 +16,7 @@ import {
   Calendar,
   Hash,
   Sparkles,
-  FileText,
   Image,
-  ZoomIn,
   Plus,
   Pencil,
   Trash2,
@@ -319,7 +317,7 @@ export function PaymentDetailSheet({
             )}
 
             {/* AI Confidence */}
-            {(payment.confidence_score || payment.message?.confidence_score) && (
+            {payment.confidence_score && (
               <>
                 <div className="w-full h-px bg-white/5" />
                 <div className="flex justify-between items-center">
@@ -328,7 +326,7 @@ export function PaymentDetailSheet({
                     <p className="text-[#9db8ab] text-sm">Confianza IA</p>
                   </div>
                   {(() => {
-                    const score = payment.confidence_score || payment.message?.confidence_score || 0;
+                    const score = payment.confidence_score || 0;
                     const percentage = Math.round(score * 100);
                     const isHigh = percentage >= 80;
                     const isMedium = percentage >= 50 && percentage < 80;
@@ -380,41 +378,18 @@ export function PaymentDetailSheet({
           </>
         )}
 
-        {/* Proof of Payment */}
+        {/* Proof of Payment - TODO: Implementar cuando se configure la relación en Supabase */}
         <div className="px-4">
           <h3 className="text-white text-sm font-bold uppercase tracking-wider opacity-70 mb-3 px-2">
             Comprobante de Pago
           </h3>
-          <div
-            className="relative group cursor-pointer overflow-hidden rounded-2xl border border-white/10"
-            onClick={() => {
-              if (payment.message?.media_url) {
-                window.open(payment.message.media_url, '_blank');
-              }
-            }}
-          >
-            {payment.message?.media_url ? (
-              <>
-                <div
-                  className="bg-center bg-cover bg-no-repeat h-40 w-full transition-transform duration-500 group-hover:scale-105"
-                  style={{ backgroundImage: `url("${payment.message.media_url}")` }}
-                />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ZoomIn className="w-8 h-8 text-white" />
-                </div>
-                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-white text-xs font-medium flex items-center gap-1">
-                  <Image className="w-3.5 h-3.5" />
-                  {payment.message.media_mime_type?.includes('image') ? 'Imagen' : 'Archivo'}
-                </div>
-              </>
-            ) : (
-              <div className="bg-[var(--pt-surface)] h-32 w-full flex items-center justify-center">
-                <div className="text-center">
-                  <Image className="w-10 h-10 text-gray-500 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Sin comprobante</p>
-                </div>
+          <div className="relative group overflow-hidden rounded-2xl border border-white/10">
+            <div className="bg-[var(--pt-surface)] h-32 w-full flex items-center justify-center">
+              <div className="text-center">
+                <Image className="w-10 h-10 text-gray-500 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">Sin comprobante</p>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
