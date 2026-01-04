@@ -359,53 +359,53 @@ export default function Payments() {
         </div>
 
         {/* Stats Cards */}
-        <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-2 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2 animate-slide-up" style={{ animationDelay: '100ms' }}>
           {/* Total Card */}
-          <div className="pt-stat-card min-w-[140px]">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[var(--pt-blue)]/15 flex items-center justify-center">
-                <Receipt className="w-4 h-4 text-[var(--pt-blue)]" />
+          <div className="snap-center min-w-[140px] flex-1 flex flex-col gap-1 rounded-2xl p-4 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-full bg-[var(--pt-blue)]/20 text-[var(--pt-blue)]">
+                <Receipt className="w-[18px] h-[18px]" />
               </div>
+              <span className="text-gray-400 text-xs font-medium uppercase tracking-wider">Total</span>
             </div>
-            <p className="text-[10px] text-[var(--pt-text-secondary)] uppercase font-bold">TOTAL</p>
-            <p className="text-2xl font-bold text-white">{payments?.length || 0}</p>
-            <p className="text-xs text-[var(--pt-text-muted)]">Transacciones</p>
+            <p className="text-white text-2xl font-bold">{payments?.length || 0}</p>
+            <p className="text-gray-400 text-xs">Transacciones</p>
           </div>
 
           {/* Income Card - Featured */}
-          <div className="pt-stat-card pt-stat-card-featured min-w-[200px]">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                <PiggyBank className="w-4 h-4 text-white" />
+          <div className="snap-center min-w-[160px] flex-1 flex flex-col gap-1 rounded-2xl p-4 bg-gradient-to-br from-[var(--pt-primary)] to-[var(--pt-primary-hover)] border border-white/10 shadow-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-full bg-white/20 text-white">
+                <PiggyBank className="w-[18px] h-[18px]" />
               </div>
+              <span className="text-white/70 text-xs font-medium uppercase tracking-wider">Ingresos</span>
             </div>
-            <p className="text-[10px] text-white/70 uppercase font-bold">INGRESOS</p>
-            <p className="text-2xl font-bold text-white">{formatCurrency(stats?.confirmedAmount || 0)}</p>
-            <p className="text-xs text-white/60">Este mes</p>
+            <p className="text-white text-2xl font-bold">{formatCurrency(stats?.confirmedAmount || 0)}</p>
+            <p className="text-white/60 text-xs">Este mes</p>
           </div>
 
           {/* Pending Card */}
-          <div className="pt-stat-card min-w-[140px]">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[var(--pt-yellow)]/15 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-[var(--pt-yellow)]" />
+          <div className="snap-center min-w-[140px] flex-1 flex flex-col gap-1 rounded-2xl p-4 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-full bg-[var(--pt-yellow)]/20 text-[var(--pt-yellow)]">
+                <Clock className="w-[18px] h-[18px]" />
               </div>
+              <span className="text-gray-400 text-xs font-medium uppercase tracking-wider">Pendiente</span>
             </div>
-            <p className="text-[10px] text-[var(--pt-text-secondary)] uppercase font-bold">POR COBRAR</p>
-            <p className="text-2xl font-bold text-white">{formatCurrency(stats?.pendingAmount || 0)}</p>
-            <p className="text-xs text-[var(--pt-text-muted)]">Pendiente</p>
+            <p className="text-white text-2xl font-bold">{formatCurrency(stats?.pendingAmount || 0)}</p>
+            <p className="text-gray-400 text-xs">Por cobrar</p>
           </div>
 
           {/* Rejected Card */}
-          <div className="pt-stat-card min-w-[140px]">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[var(--pt-red)]/15 flex items-center justify-center">
-                <XCircle className="w-4 h-4 text-[var(--pt-red)]" />
+          <div className="snap-center min-w-[140px] flex-1 flex flex-col gap-1 rounded-2xl p-4 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 rounded-full bg-[var(--pt-red)]/20 text-[var(--pt-red)]">
+                <XCircle className="w-[18px] h-[18px]" />
               </div>
+              <span className="text-gray-400 text-xs font-medium uppercase tracking-wider">Rechazado</span>
             </div>
-            <p className="text-[10px] text-[var(--pt-text-secondary)] uppercase font-bold">RECHAZADOS</p>
-            <p className="text-2xl font-bold text-white">{payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').length || 0}</p>
-            <p className="text-xs text-[var(--pt-text-muted)]">Este mes</p>
+            <p className="text-white text-2xl font-bold">{formatCurrency(payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').reduce((sum, p) => sum + p.amount, 0) || 0)}</p>
+            <p className="text-gray-400 text-xs">Este mes</p>
           </div>
         </div>
 
