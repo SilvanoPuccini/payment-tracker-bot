@@ -42,7 +42,12 @@ export function usePayments(filters?: {
         .order('created_at', { ascending: false });
 
       if (filters?.status) {
-        query = query.eq('status', filters.status);
+        // Handle 'rejected' filter to include both rejected and cancelled
+        if (filters.status === 'rejected') {
+          query = query.in('status', ['rejected', 'cancelled']);
+        } else {
+          query = query.eq('status', filters.status);
+        }
       }
       if (filters?.contactId) {
         query = query.eq('contact_id', filters.contactId);
@@ -56,7 +61,10 @@ export function usePayments(filters?: {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching payments:', error);
+        throw error;
+      }
       return data as PaymentWithContact[];
     },
     enabled: !!user,
