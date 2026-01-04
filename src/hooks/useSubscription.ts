@@ -75,7 +75,12 @@ export function useSubscription() {
   return {
     subscription,
     usage,
-    currentPlan: { id: 'free', name: 'Free', price: 0 },
+    currentPlan: {
+      id: 'free',
+      name: 'Free',
+      price: 0,
+      limits: FREE_LIMITS
+    },
     isLoading: false,
     error: null,
     getUsageStatus,
@@ -97,7 +102,12 @@ export function useCheckLimit() {
     canCreateContact: () => true,
     canSendWhatsApp: () => true,
     requiresUpgrade: () => false,
-    currentPlan: { id: 'free', name: 'Free', price: 0 },
+    currentPlan: {
+      id: 'free',
+      name: 'Free',
+      price: 0,
+      limits: FREE_LIMITS
+    },
     isFree: true,
   };
 }
