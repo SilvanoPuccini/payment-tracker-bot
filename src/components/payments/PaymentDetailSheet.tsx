@@ -1,28 +1,28 @@
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import {
+  ArrowLeft,
+  MoreHorizontal,
   CheckCircle2,
   Clock,
   XCircle,
+  X,
+  Check,
+  MessageCircle,
+  Phone,
   Building2,
   Calendar,
-  CreditCard,
   Hash,
+  Sparkles,
   FileText,
-  User,
-  Phone,
-  Mail,
+  Image,
+  ZoomIn,
+  Plus,
   Pencil,
   Trash2,
-  Check,
-  X,
-  CalendarClock,
-  Bell,
+  Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -45,48 +45,48 @@ const getStatusConfig = (status: string) => {
     case "confirmed":
       return {
         label: "Confirmado",
-        className: "bg-[var(--pt-primary)]/15 text-[var(--pt-primary)]",
+        bgClass: "bg-[var(--pt-primary)]/20 border-[var(--pt-primary)]/20",
+        textClass: "text-[var(--pt-primary)]",
         icon: CheckCircle2,
-        iconColor: "text-[var(--pt-primary)]",
       };
     case "pending":
       return {
         label: "Pendiente",
-        className: "bg-[var(--pt-yellow)]/15 text-[var(--pt-yellow)]",
+        bgClass: "bg-[var(--pt-yellow)]/20 border-[var(--pt-yellow)]/20",
+        textClass: "text-[var(--pt-yellow)]",
         icon: Clock,
-        iconColor: "text-[var(--pt-yellow)]",
       };
     case "rejected":
       return {
         label: "Rechazado",
-        className: "bg-[var(--pt-red)]/15 text-[var(--pt-red)]",
+        bgClass: "bg-[var(--pt-red)]/20 border-[var(--pt-red)]/20",
+        textClass: "text-[var(--pt-red)]",
         icon: XCircle,
-        iconColor: "text-[var(--pt-red)]",
       };
     case "cancelled":
       return {
         label: "Cancelado",
-        className: "bg-[var(--pt-text-muted)]/15 text-[var(--pt-text-muted)]",
+        bgClass: "bg-gray-500/20 border-gray-500/20",
+        textClass: "text-gray-400",
         icon: X,
-        iconColor: "text-[var(--pt-text-muted)]",
       };
     default:
       return {
         label: "Desconocido",
-        className: "bg-[var(--pt-text-muted)]/15 text-[var(--pt-text-muted)]",
+        bgClass: "bg-gray-500/20 border-gray-500/20",
+        textClass: "text-gray-400",
         icon: Clock,
-        iconColor: "text-[var(--pt-text-muted)]",
       };
   }
 };
 
 const getAvatarColor = (name: string) => {
   const colors = [
-    'bg-gradient-to-br from-blue-500 to-blue-600',
-    'bg-gradient-to-br from-purple-500 to-purple-600',
-    'bg-gradient-to-br from-pink-500 to-pink-600',
-    'bg-gradient-to-br from-teal-500 to-teal-600',
-    'bg-gradient-to-br from-orange-500 to-orange-600',
+    "bg-gradient-to-br from-blue-500 to-blue-600",
+    "bg-gradient-to-br from-purple-500 to-purple-600",
+    "bg-gradient-to-br from-pink-500 to-pink-600",
+    "bg-gradient-to-br from-teal-500 to-teal-600",
+    "bg-gradient-to-br from-orange-500 to-orange-600",
   ];
   const index = name.charCodeAt(0) % colors.length;
   return colors[index];
@@ -124,252 +124,403 @@ export function PaymentDetailSheet({
   };
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "dd MMM yyyy", { locale: es });
+    return format(new Date(dateString), "dd MMM, yyyy", { locale: es });
   };
 
   const formatDateTime = (dateString: string) => {
     return format(new Date(dateString), "dd MMM yyyy, HH:mm", { locale: es });
   };
 
-  const DetailRow = ({
-    icon: Icon,
-    label,
-    value,
-    iconColor = "text-[var(--pt-text-muted)]",
-  }: {
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    value: string | null | undefined;
-    iconColor?: string;
-  }) => {
-    if (!value) return null;
-    return (
-      <div className="flex items-start gap-3 py-3">
-        <div className="w-10 h-10 rounded-xl bg-[var(--pt-surface-elevated)] flex items-center justify-center flex-shrink-0">
-          <Icon className={cn("w-5 h-5", iconColor)} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-[var(--pt-text-muted)] font-medium uppercase">
-            {label}
-          </p>
-          <p className="text-sm text-white font-medium mt-0.5">{value}</p>
-        </div>
-      </div>
-    );
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const openWhatsApp = () => {
+    if (payment.contact?.phone) {
+      const phone = payment.contact.phone.replace(/\D/g, "");
+      window.open(`https://wa.me/${phone}`, "_blank");
+    }
+  };
+
+  const makeCall = () => {
+    if (payment.contact?.phone) {
+      window.open(`tel:${payment.contact.phone}`, "_self");
+    }
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="bg-[var(--pt-bg)] border-t border-[var(--pt-border)] rounded-t-3xl max-h-[90vh] overflow-y-auto p-0"
+        className="bg-[var(--pt-bg)] border-0 rounded-t-3xl h-[95vh] overflow-y-auto p-0"
       >
-        {/* Header with gradient */}
-        <div className="relative bg-gradient-to-br from-[var(--pt-surface)] to-[var(--pt-surface-elevated)] p-6 pb-8">
-          <SheetHeader className="text-left mb-6">
-            <SheetTitle className="text-white text-lg">
-              Detalle del pago
-            </SheetTitle>
-          </SheetHeader>
-
-          {/* Contact Card */}
-          <div className="flex items-center gap-4">
-            <div
-              className={cn(
-                "w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg",
-                getAvatarColor(payment.contact?.name || "?")
-              )}
-            >
-              {payment.contact?.name ? getInitials(payment.contact.name) : "??"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xl font-bold text-white truncate">
-                {payment.contact?.name || "Sin contacto"}
-              </p>
-              {payment.contact?.phone && (
-                <p className="text-sm text-[var(--pt-text-secondary)]">
-                  {payment.contact.phone}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Amount Badge */}
-          <div className="absolute -bottom-8 right-6 bg-[var(--pt-surface)] border-4 border-[var(--pt-bg)] rounded-2xl px-5 py-3 shadow-xl">
-            <p className="text-xs text-[var(--pt-text-muted)] font-medium">
-              MONTO
-            </p>
-            <p
-              className={cn(
-                "text-2xl font-bold",
-                payment.status === "confirmed"
-                  ? "text-[var(--pt-primary)]"
-                  : "text-white"
-              )}
-            >
-              {payment.status === "confirmed" ? "+" : ""}
-              {formatCurrency(payment.amount)}
-            </p>
-          </div>
+        {/* Top App Bar */}
+        <div className="sticky top-0 z-50 flex items-center bg-[var(--pt-bg)]/95 backdrop-blur-md p-4 justify-between border-b border-white/5">
+          <button
+            onClick={() => onOpenChange(false)}
+            className="text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h2 className="text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">
+            Detalle de Transacción
+          </h2>
+          <button className="text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+            <MoreHorizontal className="w-6 h-6" />
+          </button>
         </div>
 
-        {/* Status Badge */}
-        <div className="px-6 pt-12 pb-4">
+        {/* Hero Section: Amount & Status */}
+        <div className="flex flex-col items-center pt-8 pb-6 px-4">
+          <h1 className="text-white tracking-tight text-4xl font-bold leading-tight text-center mb-3">
+            {formatCurrency(payment.amount)} {payment.currency}
+          </h1>
           <div
             className={cn(
-              "inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm",
-              status.className
+              "flex items-center gap-2 rounded-full px-4 py-1.5 border",
+              status.bgClass
             )}
           >
-            <StatusIcon className="w-4 h-4" />
-            {status.label}
-          </div>
-        </div>
-
-        {/* Details Section */}
-        <div className="px-6 pb-4">
-          <p className="text-xs text-[var(--pt-text-muted)] font-bold uppercase mb-2">
-            INFORMACIÓN DEL PAGO
-          </p>
-          <div className="bg-[var(--pt-surface)] rounded-2xl p-4 divide-y divide-[var(--pt-border)]">
-            <DetailRow
-              icon={CreditCard}
-              label="Método de pago"
-              value={payment.method_detail || payment.method}
-              iconColor="text-[var(--pt-blue)]"
-            />
-            <DetailRow
-              icon={Building2}
-              label="Banco"
-              value={payment.bank_name}
-              iconColor="text-[var(--pt-purple)]"
-            />
-            <DetailRow
-              icon={Hash}
-              label="N° Operación"
-              value={payment.reference_number}
-              iconColor="text-[var(--pt-yellow)]"
-            />
-            <DetailRow
-              icon={Calendar}
-              label="Fecha del pago"
-              value={
-                payment.payment_date ? formatDate(payment.payment_date) : null
-              }
-              iconColor="text-[var(--pt-primary)]"
-            />
-            {payment.payment_time && (
-              <DetailRow
-                icon={Clock}
-                label="Hora del pago"
-                value={payment.payment_time}
-                iconColor="text-[var(--pt-text-muted)]"
-              />
-            )}
-            <DetailRow
-              icon={CalendarClock}
-              label="Fecha de vencimiento"
-              value={
-                (payment as any).payment_due_date
-                  ? formatDate((payment as any).payment_due_date)
-                  : null
-              }
-              iconColor="text-[var(--pt-red)]"
-            />
-            <DetailRow
-              icon={FileText}
-              label="Notas"
-              value={payment.notes}
-              iconColor="text-[var(--pt-text-muted)]"
-            />
-          </div>
-        </div>
-
-        {/* Contact Details */}
-        {payment.contact && (
-          <div className="px-6 pb-4">
-            <p className="text-xs text-[var(--pt-text-muted)] font-bold uppercase mb-2">
-              INFORMACIÓN DEL CONTACTO
+            <StatusIcon className={cn("w-[18px] h-[18px]", status.textClass)} />
+            <p className={cn("text-sm font-semibold", status.textClass)}>
+              {status.label}
             </p>
-            <div className="bg-[var(--pt-surface)] rounded-2xl p-4 divide-y divide-[var(--pt-border)]">
-              <DetailRow
-                icon={User}
-                label="Nombre"
-                value={payment.contact.name}
-                iconColor="text-[var(--pt-primary)]"
-              />
-              <DetailRow
-                icon={Phone}
-                label="Teléfono"
-                value={payment.contact.phone}
-                iconColor="text-[var(--pt-blue)]"
-              />
-              <DetailRow
-                icon={Mail}
-                label="Email"
-                value={payment.contact.email}
-                iconColor="text-[var(--pt-purple)]"
-              />
-            </div>
           </div>
+        </div>
+
+        {/* Contact Section */}
+        <div className="px-4 pb-2">
+          <div className="flex flex-col items-center gap-4 bg-[var(--pt-surface)] rounded-2xl p-6 shadow-sm border border-white/5">
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative">
+                <div
+                  className={cn(
+                    "w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl ring-4 ring-[var(--pt-bg)]",
+                    getAvatarColor(payment.contact?.name || "?")
+                  )}
+                >
+                  {payment.contact?.name
+                    ? getInitials(payment.contact.name)
+                    : "??"}
+                </div>
+                {payment.status === "confirmed" && (
+                  <div className="absolute bottom-0 right-0 bg-[var(--pt-primary)] h-6 w-6 rounded-full border-2 border-[var(--pt-bg)] flex items-center justify-center">
+                    <Check className="w-3.5 h-3.5 text-white" />
+                  </div>
+                )}
+              </div>
+              <div className="text-center">
+                <p className="text-white text-xl font-bold">
+                  {payment.contact?.name || "Sin contacto"}
+                </p>
+                {payment.contact?.phone && (
+                  <p className="text-[#9db8ab] text-sm font-medium">
+                    {payment.contact.phone}
+                  </p>
+                )}
+              </div>
+            </div>
+            {payment.contact?.phone && (
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={openWhatsApp}
+                  className="flex-1 flex items-center justify-center gap-2 h-11 rounded-full bg-[#25D366] hover:bg-[#1ebc59] text-white text-sm font-bold transition-transform active:scale-95 shadow-lg shadow-green-900/20"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  WhatsApp
+                </button>
+                <button
+                  onClick={makeCall}
+                  className="flex-1 flex items-center justify-center gap-2 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition-transform active:scale-95"
+                >
+                  <Phone className="w-5 h-5" />
+                  Llamar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="h-6" />
+
+        {/* Payment Details */}
+        <div className="px-4">
+          <h3 className="text-white text-sm font-bold uppercase tracking-wider opacity-70 mb-3 px-2">
+            Detalles del Pago
+          </h3>
+          <div className="bg-[var(--pt-surface)] rounded-2xl p-5 shadow-sm border border-white/5 space-y-4">
+            {/* Method */}
+            {(payment.method || payment.method_detail) && (
+              <>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-gray-400" />
+                    <p className="text-[#9db8ab] text-sm">Método</p>
+                  </div>
+                  <p className="text-white text-sm font-medium">
+                    {payment.method_detail || payment.method}
+                  </p>
+                </div>
+                <div className="w-full h-px bg-white/5" />
+              </>
+            )}
+
+            {/* Bank */}
+            {payment.bank_name && (
+              <>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-gray-400" />
+                    <p className="text-[#9db8ab] text-sm">Banco</p>
+                  </div>
+                  <p className="text-white text-sm font-medium">
+                    {payment.bank_name}
+                  </p>
+                </div>
+                <div className="w-full h-px bg-white/5" />
+              </>
+            )}
+
+            {/* Date */}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-gray-400" />
+                <p className="text-[#9db8ab] text-sm">Fecha</p>
+              </div>
+              <p className="text-white text-sm font-medium">
+                {payment.payment_date
+                  ? formatDate(payment.payment_date)
+                  : formatDate(payment.created_at)}
+              </p>
+            </div>
+
+            {/* Reference */}
+            {payment.reference_number && (
+              <>
+                <div className="w-full h-px bg-white/5" />
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-gray-400" />
+                    <p className="text-[#9db8ab] text-sm">Referencia</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <p className="text-white text-sm font-medium">
+                      #{payment.reference_number}
+                    </p>
+                    <button
+                      onClick={() => copyToClipboard(payment.reference_number!)}
+                      className="p-1 hover:bg-white/10 rounded"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* AI Confidence */}
+            {(payment.confidence_score || payment.message?.confidence_score) && (
+              <>
+                <div className="w-full h-px bg-white/5" />
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-[var(--pt-primary)]" />
+                    <p className="text-[#9db8ab] text-sm">Confianza IA</p>
+                  </div>
+                  {(() => {
+                    const score = payment.confidence_score || payment.message?.confidence_score || 0;
+                    const percentage = Math.round(score * 100);
+                    const isHigh = percentage >= 80;
+                    const isMedium = percentage >= 50 && percentage < 80;
+                    return (
+                      <div className={cn(
+                        "flex items-center gap-1.5 px-2 py-0.5 rounded-md",
+                        isHigh ? "bg-[var(--pt-primary)]/10" : isMedium ? "bg-[var(--pt-yellow)]/10" : "bg-[var(--pt-red)]/10"
+                      )}>
+                        <span className={cn(
+                          "block w-1.5 h-1.5 rounded-full",
+                          isHigh ? "bg-[var(--pt-primary)]" : isMedium ? "bg-[var(--pt-yellow)]" : "bg-[var(--pt-red)]"
+                        )} />
+                        <p className={cn(
+                          "text-xs font-bold uppercase tracking-wide",
+                          isHigh ? "text-[var(--pt-primary)]" : isMedium ? "text-[var(--pt-yellow)]" : "text-[var(--pt-red)]"
+                        )}>
+                          {percentage}% {isHigh ? 'Alta' : isMedium ? 'Media' : 'Baja'}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="h-6" />
+
+        {/* Notes Section */}
+        {payment.notes && (
+          <>
+            <div className="px-4">
+              <div className="flex justify-between items-end mb-2 px-2">
+                <h3 className="text-white text-sm font-bold uppercase tracking-wider opacity-70">
+                  Notas
+                </h3>
+                <button className="text-[var(--pt-primary)] text-xs font-bold hover:underline">
+                  Editar
+                </button>
+              </div>
+              <div className="bg-[var(--pt-surface)] rounded-2xl p-4 shadow-sm border border-white/5">
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  {payment.notes}
+                </p>
+              </div>
+            </div>
+            <div className="h-6" />
+          </>
         )}
 
-        {/* Timestamps */}
-        <div className="px-6 pb-4">
-          <p className="text-xs text-[var(--pt-text-muted)] font-bold uppercase mb-2">
-            REGISTRO
-          </p>
-          <div className="bg-[var(--pt-surface)] rounded-2xl p-4">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-[var(--pt-text-muted)]">
-                Registrado
-              </span>
-              <span className="text-sm text-white">
-                {formatDateTime(payment.created_at)}
-              </span>
+        {/* Proof of Payment */}
+        <div className="px-4">
+          <h3 className="text-white text-sm font-bold uppercase tracking-wider opacity-70 mb-3 px-2">
+            Comprobante de Pago
+          </h3>
+          <div
+            className="relative group cursor-pointer overflow-hidden rounded-2xl border border-white/10"
+            onClick={() => {
+              if (payment.message?.media_url) {
+                window.open(payment.message.media_url, '_blank');
+              }
+            }}
+          >
+            {payment.message?.media_url ? (
+              <>
+                <div
+                  className="bg-center bg-cover bg-no-repeat h-40 w-full transition-transform duration-500 group-hover:scale-105"
+                  style={{ backgroundImage: `url("${payment.message.media_url}")` }}
+                />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ZoomIn className="w-8 h-8 text-white" />
+                </div>
+                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-white text-xs font-medium flex items-center gap-1">
+                  <Image className="w-3.5 h-3.5" />
+                  {payment.message.media_mime_type?.includes('image') ? 'Imagen' : 'Archivo'}
+                </div>
+              </>
+            ) : (
+              <div className="bg-[var(--pt-surface)] h-32 w-full flex items-center justify-center">
+                <div className="text-center">
+                  <Image className="w-10 h-10 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Sin comprobante</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="h-6" />
+
+        {/* History Log */}
+        <div className="px-4 mb-8">
+          <h3 className="text-white text-sm font-bold uppercase tracking-wider opacity-70 mb-4 px-2">
+            Historial
+          </h3>
+          <div className="relative pl-2">
+            {/* Timeline Item 1 - Current Status */}
+            <div className="relative flex gap-4 pb-6">
+              {/* Line connector */}
+              <div className="absolute left-[15px] top-9 bottom-0 w-0.5 bg-[#293830]" />
+              <div className="flex flex-col items-center z-10">
+                <div
+                  className={cn(
+                    "size-8 rounded-full flex items-center justify-center shadow-[0_0_0_4px_var(--pt-bg)]",
+                    payment.status === "confirmed"
+                      ? "bg-[var(--pt-primary)]"
+                      : payment.status === "pending"
+                      ? "bg-[var(--pt-yellow)]"
+                      : "bg-[var(--pt-red)]"
+                  )}
+                >
+                  {payment.status === "confirmed" ? (
+                    <Check className="w-4 h-4 text-white" />
+                  ) : payment.status === "pending" ? (
+                    <Clock className="w-4 h-4 text-black" />
+                  ) : (
+                    <X className="w-4 h-4 text-white" />
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col pt-1">
+                <p className="text-white text-sm font-bold">
+                  {payment.status === "confirmed"
+                    ? "Marcado como Pagado"
+                    : payment.status === "pending"
+                    ? "Pendiente de Pago"
+                    : "Pago Rechazado"}
+                </p>
+                <p className="text-[#9db8ab] text-xs">
+                  {formatDateTime(payment.updated_at || payment.created_at)}
+                </p>
+              </div>
+            </div>
+
+            {/* Timeline Item 2 - Created */}
+            <div className="relative flex gap-4">
+              <div className="flex flex-col items-center z-10">
+                <div className="size-8 rounded-full bg-[var(--pt-surface)] border border-white/10 flex items-center justify-center shadow-[0_0_0_4px_var(--pt-bg)]">
+                  <Plus className="w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+              <div className="flex flex-col pt-1">
+                <p className="text-white text-sm font-medium">
+                  Transacción Creada
+                </p>
+                <p className="text-[#9db8ab] text-xs">
+                  {formatDateTime(payment.created_at)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="sticky bottom-0 bg-[var(--pt-bg)] border-t border-[var(--pt-border)] px-6 py-4 space-y-3">
+        {/* Spacer for sticky footer */}
+        <div className="h-40" />
+
+        {/* Sticky Footer Actions */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--pt-bg)]/80 backdrop-blur-lg border-t border-white/5 flex flex-col gap-3 max-w-md mx-auto z-50">
           {isPending && (
             <div className="flex gap-3">
-              <Button
+              <button
                 onClick={() => onConfirm?.(payment.id)}
-                className="flex-1 bg-[var(--pt-primary)] hover:bg-[var(--pt-primary-hover)] text-white rounded-xl h-12"
+                className="flex-1 flex items-center justify-center h-12 rounded-full bg-[var(--pt-primary)] hover:bg-[var(--pt-primary-hover)] text-white font-bold tracking-wide transition-colors shadow-lg shadow-primary/20"
               >
                 <CheckCircle2 className="w-5 h-5 mr-2" />
-                Confirmar pago
-              </Button>
-              <Button
+                Confirmar Pago
+              </button>
+              <button
                 onClick={() => onReject?.(payment.id)}
-                variant="outline"
-                className="flex-1 border-[var(--pt-yellow)] text-[var(--pt-yellow)] hover:bg-[var(--pt-yellow)]/10 rounded-xl h-12"
+                className="flex-1 flex items-center justify-center h-12 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold transition-colors"
               >
                 <XCircle className="w-5 h-5 mr-2" />
                 Rechazar
-              </Button>
+              </button>
             </div>
           )}
 
-          <div className="flex gap-3">
-            <Button
-              onClick={() => onEdit?.(payment)}
-              variant="outline"
-              className="flex-1 border-[var(--pt-border)] text-white hover:bg-[var(--pt-surface)] rounded-xl h-12"
-            >
-              <Pencil className="w-5 h-5 mr-2" />
-              Editar
-            </Button>
-            <Button
-              onClick={() => onDelete?.(payment.id)}
-              variant="outline"
-              className="border-[var(--pt-red)] text-[var(--pt-red)] hover:bg-[var(--pt-red)]/10 rounded-xl h-12 px-4"
-            >
-              <Trash2 className="w-5 h-5" />
-            </Button>
-          </div>
+          <button
+            onClick={() => onEdit?.(payment)}
+            className="w-full flex items-center justify-center h-12 rounded-full bg-[var(--pt-primary)] hover:bg-[var(--pt-primary-hover)] text-white font-bold tracking-wide transition-colors shadow-lg shadow-primary/20"
+          >
+            <Pencil className="w-5 h-5 mr-2" />
+            Editar Pago
+          </button>
+          <button
+            onClick={() => onDelete?.(payment.id)}
+            className="w-full flex items-center justify-center h-10 rounded-full text-red-500 hover:bg-red-500/10 font-semibold text-sm transition-colors"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Eliminar Transacción
+          </button>
         </div>
       </SheetContent>
     </Sheet>
