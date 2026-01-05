@@ -312,7 +312,7 @@ export function PaymentDetailSheet({
           </h3>
           <div className="bg-[var(--pt-surface)] rounded-2xl p-5 shadow-sm border border-white/5 space-y-4">
             {/* Method */}
-            {(payment.method || payment.method_detail) && (
+            {payment.method && (
               <>
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
@@ -320,7 +320,7 @@ export function PaymentDetailSheet({
                     <p className="text-[#9db8ab] text-sm">Método</p>
                   </div>
                   <p className="text-white text-sm font-medium">
-                    {payment.method_detail || payment.method}
+                    {payment.method}
                   </p>
                 </div>
                 <div className="w-full h-px bg-white/5" />
@@ -337,6 +337,22 @@ export function PaymentDetailSheet({
                   </div>
                   <p className="text-white text-sm font-medium">
                     {payment.bank_name}
+                  </p>
+                </div>
+                <div className="w-full h-px bg-white/5" />
+              </>
+            )}
+
+            {/* Method Detail */}
+            {payment.method_detail && (
+              <>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-gray-400" />
+                    <p className="text-[#9db8ab] text-sm">Detalle del método</p>
+                  </div>
+                  <p className="text-white text-sm font-medium">
+                    {payment.method_detail}
                   </p>
                 </div>
                 <div className="w-full h-px bg-white/5" />

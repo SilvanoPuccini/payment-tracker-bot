@@ -635,7 +635,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
               </div>
               <div>
                 <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
-                  Detalle
+                  Detalle del método
                 </label>
                 <input
                   type="text"
