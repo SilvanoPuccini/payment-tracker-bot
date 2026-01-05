@@ -40,8 +40,7 @@ export function usePayments(filters?: {
         .from('payments')
         .select(`
           *,
-          contact:contacts(id, name, phone, email),
-          message:messages(media_url, media_mime_type)
+          contact:contacts(id, name, phone, email)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -89,8 +88,7 @@ export function usePayment(paymentId: string) {
         .from('payments')
         .select(`
           *,
-          contact:contacts(id, name, phone, email),
-          message:messages(media_url, media_mime_type)
+          contact:contacts(id, name, phone, email)
         `)
         .eq('id', paymentId)
         .eq('user_id', user.id)
