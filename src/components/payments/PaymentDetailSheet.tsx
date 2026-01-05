@@ -103,8 +103,8 @@ const getStatusConfig = (status: string) => {
     case "cancelled":
       return {
         label: "Cancelado",
-        bgClass: "bg-gray-500/20 border-gray-500/20",
-        textClass: "text-gray-400",
+        bgClass: "bg-[var(--pt-red)]/20 border-[var(--pt-red)]/20",
+        textClass: "text-[var(--pt-red)]",
         icon: X,
       };
     default:
@@ -127,6 +127,22 @@ const getAvatarColor = (name: string) => {
   ];
   const index = name.charCodeAt(0) % colors.length;
   return colors[index];
+};
+
+// Translate method to Spanish
+const translateMethod = (method: string | null) => {
+  if (!method) return null;
+  const translations: Record<string, string> = {
+    'transfer': 'Transferencia',
+    'cash': 'Efectivo',
+    'credit': 'Crédito',
+    'debit': 'Débito',
+    'check': 'Cheque',
+    'deposit': 'Depósito',
+    'wire': 'Giro',
+    'other': 'Otro',
+  };
+  return translations[method.toLowerCase()] || method;
 };
 
 export function PaymentDetailSheet({
@@ -320,7 +336,7 @@ export function PaymentDetailSheet({
                     <p className="text-[#9db8ab] text-sm">Método</p>
                   </div>
                   <p className="text-white text-sm font-medium">
-                    {payment.method}
+                    {translateMethod(payment.method)}
                   </p>
                 </div>
                 <div className="w-full h-px bg-white/5" />
