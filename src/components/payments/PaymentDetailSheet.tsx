@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Sheet,
   SheetContent,
+  SheetTitle,
 } from "@/components/ui/sheet";
 import {
   ArrowLeft,
@@ -74,7 +75,6 @@ interface PaymentDetailSheetProps {
   onConfirm?: (id: string) => void;
   onReject?: (id: string) => void;
   onDelete?: (id: string) => void;
-  currencySymbol?: string;
 }
 
 const getStatusConfig = (status: string) => {
@@ -137,7 +137,6 @@ export function PaymentDetailSheet({
   onConfirm,
   onReject,
   onDelete,
-  currencySymbol = "S/",
 }: PaymentDetailSheetProps) {
   const [imageError, setImageError] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -151,6 +150,23 @@ export function PaymentDetailSheet({
   const { receiptUrl, cleanNotes, isPdf, source: receiptSource } = getReceiptUrl(payment);
   const isPending = payment.status === "pending";
 
+  // Get currency symbol based on currency code
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: Record<string, string> = {
+      'PEN': 'S/',
+      'USD': '$',
+      'ARS': '$',
+      'EUR': '€',
+      'BRL': 'R$',
+      'CLP': '$',
+      'COP': '$',
+      'MXN': '$',
+    };
+    return symbols[currency] || '$';
+  };
+
+  const currencySymbol = getCurrencySymbol(payment.currency);
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -160,10 +176,12 @@ export function PaymentDetailSheet({
       .toUpperCase();
   };
 
-  const formatCurrency = (amount: number) => {
-    return `${currencySymbol}${amount.toLocaleString("es-PE", {
+  const formatCurrency = (amount: number, currency: string) => {
+    const symbol = getCurrencySymbol(currency);
+    const formattedAmount = amount.toLocaleString("es-PE", {
       minimumFractionDigits: 2,
-    })}`;
+    });
+    return `${symbol} ${formattedAmount} ${currency}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -197,6 +215,8 @@ export function PaymentDetailSheet({
         side="bottom"
         className="bg-[var(--pt-bg)] border-0 rounded-t-3xl h-[95vh] overflow-y-auto p-0"
       >
+        <SheetTitle className="sr-only">Detalle de Transacción</SheetTitle>
+
         {/* Top App Bar */}
         <div className="sticky top-0 z-50 flex items-center bg-[var(--pt-bg)]/95 backdrop-blur-md p-4 justify-between border-b border-white/5">
           <button
@@ -215,7 +235,7 @@ export function PaymentDetailSheet({
         {/* Hero Section: Amount & Status */}
         <div className="flex flex-col items-center pt-8 pb-6 px-4">
           <h1 className="text-white tracking-tight text-4xl font-bold leading-tight text-center mb-3">
-            {formatCurrency(payment.amount)} {payment.currency}
+            {formatCurrency(payment.amount, payment.currency)}
           </h1>
           <div
             className={cn(
@@ -361,7 +381,7 @@ export function PaymentDetailSheet({
             )}
 
             {/* AI Confidence */}
-            {payment.confidence_score && (
+            {payment.confidence_score != null && (
               <>
                 <div className="w-full h-px bg-white/5" />
                 <div className="flex justify-between items-center">
@@ -371,7 +391,8 @@ export function PaymentDetailSheet({
                   </div>
                   {(() => {
                     const score = payment.confidence_score || 0;
-                    const percentage = Math.round(score * 100);
+                    // Handle both 0-1 and 0-100 formats
+                    const percentage = score > 1 ? Math.min(Math.round(score), 100) : Math.round(score * 100);
                     const isHigh = percentage >= 80;
                     const isMedium = percentage >= 50 && percentage < 80;
                     return (
@@ -435,34 +456,34 @@ export function PaymentDetailSheet({
               </span>
             )}
           </div>
-          <div className="bg-[var(--pt-surface)] rounded-2xl p-3 shadow-sm border border-white/5">
+          <div className="bg-[var(--pt-surface)] rounded-2xl p-4 shadow-sm border border-white/5">
             {receiptUrl && !imageError ? (
               isPdf ? (
-                // PDF File - compact card
+                // PDF File - centered compact card
                 <a
                   href={receiptUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 hover:bg-white/5 rounded-xl p-2 -m-2 transition-colors"
+                  className="flex flex-col items-center gap-2 hover:bg-white/5 rounded-xl p-3 transition-colors"
                 >
-                  <div className="w-14 h-14 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-14 h-14 rounded-xl bg-red-500/10 flex items-center justify-center">
                     <FileText className="w-7 h-7 text-red-400" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="text-center">
                     <p className="text-white text-sm font-medium">Documento PDF</p>
-                    <p className="text-gray-500 text-xs flex items-center gap-1 mt-0.5">
+                    <p className="text-gray-500 text-xs flex items-center justify-center gap-1 mt-0.5">
                       <ExternalLink className="w-3 h-3" />
                       Abrir en nueva pestaña
                     </p>
                   </div>
                 </a>
               ) : (
-                // Image File - thumbnail card
+                // Image File - centered thumbnail card
                 <button
                   onClick={() => setShowImageModal(true)}
-                  className="flex items-center gap-3 w-full text-left hover:bg-white/5 rounded-xl p-2 -m-2 transition-colors group/thumb"
+                  className="flex flex-col items-center gap-2 w-full hover:bg-white/5 rounded-xl p-3 transition-colors group/thumb"
                 >
-                  <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-white/10">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden ring-1 ring-white/10">
                     <img
                       src={receiptUrl}
                       alt="Comprobante de pago"
@@ -470,19 +491,19 @@ export function PaymentDetailSheet({
                       onError={() => setImageError(true)}
                     />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="text-center">
                     <p className="text-white text-sm font-medium">Imagen adjunta</p>
                     <p className="text-gray-500 text-xs mt-0.5">Toca para ver en grande</p>
                   </div>
                 </button>
               )
             ) : (
-              // No receipt - compact
-              <div className="flex items-center gap-3 py-1">
-                <div className="w-14 h-14 rounded-xl bg-gray-800/50 flex items-center justify-center flex-shrink-0">
+              // No receipt - centered compact
+              <div className="flex flex-col items-center gap-2 py-2">
+                <div className="w-14 h-14 rounded-xl bg-gray-800/50 flex items-center justify-center">
                   <ImageIcon className="w-6 h-6 text-gray-500" />
                 </div>
-                <div>
+                <div className="text-center">
                   <p className="text-gray-400 text-sm">Sin comprobante</p>
                   <p className="text-gray-600 text-xs mt-0.5">No se adjuntó archivo</p>
                 </div>
@@ -530,10 +551,27 @@ export function PaymentDetailSheet({
             Historial
           </h3>
           <div className="relative pl-2">
-            {/* Timeline Item 1 - Current Status */}
+            {/* Timeline Item 1 - Created (oldest first) */}
             <div className="relative flex gap-4 pb-6">
               {/* Line connector */}
               <div className="absolute left-[15px] top-9 bottom-0 w-0.5 bg-[#293830]" />
+              <div className="flex flex-col items-center z-10">
+                <div className="size-8 rounded-full bg-[var(--pt-surface)] border border-white/10 flex items-center justify-center shadow-[0_0_0_4px_var(--pt-bg)]">
+                  <Plus className="w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+              <div className="flex flex-col pt-1">
+                <p className="text-white text-sm font-medium">
+                  Transacción Creada
+                </p>
+                <p className="text-[#9db8ab] text-xs">
+                  {formatDateTime(payment.created_at)}
+                </p>
+              </div>
+            </div>
+
+            {/* Timeline Item 2 - Current Status (most recent) */}
+            <div className="relative flex gap-4">
               <div className="flex flex-col items-center z-10">
                 <div
                   className={cn(
@@ -564,23 +602,6 @@ export function PaymentDetailSheet({
                 </p>
                 <p className="text-[#9db8ab] text-xs">
                   {formatDateTime(payment.updated_at || payment.created_at)}
-                </p>
-              </div>
-            </div>
-
-            {/* Timeline Item 2 - Created */}
-            <div className="relative flex gap-4">
-              <div className="flex flex-col items-center z-10">
-                <div className="size-8 rounded-full bg-[var(--pt-surface)] border border-white/10 flex items-center justify-center shadow-[0_0_0_4px_var(--pt-bg)]">
-                  <Plus className="w-4 h-4 text-gray-400" />
-                </div>
-              </div>
-              <div className="flex flex-col pt-1">
-                <p className="text-white text-sm font-medium">
-                  Transacción Creada
-                </p>
-                <p className="text-[#9db8ab] text-xs">
-                  {formatDateTime(payment.created_at)}
                 </p>
               </div>
             </div>
