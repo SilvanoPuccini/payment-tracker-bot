@@ -17,6 +17,7 @@ import {
   Hash,
   Sparkles,
   Image as ImageIcon,
+  MessageSquare,
   Plus,
   Pencil,
   Trash2,
@@ -41,6 +42,28 @@ const parseReceiptFromNotes = (notes: string | null): { receiptUrl: string | nul
   }
 
   return { receiptUrl: null, cleanNotes: notes };
+};
+
+// Helper to get receipt URL with fallback to message media
+const getReceiptUrl = (
+  payment: PaymentWithContact
+): { receiptUrl: string | null; cleanNotes: string | null; isPdf: boolean; source: 'upload' | 'whatsapp' | null } => {
+  // First try to get receipt from notes (uploaded receipt)
+  const { receiptUrl: notesReceiptUrl, cleanNotes } = parseReceiptFromNotes(payment.notes);
+
+  if (notesReceiptUrl) {
+    const isPdf = notesReceiptUrl.toLowerCase().endsWith('.pdf');
+    return { receiptUrl: notesReceiptUrl, cleanNotes, isPdf, source: 'upload' };
+  }
+
+  // Fallback to message media (WhatsApp attachment)
+  if (payment.message?.media_url) {
+    const mimeType = payment.message.media_mime_type || '';
+    const isPdf = mimeType.includes('pdf') || payment.message.media_url.toLowerCase().endsWith('.pdf');
+    return { receiptUrl: payment.message.media_url, cleanNotes, isPdf, source: 'whatsapp' };
+  }
+
+  return { receiptUrl: null, cleanNotes, isPdf: false, source: null };
 };
 
 interface PaymentDetailSheetProps {
@@ -124,9 +147,8 @@ export function PaymentDetailSheet({
   const status = getStatusConfig(payment.status);
   const StatusIcon = status.icon;
 
-  // Parse receipt URL from notes
-  const { receiptUrl, cleanNotes } = parseReceiptFromNotes(payment.notes);
-  const isPdf = receiptUrl?.toLowerCase().endsWith('.pdf');
+  // Get receipt URL (from upload or WhatsApp message)
+  const { receiptUrl, cleanNotes, isPdf, source: receiptSource } = getReceiptUrl(payment);
   const isPending = payment.status === "pending";
 
   const getInitials = (name: string) => {
@@ -402,9 +424,17 @@ export function PaymentDetailSheet({
 
         {/* Proof of Payment */}
         <div className="px-4">
-          <h3 className="text-white text-sm font-bold uppercase tracking-wider opacity-70 mb-3 px-2">
-            Comprobante de Pago
-          </h3>
+          <div className="flex items-center justify-between mb-3 px-2">
+            <h3 className="text-white text-sm font-bold uppercase tracking-wider opacity-70">
+              Comprobante de Pago
+            </h3>
+            {receiptSource === 'whatsapp' && (
+              <span className="flex items-center gap-1 text-xs text-[#25D366] bg-[#25D366]/10 px-2 py-1 rounded-full">
+                <MessageSquare className="w-3 h-3" />
+                WhatsApp
+              </span>
+            )}
+          </div>
           <div className="relative group overflow-hidden rounded-2xl border border-white/10">
             {receiptUrl && !imageError ? (
               isPdf ? (
