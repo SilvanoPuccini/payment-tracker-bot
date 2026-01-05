@@ -130,6 +130,46 @@ export default function Payments() {
     return translations[method.toLowerCase()] || method;
   };
 
+  // Calculate stats by currency (only sum payments with matching currency)
+  const statsByCurrency = useMemo(() => {
+    if (!payments) return {};
+
+    const stats: Record<string, { confirmed: number; pending: number; rejected: number }> = {};
+
+    payments.forEach(payment => {
+      const currency = payment.currency || userCurrency;
+      if (!stats[currency]) {
+        stats[currency] = { confirmed: 0, pending: 0, rejected: 0 };
+      }
+
+      if (payment.status === 'confirmed') {
+        stats[currency].confirmed += payment.amount;
+      } else if (payment.status === 'pending') {
+        stats[currency].pending += payment.amount;
+      } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
+        stats[currency].rejected += payment.amount;
+      }
+    });
+
+    return stats;
+  }, [payments, userCurrency]);
+
+  // Get the dominant currency (most payments) for stats display
+  const dominantCurrency = useMemo(() => {
+    if (!payments || payments.length === 0) return userCurrency;
+
+    const currencyCount: Record<string, number> = {};
+    payments.forEach(p => {
+      const curr = p.currency || userCurrency;
+      currencyCount[curr] = (currencyCount[curr] || 0) + 1;
+    });
+
+    return Object.entries(currencyCount).sort((a, b) => b[1] - a[1])[0]?.[0] || userCurrency;
+  }, [payments, userCurrency]);
+
+  // Format stats with the dominant currency
+  const displayStats = statsByCurrency[dominantCurrency] || { confirmed: 0, pending: 0, rejected: 0 };
+
   // Filter payments
   const filteredPayments = useMemo(() => {
     return payments?.filter((payment) => {
@@ -421,7 +461,7 @@ export default function Payments() {
               </div>
               <span className="text-white/70 text-[10px] font-medium uppercase tracking-wider">Ingresos</span>
             </div>
-            <p className="text-white text-xl font-bold truncate">{formatCurrency(stats?.confirmedAmount || 0)}</p>
+            <p className="text-white text-xl font-bold truncate">{dominantCurrency} {getCurrencySymbol(dominantCurrency)}{displayStats.confirmed.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</p>
             <p className="text-white/60 text-[10px]">Este mes</p>
           </div>
 
@@ -433,7 +473,7 @@ export default function Payments() {
               </div>
               <span className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">Pendiente</span>
             </div>
-            <p className="text-white text-xl font-bold truncate">{formatCurrency(stats?.pendingAmount || 0)}</p>
+            <p className="text-white text-xl font-bold truncate">{dominantCurrency} {getCurrencySymbol(dominantCurrency)}{displayStats.pending.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</p>
             <p className="text-gray-400 text-[10px]">Por cobrar</p>
           </div>
 
@@ -445,7 +485,7 @@ export default function Payments() {
               </div>
               <span className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">Rechazado</span>
             </div>
-            <p className="text-white text-xl font-bold truncate">{formatCurrency(payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').reduce((sum, p) => sum + p.amount, 0) || 0)}</p>
+            <p className="text-white text-xl font-bold truncate">{dominantCurrency} {getCurrencySymbol(dominantCurrency)}{displayStats.rejected.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</p>
             <p className="text-gray-400 text-[10px]">Este mes</p>
           </div>
         </div>
