@@ -71,8 +71,8 @@ const currencies = [
 ];
 
 const paymentStatuses: { value: string; label: string; color: string }[] = [
-  { value: "pending", label: "Pendiente", color: "text-yellow-500" },
   { value: "confirmed", label: "Confirmado", color: "text-[var(--pt-green)]" },
+  { value: "pending", label: "Pendiente", color: "text-yellow-500" },
   { value: "rejected", label: "Rechazado", color: "text-[var(--pt-red)]" },
 ];
 
