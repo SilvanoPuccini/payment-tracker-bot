@@ -46,9 +46,11 @@
     /* PayTrack Custom Tokens - Exact colors from screenshots */
     --pt-bg: #112119;
     --pt-surface: #1a2c24;
+    --pt-card: #1a2c24;
     --pt-surface-elevated: #23392e;
     --pt-input: #293830;
     --pt-primary: #12ba66;
+    --pt-green: #12ba66;
     --pt-primary-hover: #0fa65a;
     --pt-primary-light: #15cf72;
     --pt-text: #ffffff;
@@ -112,12 +114,14 @@
   }
 
   /* Hide scrollbar but allow scrolling */
-  .no-scrollbar {
+  .no-scrollbar,
+  .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
 
-  .no-scrollbar::-webkit-scrollbar {
+  .no-scrollbar::-webkit-scrollbar,
+  .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
 }
