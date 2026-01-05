@@ -254,24 +254,39 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
 
     try {
       if (isEditing && payment) {
+        // Upload file first if attached
+        let receiptUrl: string | null = null;
+        if (attachedFile) {
+          receiptUrl = await uploadFile(payment.id);
+        }
+
+        // Update payment with receipt URL in notes if uploaded
+        const notesWithReceipt = receiptUrl
+          ? `{{RECEIPT:${receiptUrl}}}${paymentData.notes || ''}`
+          : paymentData.notes;
+
         await updatePayment.mutateAsync({
           id: payment.id,
           ...paymentData,
+          notes: notesWithReceipt,
         });
-
-        // Upload file if attached
-        if (attachedFile) {
-          await uploadFile(payment.id);
-        }
 
         onOpenChange(false);
       } else {
         const result = await checkAndExecute("paymentsPerMonth", async () => {
           const newPayment = await createPayment.mutateAsync(paymentData);
 
-          // Upload file if attached
+          // Upload file if attached and update notes with receipt URL
           if (attachedFile && newPayment?.id) {
-            await uploadFile(newPayment.id);
+            const receiptUrl = await uploadFile(newPayment.id);
+            if (receiptUrl) {
+              // Update the payment with the receipt URL in notes
+              const notesWithReceipt = `{{RECEIPT:${receiptUrl}}}${paymentData.notes || ''}`;
+              await updatePayment.mutateAsync({
+                id: newPayment.id,
+                notes: notesWithReceipt,
+              });
+            }
           }
 
           return newPayment;

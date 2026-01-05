@@ -16,6 +16,10 @@ export interface PaymentWithContact extends Payment {
     phone: string;
     email?: string | null;
   } | null;
+  message?: {
+    media_url?: string | null;
+    media_mime_type?: string | null;
+  } | null;
 }
 
 // Fetch all payments for current user
@@ -36,7 +40,8 @@ export function usePayments(filters?: {
         .from('payments')
         .select(`
           *,
-          contact:contacts(id, name, phone, email)
+          contact:contacts(id, name, phone, email),
+          message:messages(media_url, media_mime_type)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -84,7 +89,8 @@ export function usePayment(paymentId: string) {
         .from('payments')
         .select(`
           *,
-          contact:contacts(id, name, phone, email)
+          contact:contacts(id, name, phone, email),
+          message:messages(media_url, media_mime_type)
         `)
         .eq('id', paymentId)
         .eq('user_id', user.id)
