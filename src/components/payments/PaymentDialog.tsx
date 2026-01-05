@@ -31,7 +31,7 @@ import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Payment = Tables<'payments'>;
-type PaymentMethod = 'transfer' | 'cash' | 'deposit' | 'debit' | 'credit' | 'yape' | 'plin' | 'other';
+type PaymentMethod = 'transfer' | 'cash' | 'deposit' | 'debit' | 'credit' | 'other';
 
 interface ExtendedPayment extends Payment {
   payment_due_date?: string | null;
@@ -46,8 +46,6 @@ interface PaymentDialogProps {
 }
 
 const paymentMethods: { value: PaymentMethod; label: string }[] = [
-  { value: "yape", label: "Yape" },
-  { value: "plin", label: "Plin" },
   { value: "transfer", label: "Transferencia" },
   { value: "cash", label: "Efectivo" },
   { value: "deposit", label: "Depósito" },
@@ -57,20 +55,21 @@ const paymentMethods: { value: PaymentMethod; label: string }[] = [
 ];
 
 const currencies = [
-  { value: "PEN", label: "PEN", symbol: "S/" },
-  { value: "USD", label: "USD", symbol: "$" },
-  { value: "EUR", label: "EUR", symbol: "€" },
-  { value: "ARS", label: "ARS", symbol: "$" },
-  { value: "CLP", label: "CLP", symbol: "$" },
-  { value: "MXN", label: "MXN", symbol: "$" },
-  { value: "COP", label: "COP", symbol: "$" },
-  { value: "BRL", label: "BRL", symbol: "R$" },
+  { value: "PEN", label: "Soles (PEN)", symbol: "S/" },
+  { value: "USD", label: "Dólares (USD)", symbol: "$" },
+  { value: "EUR", label: "Euros (EUR)", symbol: "€" },
+  { value: "CLP", label: "Pesos Chilenos (CLP)", symbol: "$" },
+  { value: "MXN", label: "Pesos MX (MXN)", symbol: "$" },
+  { value: "COP", label: "Pesos CO (COP)", symbol: "$" },
+  { value: "ARS", label: "Pesos AR (ARS)", symbol: "$" },
+  { value: "BRL", label: "Reales (BRL)", symbol: "R$" },
 ];
 
 const paymentStatuses: { value: string; label: string; color: string }[] = [
-  { value: "confirmed", label: "Pagado", color: "text-[var(--pt-green)]" },
   { value: "pending", label: "Pendiente", color: "text-yellow-500" },
-  { value: "rejected", label: "Anulado", color: "text-[var(--pt-red)]" },
+  { value: "confirmed", label: "Confirmado", color: "text-[var(--pt-green)]" },
+  { value: "rejected", label: "Rechazado", color: "text-[var(--pt-red)]" },
+  { value: "cancelled", label: "Cancelado", color: "text-gray-500" },
 ];
 
 // Color gradients for contact avatars
@@ -106,7 +105,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
     amount: "",
     currency: "PEN",
     status: "pending" as string,
-    method: "yape" as PaymentMethod | "",
+    method: "" as PaymentMethod | "",
     method_detail: "",
     reference_number: "",
     bank_name: "",
@@ -144,7 +143,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         amount: "",
         currency: profile?.currency || "PEN",
         status: "pending",
-        method: "yape",
+        method: "",
         method_detail: "",
         reference_number: "",
         bank_name: "",
