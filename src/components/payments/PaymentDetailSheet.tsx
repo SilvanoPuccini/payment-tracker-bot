@@ -435,50 +435,56 @@ export function PaymentDetailSheet({
               </span>
             )}
           </div>
-          <div className="relative group overflow-hidden rounded-2xl border border-white/10">
+          <div className="bg-[var(--pt-surface)] rounded-2xl p-3 shadow-sm border border-white/5">
             {receiptUrl && !imageError ? (
               isPdf ? (
-                // PDF File
+                // PDF File - compact card
                 <a
                   href={receiptUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-[var(--pt-surface)] h-32 w-full flex items-center justify-center hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-3 hover:bg-white/5 rounded-xl p-2 -m-2 transition-colors"
                 >
-                  <div className="text-center">
-                    <FileText className="w-10 h-10 text-red-400 mx-auto mb-2" />
-                    <p className="text-gray-300 text-sm font-medium">Ver PDF</p>
-                    <p className="text-gray-500 text-xs flex items-center justify-center gap-1 mt-1">
+                  <div className="w-14 h-14 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-7 h-7 text-red-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">Documento PDF</p>
+                    <p className="text-gray-500 text-xs flex items-center gap-1 mt-0.5">
                       <ExternalLink className="w-3 h-3" />
                       Abrir en nueva pestaña
                     </p>
                   </div>
                 </a>
               ) : (
-                // Image File
+                // Image File - thumbnail card
                 <button
                   onClick={() => setShowImageModal(true)}
-                  className="w-full"
+                  className="flex items-center gap-3 w-full text-left hover:bg-white/5 rounded-xl p-2 -m-2 transition-colors group/thumb"
                 >
-                  <img
-                    src={receiptUrl}
-                    alt="Comprobante de pago"
-                    className="w-full h-48 object-cover"
-                    onError={() => setImageError(true)}
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-                      <p className="text-white text-sm font-medium">Ver imagen</p>
-                    </div>
+                  <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-white/10">
+                    <img
+                      src={receiptUrl}
+                      alt="Comprobante de pago"
+                      className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform duration-300"
+                      onError={() => setImageError(true)}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">Imagen adjunta</p>
+                    <p className="text-gray-500 text-xs mt-0.5">Toca para ver en grande</p>
                   </div>
                 </button>
               )
             ) : (
-              // No receipt
-              <div className="bg-[var(--pt-surface)] h-32 w-full flex items-center justify-center">
-                <div className="text-center">
-                  <ImageIcon className="w-10 h-10 text-gray-500 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Sin comprobante</p>
+              // No receipt - compact
+              <div className="flex items-center gap-3 py-1">
+                <div className="w-14 h-14 rounded-xl bg-gray-800/50 flex items-center justify-center flex-shrink-0">
+                  <ImageIcon className="w-6 h-6 text-gray-500" />
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Sin comprobante</p>
+                  <p className="text-gray-600 text-xs mt-0.5">No se adjuntó archivo</p>
                 </div>
               </div>
             )}
