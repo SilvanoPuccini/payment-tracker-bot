@@ -1,25 +1,28 @@
 import { useState, useEffect } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Loader2, DollarSign, CreditCard, Calendar, FileText, Hash, Building2, Bell, CalendarClock } from "lucide-react";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Loader2,
+  ChevronDown,
+  Plus,
+  Search,
+  CheckCircle,
+  Bell,
+  Calendar,
+  Clock,
+  CreditCard,
+  Settings2,
+  Upload
+} from "lucide-react";
 import { useCreatePayment, useUpdatePayment } from "@/hooks/usePayments";
 import { useContacts } from "@/hooks/useContacts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +33,6 @@ import type { Tables } from "@/integrations/supabase/types";
 type Payment = Tables<'payments'>;
 type PaymentMethod = 'transfer' | 'cash' | 'deposit' | 'debit' | 'credit' | 'other';
 
-// Extended payment type with additional fields from database
 interface ExtendedPayment extends Payment {
   payment_due_date?: string | null;
   auto_remind?: boolean;
@@ -53,21 +55,30 @@ const paymentMethods: { value: PaymentMethod; label: string }[] = [
 ];
 
 const currencies = [
-  { value: "PEN", label: "Soles (PEN)" },
-  { value: "USD", label: "Dólares (USD)" },
-  { value: "EUR", label: "Euros (EUR)" },
-  { value: "CLP", label: "Pesos Chilenos (CLP)" },
-  { value: "MXN", label: "Pesos MX (MXN)" },
-  { value: "COP", label: "Pesos CO (COP)" },
-  { value: "ARS", label: "Pesos AR (ARS)" },
-  { value: "BRL", label: "Reales (BRL)" },
+  { value: "PEN", label: "Soles (PEN)", symbol: "S/" },
+  { value: "USD", label: "Dólares (USD)", symbol: "$" },
+  { value: "EUR", label: "Euros (EUR)", symbol: "€" },
+  { value: "CLP", label: "Pesos Chilenos (CLP)", symbol: "$" },
+  { value: "MXN", label: "Pesos MX (MXN)", symbol: "$" },
+  { value: "COP", label: "Pesos CO (COP)", symbol: "$" },
+  { value: "ARS", label: "Pesos AR (ARS)", symbol: "$" },
+  { value: "BRL", label: "Reales (BRL)", symbol: "R$" },
 ];
 
-const paymentStatuses: { value: string; label: string }[] = [
-  { value: "pending", label: "Pendiente" },
-  { value: "confirmed", label: "Confirmado" },
-  { value: "rejected", label: "Rechazado" },
-  { value: "cancelled", label: "Cancelado" },
+const paymentStatuses: { value: string; label: string; color: string }[] = [
+  { value: "pending", label: "Pendiente", color: "text-yellow-500" },
+  { value: "confirmed", label: "Confirmado", color: "text-[var(--pt-green)]" },
+  { value: "rejected", label: "Rechazado", color: "text-[var(--pt-red)]" },
+  { value: "cancelled", label: "Cancelado", color: "text-gray-500" },
+];
+
+// Color gradients for contact avatars
+const avatarGradients = [
+  "from-emerald-400 to-teal-600",
+  "from-indigo-500 to-purple-600",
+  "from-pink-500 to-rose-600",
+  "from-amber-400 to-orange-600",
+  "from-cyan-400 to-blue-600",
 ];
 
 export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }: PaymentDialogProps) {
@@ -85,6 +96,10 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
     closeUpgradeModal,
   } = useLimitedActions();
 
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [showContactSearch, setShowContactSearch] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [formData, setFormData] = useState({
     contact_id: "",
     amount: "",
@@ -98,11 +113,10 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
     payment_date: "",
     payment_time: "",
     due_date: "",
-    auto_remind: true,
+    auto_remind: false,
     notes: "",
   });
 
-  // Populate form when editing or with default values
   useEffect(() => {
     if (payment) {
       setFormData({
@@ -110,7 +124,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         amount: payment.amount?.toString() || "",
         currency: payment.currency || "PEN",
         status: payment.status || "pending",
-        method: (payment.method || "") as PaymentMethod | "",
+        method: (payment.method || "yape") as PaymentMethod | "",
         method_detail: payment.method_detail || "",
         reference_number: payment.reference_number || "",
         bank_name: payment.bank_name || "",
@@ -118,7 +132,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         payment_date: payment.payment_date || "",
         payment_time: payment.payment_time || "",
         due_date: payment.payment_due_date || "",
-        auto_remind: payment.auto_remind ?? true,
+        auto_remind: payment.auto_remind ?? false,
         notes: payment.notes || "",
       });
     } else {
@@ -137,7 +151,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         payment_date: today,
         payment_time: now,
         due_date: "",
-        auto_remind: true,
+        auto_remind: false,
         notes: "",
       });
     }
@@ -171,7 +185,6 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         });
         onOpenChange(false);
       } else {
-        // Check limits before creating new payment
         const result = await checkAndExecute("paymentsPerMonth", async () => {
           return await createPayment.mutateAsync(paymentData);
         });
@@ -186,288 +199,408 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
 
   const isPending = createPayment.isPending || updatePayment.isPending;
 
+  const selectedContact = contacts?.find(c => c.id === formData.contact_id);
+  const currencySymbol = currencies.find(c => c.value === formData.currency)?.symbol || "S/";
+  const statusIcon = formData.status === "confirmed" ? "text-[var(--pt-green)]" : formData.status === "pending" ? "text-yellow-500" : "text-[var(--pt-red)]";
+
+  // Filtered contacts for search
+  const filteredContacts = contacts?.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.phone.includes(searchTerm)
+  );
+
+  // Recent contacts (first 5)
+  const recentContacts = contacts?.slice(0, 5) || [];
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] glass-card max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-primary" />
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="h-[95vh] rounded-t-3xl p-0 bg-[var(--pt-bg)] border-t border-white/10 flex flex-col overflow-hidden [&>button]:hidden"
+      >
+        <SheetTitle className="sr-only">
+          {isEditing ? "Editar Pago" : "Registrar Pago"}
+        </SheetTitle>
+
+        {/* Header */}
+        <header className="sticky top-0 z-30 bg-[var(--pt-bg)]/95 backdrop-blur-md border-b border-white/5 px-5 py-4 flex items-center justify-center">
+          <h1 className="text-lg font-bold tracking-tight text-white">
             {isEditing ? "Editar Pago" : "Registrar Pago"}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? "Modifica los datos del pago"
-              : "Completa los datos para registrar un nuevo pago"}
-          </DialogDescription>
-        </DialogHeader>
+          </h1>
+        </header>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Contact */}
-          <div className="space-y-2">
-            <Label htmlFor="contact">Contacto</Label>
-            <Select
-              value={formData.contact_id || "none"}
-              onValueChange={(value) => setFormData({ ...formData, contact_id: value === "none" ? "" : value })}
-              disabled={isPending}
-            >
-              <SelectTrigger disabled={isPending}>
-                <SelectValue placeholder="Seleccionar contacto (opcional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin contacto</SelectItem>
-                {contacts?.map((contact) => (
-                  <SelectItem key={contact.id} value={contact.id}>
-                    {contact.name} - {contact.phone}
-                  </SelectItem>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto pb-32">
+          <form id="payment-form" onSubmit={handleSubmit} className="px-5 pt-6 space-y-6">
+
+            {/* Contact Section */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase">
+                  Contacto
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowContactSearch(!showContactSearch)}
+                  className="w-10 h-10 rounded-full bg-[var(--pt-green)]/20 flex items-center justify-center text-[var(--pt-green)] hover:bg-[var(--pt-green)]/30 transition-colors"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Contact Search Input */}
+              {showContactSearch && (
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    placeholder="Buscar contacto..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-[var(--pt-card)] text-white border-none rounded-2xl py-3 px-4 text-sm placeholder-gray-500 focus:ring-2 focus:ring-[var(--pt-green)] outline-none"
+                  />
+                  {searchTerm && filteredContacts && filteredContacts.length > 0 && (
+                    <div className="mt-2 bg-[var(--pt-card)] rounded-2xl overflow-hidden border border-white/5">
+                      {filteredContacts.map((contact) => (
+                        <button
+                          key={contact.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, contact_id: contact.id });
+                            setSearchTerm("");
+                            setShowContactSearch(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors text-left"
+                        >
+                          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradients[contact.name.charCodeAt(0) % avatarGradients.length]} flex items-center justify-center text-white font-bold`}>
+                            {contact.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-white text-sm font-medium">{contact.name}</p>
+                            <p className="text-gray-400 text-xs">{contact.phone}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Contact Avatars Carousel */}
+              <div className="flex space-x-4 overflow-x-auto hide-scrollbar pb-2 items-start">
+                {/* New Contact Button */}
+                <div
+                  className="flex flex-col items-center space-y-2 flex-shrink-0 cursor-pointer group min-w-[64px]"
+                  onClick={() => setFormData({ ...formData, contact_id: "" })}
+                >
+                  <div className={`w-16 h-16 rounded-full border-2 border-dashed ${!formData.contact_id ? 'border-[var(--pt-green)]' : 'border-gray-600'} flex items-center justify-center group-hover:border-[var(--pt-green)] transition-colors bg-[var(--pt-card)]/50`}>
+                    <Plus className={`w-6 h-6 ${!formData.contact_id ? 'text-[var(--pt-green)]' : 'text-gray-400'} group-hover:text-[var(--pt-green)] transition-colors`} />
+                  </div>
+                  <span className="text-xs font-medium text-gray-400">Nuevo</span>
+                </div>
+
+                {/* Recent Contacts */}
+                {recentContacts.map((contact, index) => (
+                  <div
+                    key={contact.id}
+                    className="flex flex-col items-center space-y-2 flex-shrink-0 cursor-pointer min-w-[64px]"
+                    onClick={() => setFormData({ ...formData, contact_id: contact.id })}
+                  >
+                    <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${avatarGradients[index % avatarGradients.length]} flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ${formData.contact_id === contact.id ? 'ring-[var(--pt-green)]' : 'ring-transparent'} hover:ring-[var(--pt-green)] transition-all relative`}>
+                      {contact.name.charAt(0).toUpperCase()}
+                      {formData.contact_id === contact.id && (
+                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-[var(--pt-green)] border-2 border-[var(--pt-bg)] rounded-full" />
+                      )}
+                    </div>
+                    <span className={`text-xs font-medium ${formData.contact_id === contact.id ? 'text-white' : 'text-gray-400'}`}>
+                      {contact.name.split(' ')[0]}
+                    </span>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+              </div>
+            </section>
 
-          {/* Amount & Currency */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="amount" className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                Monto *
-              </Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                required
-                disabled={isPending}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="currency">Moneda</Label>
-              <Select
-                value={formData.currency}
-                onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                disabled={isPending}
-              >
-                <SelectTrigger disabled={isPending}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((curr) => (
-                    <SelectItem key={curr.value} value={curr.value}>
-                      {curr.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            {/* Amount Section */}
+            <section>
+              <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-3 block">
+                Monto
+              </label>
+              <div className="bg-[var(--pt-card)] rounded-3xl p-2 flex items-center justify-between border border-white/5 focus-within:border-[var(--pt-green)]/50 focus-within:ring-4 focus-within:ring-[var(--pt-green)]/10 transition-all">
+                <div className="relative group">
+                  <select
+                    value={formData.currency}
+                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                    disabled={isPending}
+                    className="appearance-none bg-[var(--pt-surface)] text-white font-bold py-3 pl-4 pr-10 rounded-2xl focus:outline-none cursor-pointer hover:bg-white/10 transition-colors"
+                  >
+                    {currencies.map((curr) => (
+                      <option key={curr.value} value={curr.value}>{curr.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-4 h-4" />
+                </div>
+                <div className="flex-1 ml-4 relative">
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-500 pointer-events-none">
+                    {currencySymbol}
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    placeholder="0.00"
+                    required
+                    disabled={isPending}
+                    className="w-full text-right bg-transparent border-none text-4xl font-bold text-white placeholder-gray-600 focus:ring-0 p-0 outline-none h-14"
+                  />
+                </div>
+              </div>
+            </section>
 
-          {/* Method & Status */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="method" className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                Método de pago
-              </Label>
-              <Select
-                value={formData.method}
-                onValueChange={(value: PaymentMethod) => setFormData({ ...formData, method: value })}
-                disabled={isPending}
-              >
-                <SelectTrigger disabled={isPending}>
-                  <SelectValue placeholder="Seleccionar método" />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods.map((method) => (
-                    <SelectItem key={method.value} value={method.value}>
-                      {method.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Estado</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: string) => setFormData({ ...formData, status: value })}
-                disabled={isPending}
-              >
-                <SelectTrigger disabled={isPending}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentStatuses.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Date & Time */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="payment_date" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                Fecha del pago
-              </Label>
-              <Input
-                id="payment_date"
-                type="date"
-                value={formData.payment_date}
-                onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
-                disabled={isPending}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment_time">Hora del pago</Label>
-              <Input
-                id="payment_time"
-                type="time"
-                value={formData.payment_time}
-                onChange={(e) => setFormData({ ...formData, payment_time: e.target.value })}
-                disabled={isPending}
-              />
-            </div>
-          </div>
-
-          {/* Due Date & Auto Remind */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="due_date" className="flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                Fecha de vencimiento
-              </Label>
-              <Input
-                id="due_date"
-                type="date"
-                value={formData.due_date}
-                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                disabled={isPending}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-muted-foreground" />
-                Recordatorio automatico
-              </Label>
-              <div className="flex items-center gap-3 h-10">
-                <Switch
-                  id="auto_remind"
-                  checked={formData.auto_remind}
-                  onCheckedChange={(checked) => setFormData({ ...formData, auto_remind: checked })}
-                  disabled={isPending || !formData.due_date}
-                />
-                <Label htmlFor="auto_remind" className="text-sm text-muted-foreground font-normal">
-                  {formData.auto_remind && formData.due_date ? 'Activado' : 'Desactivado'}
-                </Label>
+            {/* Method & Status */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  Método
+                </label>
+                <div className="relative">
+                  <select
+                    value={formData.method}
+                    onChange={(e) => setFormData({ ...formData, method: e.target.value as PaymentMethod })}
+                    disabled={isPending}
+                    className="w-full appearance-none bg-[var(--pt-card)] text-white py-4 pl-4 pr-10 rounded-2xl border-none focus:ring-2 focus:ring-[var(--pt-green)] text-sm cursor-pointer"
+                  >
+                    {paymentMethods.map((method) => (
+                      <option key={method.value} value={method.value}>{method.label}</option>
+                    ))}
+                  </select>
+                  <CreditCard className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-5 h-5" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  Estado
+                </label>
+                <div className="relative">
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    disabled={isPending}
+                    className="w-full appearance-none bg-[var(--pt-card)] text-white py-4 pl-4 pr-10 rounded-2xl border-none focus:ring-2 focus:ring-[var(--pt-green)] text-sm cursor-pointer"
+                  >
+                    {paymentStatuses.map((status) => (
+                      <option key={status.value} value={status.value}>{status.label}</option>
+                    ))}
+                  </select>
+                  <CheckCircle className={`absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none w-5 h-5 ${statusIcon}`} />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Reference & Bank */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="reference_number" className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                N° Operación
-              </Label>
-              <Input
-                id="reference_number"
-                placeholder="12345678"
-                value={formData.reference_number}
-                onChange={(e) => setFormData({ ...formData, reference_number: e.target.value })}
+            {/* Date & Time */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  Fecha
+                </label>
+                <div className="relative group">
+                  <input
+                    type="date"
+                    value={formData.payment_date}
+                    onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+                    disabled={isPending}
+                    className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 pl-4 pr-10 text-sm cursor-pointer"
+                  />
+                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-5 h-5 group-hover:text-[var(--pt-green)] transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  Hora
+                </label>
+                <div className="relative group">
+                  <input
+                    type="time"
+                    value={formData.payment_time}
+                    onChange={(e) => setFormData({ ...formData, payment_time: e.target.value })}
+                    disabled={isPending}
+                    className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 pl-4 pr-10 text-sm cursor-pointer"
+                  />
+                  <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-5 h-5 group-hover:text-[var(--pt-green)] transition-colors" />
+                </div>
+              </div>
+            </div>
+
+            {/* Due Date & Auto Remind */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  Vencimiento
+                </label>
+                <div className="relative group">
+                  <input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    disabled={isPending}
+                    className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 pl-4 pr-10 text-sm cursor-pointer placeholder-gray-500"
+                    placeholder="mm/dd/yyyy"
+                  />
+                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-5 h-5 group-hover:text-[var(--pt-green)] transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  Recordatorio
+                </label>
+                <div className="flex items-center justify-between bg-[var(--pt-card)] p-3.5 rounded-2xl h-[54px] w-full">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-300">Automático</span>
+                  </div>
+                  <Switch
+                    checked={formData.auto_remind}
+                    onCheckedChange={(checked) => setFormData({ ...formData, auto_remind: checked })}
+                    disabled={isPending}
+                    className="data-[state=checked]:bg-[var(--pt-green)]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bank & Account */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  Banco
+                </label>
+                <input
+                  type="text"
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                  placeholder="Ej. BCP"
+                  disabled={isPending}
+                  className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm placeholder-gray-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  N° Cuenta (4)
+                </label>
+                <input
+                  type="tel"
+                  maxLength={4}
+                  value={formData.account_number}
+                  onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
+                  placeholder="1234"
+                  disabled={isPending}
+                  className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm placeholder-gray-500 text-center tracking-widest"
+                />
+              </div>
+            </div>
+
+            {/* Reference & Detail */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  N° Operación
+                </label>
+                <input
+                  type="text"
+                  value={formData.reference_number}
+                  onChange={(e) => setFormData({ ...formData, reference_number: e.target.value })}
+                  placeholder="000123"
+                  disabled={isPending}
+                  className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm placeholder-gray-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                  Detalle
+                </label>
+                <input
+                  type="text"
+                  value={formData.method_detail}
+                  onChange={(e) => setFormData({ ...formData, method_detail: e.target.value })}
+                  placeholder="Ej. Móvil"
+                  disabled={isPending}
+                  className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm placeholder-gray-500"
+                />
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
+                Notas
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Agregar detalles adicionales..."
                 disabled={isPending}
+                rows={3}
+                className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-3 px-4 text-sm placeholder-gray-500 resize-none"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="bank_name" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                Banco
-              </Label>
-              <Input
-                id="bank_name"
-                placeholder="BCP, BBVA, etc."
-                value={formData.bank_name}
-                onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                disabled={isPending}
-              />
-            </div>
-          </div>
 
-          {/* Account Number & Method Detail */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="account_number">N° Cuenta (últimos 4)</Label>
-              <Input
-                id="account_number"
-                placeholder="4532"
-                value={formData.account_number}
-                onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-                disabled={isPending}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="method_detail">Detalle del método</Label>
-              <Input
-                id="method_detail"
-                placeholder="Cuenta corriente, ahorros..."
-                value={formData.method_detail}
-                onChange={(e) => setFormData({ ...formData, method_detail: e.target.value })}
-                disabled={isPending}
-              />
-            </div>
-          </div>
+            {/* Advanced Options */}
+            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="mb-12">
+              <CollapsibleTrigger className="w-full bg-[var(--pt-card)] rounded-2xl border border-white/5 overflow-hidden">
+                <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors">
+                  <span className="text-xs font-bold tracking-wider text-gray-400 uppercase flex items-center gap-2">
+                    <Settings2 className="w-4 h-4" />
+                    Opciones Avanzadas
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transform transition-transform duration-300 ${advancedOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="bg-[var(--pt-card)] rounded-b-2xl border-t border-white/5 p-5 -mt-2">
+                <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-3 block">
+                  Comprobante de Pago
+                </label>
+                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-600 rounded-3xl cursor-pointer bg-[var(--pt-card)]/30 hover:bg-white/5 hover:border-[var(--pt-green)] transition-all group/upload">
+                  <div className="flex flex-col items-center justify-center pt-2">
+                    <div className="w-12 h-12 rounded-full bg-[var(--pt-green)]/10 flex items-center justify-center mb-3 group-hover/upload:scale-110 transition-transform duration-300">
+                      <Upload className="w-6 h-6 text-[var(--pt-green)]" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-200">Adjuntar archivo</p>
+                    <p className="text-xs text-gray-400 mt-1">Soporta: JPG, PNG, PDF</p>
+                  </div>
+                  <input type="file" className="hidden" accept="image/*,.pdf" />
+                </label>
+              </CollapsibleContent>
+            </Collapsible>
+          </form>
+        </div>
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              Notas
-            </Label>
-            <Textarea
-              id="notes"
-              placeholder="Notas adicionales sobre el pago..."
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              rows={2}
-              disabled={isPending}
-            />
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
+        {/* Fixed Footer */}
+        <div className="fixed bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-[var(--pt-bg)] via-[var(--pt-bg)] to-transparent pt-12 z-40">
+          <div className="max-w-md mx-auto w-full grid grid-cols-3 gap-4">
+            <button
               type="button"
-              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isPending}
+              className="col-span-1 py-4 rounded-2xl font-bold text-gray-400 hover:text-white bg-[var(--pt-card)] border border-white/5 active:scale-95 transition-all text-sm"
             >
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              className="gradient-primary text-primary-foreground"
+              form="payment-form"
               disabled={isPending || !formData.amount}
+              className="col-span-2 bg-[var(--pt-green)] hover:bg-[var(--pt-green)]/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl shadow-lg shadow-[var(--pt-green)]/30 flex items-center justify-center gap-2 transition-transform transform active:scale-95 text-lg"
             >
               {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditing ? "Guardando..." : "Registrando..."}
-                </>
-              ) : isEditing ? (
-                "Guardar cambios"
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                "Registrar pago"
+                <CheckCircle className="w-5 h-5" />
               )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+              <span>{isPending ? (isEditing ? "Guardando..." : "Registrando...") : (isEditing ? "Guardar" : "Registrar pago")}</span>
+            </button>
+          </div>
+        </div>
+      </SheetContent>
 
       {/* Upgrade Modal */}
       {limitReached && (
@@ -479,6 +612,6 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
           limit={limit}
         />
       )}
-    </Dialog>
+    </Sheet>
   );
 }
