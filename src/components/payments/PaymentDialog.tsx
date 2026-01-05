@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Sheet,
   SheetContent,
@@ -17,17 +17,22 @@ import {
   Search,
   CheckCircle,
   Bell,
-  Calendar,
-  Clock,
   CreditCard,
   Settings2,
-  Upload
+  Upload,
+  X,
+  FileImage,
+  FileText,
+  UserPlus
 } from "lucide-react";
 import { useCreatePayment, useUpdatePayment } from "@/hooks/usePayments";
 import { useContacts } from "@/hooks/useContacts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLimitedActions } from "@/hooks/useLimitedActions";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
+import { ContactDialog } from "@/components/contacts/ContactDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Payment = Tables<'payments'>;
@@ -69,7 +74,6 @@ const paymentStatuses: { value: string; label: string; color: string }[] = [
   { value: "pending", label: "Pendiente", color: "text-yellow-500" },
   { value: "confirmed", label: "Confirmado", color: "text-[var(--pt-green)]" },
   { value: "rejected", label: "Rechazado", color: "text-[var(--pt-red)]" },
-  { value: "cancelled", label: "Cancelado", color: "text-gray-500" },
 ];
 
 // Color gradients for contact avatars
@@ -99,6 +103,11 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [showContactSearch, setShowContactSearch] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [showContactDialog, setShowContactDialog] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const previousContactsLength = useRef(contacts?.length || 0);
 
   const [formData, setFormData] = useState({
     contact_id: "",
@@ -124,7 +133,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         amount: payment.amount?.toString() || "",
         currency: payment.currency || "PEN",
         status: payment.status || "pending",
-        method: (payment.method || "yape") as PaymentMethod | "",
+        method: (payment.method || "") as PaymentMethod | "",
         method_detail: payment.method_detail || "",
         reference_number: payment.reference_number || "",
         bank_name: payment.bank_name || "",
@@ -155,7 +164,73 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         notes: "",
       });
     }
+    // Reset file when dialog opens/closes
+    setAttachedFile(null);
   }, [payment, defaultContactId, open, profile]);
+
+  // Auto-select newly created contact
+  useEffect(() => {
+    if (contacts && contacts.length > previousContactsLength.current) {
+      // A new contact was added, select it (it's the first one as they're sorted by created_at desc)
+      const newestContact = contacts[0];
+      if (newestContact) {
+        setFormData(prev => ({ ...prev, contact_id: newestContact.id }));
+      }
+    }
+    previousContactsLength.current = contacts?.length || 0;
+  }, [contacts]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("El archivo es muy grande. Máximo 5MB.");
+        return;
+      }
+      setAttachedFile(file);
+    }
+  };
+
+  const removeAttachedFile = () => {
+    setAttachedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadFile = async (paymentId: string): Promise<string | null> => {
+    if (!attachedFile) return null;
+
+    try {
+      setUploadingFile(true);
+      const fileExt = attachedFile.name.split('.').pop();
+      const fileName = `${paymentId}-${Date.now()}.${fileExt}`;
+      const filePath = `payment-receipts/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('attachments')
+        .upload(filePath, attachedFile);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast.error("Error al subir el comprobante");
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('attachments')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error("Error al subir el comprobante");
+      return null;
+    } finally {
+      setUploadingFile(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,10 +258,23 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
           id: payment.id,
           ...paymentData,
         });
+
+        // Upload file if attached
+        if (attachedFile) {
+          await uploadFile(payment.id);
+        }
+
         onOpenChange(false);
       } else {
         const result = await checkAndExecute("paymentsPerMonth", async () => {
-          return await createPayment.mutateAsync(paymentData);
+          const newPayment = await createPayment.mutateAsync(paymentData);
+
+          // Upload file if attached
+          if (attachedFile && newPayment?.id) {
+            await uploadFile(newPayment.id);
+          }
+
+          return newPayment;
         });
         if (result) {
           onOpenChange(false);
@@ -197,9 +285,8 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
     }
   };
 
-  const isPending = createPayment.isPending || updatePayment.isPending;
+  const isPending = createPayment.isPending || updatePayment.isPending || uploadingFile;
 
-  const selectedContact = contacts?.find(c => c.id === formData.contact_id);
   const currencySymbol = currencies.find(c => c.value === formData.currency)?.symbol || "S/";
   const statusIcon = formData.status === "confirmed" ? "text-[var(--pt-green)]" : formData.status === "pending" ? "text-yellow-500" : "text-[var(--pt-red)]";
 
@@ -212,6 +299,13 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
   // Recent contacts (first 5)
   const recentContacts = contacts?.slice(0, 5) || [];
 
+  const getFileIcon = () => {
+    if (!attachedFile) return null;
+    const ext = attachedFile.name.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return <FileText className="w-8 h-8 text-red-400" />;
+    return <FileImage className="w-8 h-8 text-blue-400" />;
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -223,10 +317,18 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         </SheetTitle>
 
         {/* Header */}
-        <header className="sticky top-0 z-30 bg-[var(--pt-bg)]/95 backdrop-blur-md border-b border-white/5 px-5 py-4 flex items-center justify-center">
+        <header className="sticky top-0 z-30 bg-[var(--pt-bg)]/95 backdrop-blur-md border-b border-white/5 px-5 py-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
           <h1 className="text-lg font-bold tracking-tight text-white">
             {isEditing ? "Editar Pago" : "Registrar Pago"}
           </h1>
+          <div className="w-10" /> {/* Spacer para centrar el título */}
         </header>
 
         {/* Scrollable Content */}
@@ -287,20 +389,22 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
 
               {/* Contact Avatars Carousel */}
               <div className="flex space-x-4 overflow-x-auto hide-scrollbar pb-2 items-start">
-                {/* New Contact Button */}
-                <div
+                {/* Nuevo Contacto Button */}
+                <button
+                  type="button"
                   className="flex flex-col items-center space-y-2 flex-shrink-0 cursor-pointer group min-w-[64px]"
-                  onClick={() => setFormData({ ...formData, contact_id: "" })}
+                  onClick={() => setShowContactDialog(true)}
                 >
-                  <div className={`w-16 h-16 rounded-full border-2 border-dashed ${!formData.contact_id ? 'border-[var(--pt-green)]' : 'border-gray-600'} flex items-center justify-center group-hover:border-[var(--pt-green)] transition-colors bg-[var(--pt-card)]/50`}>
-                    <Plus className={`w-6 h-6 ${!formData.contact_id ? 'text-[var(--pt-green)]' : 'text-gray-400'} group-hover:text-[var(--pt-green)] transition-colors`} />
+                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-600 flex items-center justify-center group-hover:border-[var(--pt-green)] group-hover:bg-[var(--pt-green)]/10 transition-colors bg-[var(--pt-card)]/50">
+                    <UserPlus className="w-6 h-6 text-gray-400 group-hover:text-[var(--pt-green)] transition-colors" />
                   </div>
-                  <span className="text-xs font-medium text-gray-400">Nuevo</span>
-                </div>
+                  <span className="text-xs font-medium text-gray-400 group-hover:text-[var(--pt-green)]">Nuevo</span>
+                </button>
 
                 {/* Recent Contacts */}
                 {recentContacts.map((contact, index) => (
-                  <div
+                  <button
+                    type="button"
                     key={contact.id}
                     className="flex flex-col items-center space-y-2 flex-shrink-0 cursor-pointer min-w-[64px]"
                     onClick={() => setFormData({ ...formData, contact_id: contact.id })}
@@ -314,7 +418,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                     <span className={`text-xs font-medium ${formData.contact_id === contact.id ? 'text-white' : 'text-gray-400'}`}>
                       {contact.name.split(' ')[0]}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </section>
@@ -330,10 +434,11 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                     value={formData.currency}
                     onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                     disabled={isPending}
-                    className="appearance-none bg-[var(--pt-surface)] text-white font-bold py-3 pl-4 pr-10 rounded-2xl focus:outline-none cursor-pointer hover:bg-white/10 transition-colors"
+                    className="appearance-none bg-[var(--pt-surface)] text-white font-bold py-3 pl-4 pr-10 rounded-2xl focus:outline-none cursor-pointer hover:bg-white/10 transition-colors border-none"
+                    style={{ backgroundColor: 'var(--pt-surface)' }}
                   >
                     {currencies.map((curr) => (
-                      <option key={curr.value} value={curr.value}>{curr.label}</option>
+                      <option key={curr.value} value={curr.value} className="bg-[#1a2c24]">{curr.label}</option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-4 h-4" />
@@ -369,9 +474,11 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                     onChange={(e) => setFormData({ ...formData, method: e.target.value as PaymentMethod })}
                     disabled={isPending}
                     className="w-full appearance-none bg-[var(--pt-card)] text-white py-4 pl-4 pr-10 rounded-2xl border-none focus:ring-2 focus:ring-[var(--pt-green)] text-sm cursor-pointer"
+                    style={{ backgroundColor: 'var(--pt-card)' }}
                   >
+                    <option value="" className="bg-[#1a2c24]">Seleccionar</option>
                     {paymentMethods.map((method) => (
-                      <option key={method.value} value={method.value}>{method.label}</option>
+                      <option key={method.value} value={method.value} className="bg-[#1a2c24]">{method.label}</option>
                     ))}
                   </select>
                   <CreditCard className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-5 h-5" />
@@ -387,9 +494,10 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     disabled={isPending}
                     className="w-full appearance-none bg-[var(--pt-card)] text-white py-4 pl-4 pr-10 rounded-2xl border-none focus:ring-2 focus:ring-[var(--pt-green)] text-sm cursor-pointer"
+                    style={{ backgroundColor: 'var(--pt-card)' }}
                   >
                     {paymentStatuses.map((status) => (
-                      <option key={status.value} value={status.value}>{status.label}</option>
+                      <option key={status.value} value={status.value} className="bg-[#1a2c24]">{status.label}</option>
                     ))}
                   </select>
                   <CheckCircle className={`absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none w-5 h-5 ${statusIcon}`} />
@@ -403,31 +511,27 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
                   Fecha
                 </label>
-                <div className="relative group">
-                  <input
-                    type="date"
-                    value={formData.payment_date}
-                    onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
-                    disabled={isPending}
-                    className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 pl-4 pr-10 text-sm cursor-pointer"
-                  />
-                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-5 h-5 group-hover:text-[var(--pt-green)] transition-colors" />
-                </div>
+                <input
+                  type="date"
+                  value={formData.payment_date}
+                  onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+                  disabled={isPending}
+                  className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
+                  style={{ backgroundColor: 'var(--pt-card)' }}
+                />
               </div>
               <div>
                 <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
                   Hora
                 </label>
-                <div className="relative group">
-                  <input
-                    type="time"
-                    value={formData.payment_time}
-                    onChange={(e) => setFormData({ ...formData, payment_time: e.target.value })}
-                    disabled={isPending}
-                    className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 pl-4 pr-10 text-sm cursor-pointer"
-                  />
-                  <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-5 h-5 group-hover:text-[var(--pt-green)] transition-colors" />
-                </div>
+                <input
+                  type="time"
+                  value={formData.payment_time}
+                  onChange={(e) => setFormData({ ...formData, payment_time: e.target.value })}
+                  disabled={isPending}
+                  className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
+                  style={{ backgroundColor: 'var(--pt-card)' }}
+                />
               </div>
             </div>
 
@@ -437,17 +541,14 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
                   Vencimiento
                 </label>
-                <div className="relative group">
-                  <input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    disabled={isPending}
-                    className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 pl-4 pr-10 text-sm cursor-pointer placeholder-gray-500"
-                    placeholder="mm/dd/yyyy"
-                  />
-                  <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500 w-5 h-5 group-hover:text-[var(--pt-green)] transition-colors" />
-                </div>
+                <input
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  disabled={isPending}
+                  className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
+                  style={{ backgroundColor: 'var(--pt-card)' }}
+                />
               </div>
               <div>
                 <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-2 block">
@@ -481,6 +582,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                   placeholder="Ej. BCP"
                   disabled={isPending}
                   className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm placeholder-gray-500"
+                  style={{ backgroundColor: 'var(--pt-card)' }}
                 />
               </div>
               <div>
@@ -495,6 +597,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                   placeholder="1234"
                   disabled={isPending}
                   className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm placeholder-gray-500 text-center tracking-widest"
+                  style={{ backgroundColor: 'var(--pt-card)' }}
                 />
               </div>
             </div>
@@ -512,6 +615,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                   placeholder="000123"
                   disabled={isPending}
                   className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm placeholder-gray-500"
+                  style={{ backgroundColor: 'var(--pt-card)' }}
                 />
               </div>
               <div>
@@ -522,9 +626,10 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                   type="text"
                   value={formData.method_detail}
                   onChange={(e) => setFormData({ ...formData, method_detail: e.target.value })}
-                  placeholder="Ej. Móvil"
+                  placeholder="Cta. Ahorro, Cte..."
                   disabled={isPending}
                   className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-4 px-4 text-sm placeholder-gray-500"
+                  style={{ backgroundColor: 'var(--pt-card)' }}
                 />
               </div>
             </div>
@@ -541,6 +646,7 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 disabled={isPending}
                 rows={3}
                 className="w-full bg-[var(--pt-card)] text-white border-transparent focus:border-[var(--pt-green)] focus:ring-0 rounded-2xl py-3 px-4 text-sm placeholder-gray-500 resize-none"
+                style={{ backgroundColor: 'var(--pt-card)' }}
               />
             </div>
 
@@ -559,16 +665,46 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
                 <label className="text-xs font-bold tracking-wider text-gray-400 uppercase mb-3 block">
                   Comprobante de Pago
                 </label>
-                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-600 rounded-3xl cursor-pointer bg-[var(--pt-card)]/30 hover:bg-white/5 hover:border-[var(--pt-green)] transition-all group/upload">
-                  <div className="flex flex-col items-center justify-center pt-2">
-                    <div className="w-12 h-12 rounded-full bg-[var(--pt-green)]/10 flex items-center justify-center mb-3 group-hover/upload:scale-110 transition-transform duration-300">
-                      <Upload className="w-6 h-6 text-[var(--pt-green)]" />
+
+                {attachedFile ? (
+                  // File attached preview
+                  <div className="relative w-full p-4 border-2 border-[var(--pt-green)] rounded-3xl bg-[var(--pt-green)]/10">
+                    <button
+                      type="button"
+                      onClick={removeAttachedFile}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/30 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-2xl bg-[var(--pt-surface)] flex items-center justify-center">
+                        {getFileIcon()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium truncate">{attachedFile.name}</p>
+                        <p className="text-gray-400 text-sm">{(attachedFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
                     </div>
-                    <p className="text-sm font-semibold text-gray-200">Adjuntar archivo</p>
-                    <p className="text-xs text-gray-400 mt-1">Soporta: JPG, PNG, PDF</p>
                   </div>
-                  <input type="file" className="hidden" accept="image/*,.pdf" />
-                </label>
+                ) : (
+                  // Upload area
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-600 rounded-3xl cursor-pointer bg-[var(--pt-card)]/30 hover:bg-white/5 hover:border-[var(--pt-green)] transition-all group/upload">
+                    <div className="flex flex-col items-center justify-center pt-2">
+                      <div className="w-12 h-12 rounded-full bg-[var(--pt-green)]/10 flex items-center justify-center mb-3 group-hover/upload:scale-110 transition-transform duration-300">
+                        <Upload className="w-6 h-6 text-[var(--pt-green)]" />
+                      </div>
+                      <p className="text-sm font-semibold text-gray-200">Adjuntar archivo</p>
+                      <p className="text-xs text-gray-400 mt-1">Soporta: JPG, PNG, PDF (máx. 5MB)</p>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,.pdf"
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                )}
               </CollapsibleContent>
             </Collapsible>
           </form>
@@ -612,6 +748,12 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
           limit={limit}
         />
       )}
+
+      {/* Contact Dialog for creating new contacts */}
+      <ContactDialog
+        open={showContactDialog}
+        onOpenChange={setShowContactDialog}
+      />
     </Sheet>
   );
 }
