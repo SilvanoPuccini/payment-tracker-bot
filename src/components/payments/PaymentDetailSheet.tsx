@@ -163,9 +163,8 @@ export function PaymentDetailSheet({
           <h2 className="text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">
             Detalle de Transacción
           </h2>
-          <button className="text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10 transition-colors">
-            <MoreHorizontal className="w-6 h-6" />
-          </button>
+          {/* Spacer para mantener el título centrado */}
+          <div className="size-10" />
         </div>
 
         {/* Hero Section: Amount & Status */}
