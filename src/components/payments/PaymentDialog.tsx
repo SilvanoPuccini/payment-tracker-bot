@@ -22,13 +22,15 @@ import {
   Upload,
   X,
   FileImage,
-  FileText
+  FileText,
+  UserPlus
 } from "lucide-react";
 import { useCreatePayment, useUpdatePayment } from "@/hooks/usePayments";
 import { useContacts } from "@/hooks/useContacts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLimitedActions } from "@/hooks/useLimitedActions";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
+import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
@@ -103,7 +105,9 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
   const [searchTerm, setSearchTerm] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [showContactDialog, setShowContactDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previousContactsLength = useRef(contacts?.length || 0);
 
   const [formData, setFormData] = useState({
     contact_id: "",
@@ -163,6 +167,18 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
     // Reset file when dialog opens/closes
     setAttachedFile(null);
   }, [payment, defaultContactId, open, profile]);
+
+  // Auto-select newly created contact
+  useEffect(() => {
+    if (contacts && contacts.length > previousContactsLength.current) {
+      // A new contact was added, select it (it's the first one as they're sorted by created_at desc)
+      const newestContact = contacts[0];
+      if (newestContact) {
+        setFormData(prev => ({ ...prev, contact_id: newestContact.id }));
+      }
+    }
+    previousContactsLength.current = contacts?.length || 0;
+  }, [contacts]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -373,16 +389,16 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
 
               {/* Contact Avatars Carousel */}
               <div className="flex space-x-4 overflow-x-auto hide-scrollbar pb-2 items-start">
-                {/* Sin Contacto Button */}
+                {/* Nuevo Contacto Button */}
                 <button
                   type="button"
                   className="flex flex-col items-center space-y-2 flex-shrink-0 cursor-pointer group min-w-[64px]"
-                  onClick={() => setFormData({ ...formData, contact_id: "" })}
+                  onClick={() => setShowContactDialog(true)}
                 >
-                  <div className={`w-16 h-16 rounded-full border-2 border-dashed ${!formData.contact_id ? 'border-[var(--pt-green)] bg-[var(--pt-green)]/10' : 'border-gray-600'} flex items-center justify-center group-hover:border-[var(--pt-green)] transition-colors bg-[var(--pt-card)]/50`}>
-                    <Plus className={`w-6 h-6 ${!formData.contact_id ? 'text-[var(--pt-green)]' : 'text-gray-400'} group-hover:text-[var(--pt-green)] transition-colors`} />
+                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-600 flex items-center justify-center group-hover:border-[var(--pt-green)] group-hover:bg-[var(--pt-green)]/10 transition-colors bg-[var(--pt-card)]/50">
+                    <UserPlus className="w-6 h-6 text-gray-400 group-hover:text-[var(--pt-green)] transition-colors" />
                   </div>
-                  <span className={`text-xs font-medium ${!formData.contact_id ? 'text-[var(--pt-green)]' : 'text-gray-400'}`}>Sin contacto</span>
+                  <span className="text-xs font-medium text-gray-400 group-hover:text-[var(--pt-green)]">Nuevo</span>
                 </button>
 
                 {/* Recent Contacts */}
@@ -732,6 +748,12 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
           limit={limit}
         />
       )}
+
+      {/* Contact Dialog for creating new contacts */}
+      <ContactDialog
+        open={showContactDialog}
+        onOpenChange={setShowContactDialog}
+      />
     </Sheet>
   );
 }
