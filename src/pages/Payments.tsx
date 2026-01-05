@@ -48,7 +48,7 @@ const getStatusConfig = (status: string) => {
     case "rejected":
       return { label: "Rechazado", className: "text-[var(--pt-red)]" };
     case "cancelled":
-      return { label: "Cancelado", className: "text-[var(--pt-text-muted)]" };
+      return { label: "Cancelado", className: "text-[var(--pt-red)]" };
     default:
       return { label: "Desconocido", className: "text-[var(--pt-text-muted)]" };
   }
@@ -84,10 +84,50 @@ export default function Payments() {
   const deletePayment = useDeletePayment();
 
   const userCurrency = profile?.currency || 'PEN';
-  const currencySymbol = userCurrency === 'PEN' ? 'S/' : userCurrency === 'USD' ? '$' : userCurrency;
 
+  // Get currency symbol based on currency code
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: Record<string, string> = {
+      'PEN': 'S/',
+      'USD': '$',
+      'ARS': '$',
+      'EUR': '€',
+      'BRL': 'R$',
+      'CLP': '$',
+      'COP': '$',
+      'MXN': '$',
+    };
+    return symbols[currency] || '$';
+  };
+
+  // Format currency with symbol and code: "$ 200,000 ARS"
+  const formatCurrencyWithCode = (amount: number, currency: string) => {
+    const symbol = getCurrencySymbol(currency);
+    const formattedAmount = amount.toLocaleString('es-PE', { minimumFractionDigits: 0 });
+    return `${symbol}${formattedAmount} ${currency}`;
+  };
+
+  // Format for stats (uses user's default currency)
   const formatCurrency = (amount: number) => {
-    return `${currencySymbol}${amount.toLocaleString('es-PE', { minimumFractionDigits: 0 })}`;
+    const symbol = getCurrencySymbol(userCurrency);
+    const formattedAmount = amount.toLocaleString('es-PE', { minimumFractionDigits: 0 });
+    return `${userCurrency} ${symbol}${formattedAmount}`;
+  };
+
+  // Translate method to Spanish
+  const translateMethod = (method: string | null) => {
+    if (!method) return 'Pago';
+    const translations: Record<string, string> = {
+      'transfer': 'Transferencia',
+      'cash': 'Efectivo',
+      'credit': 'Crédito',
+      'debit': 'Débito',
+      'check': 'Cheque',
+      'deposit': 'Depósito',
+      'wire': 'Giro',
+      'other': 'Otro',
+    };
+    return translations[method.toLowerCase()] || method;
   };
 
   // Filter payments
@@ -227,7 +267,7 @@ export default function Payments() {
           </p>
           <div className="flex items-center gap-1.5 text-[var(--pt-text-secondary)] text-xs">
             <Building2 className="w-3 h-3" />
-            <span>{payment.method_detail || payment.method || 'Pago'}</span>
+            <span>{payment.method_detail || translateMethod(payment.method)}</span>
             <span>•</span>
             <span>{formatTime(payment.created_at)}</span>
           </div>
@@ -239,7 +279,7 @@ export default function Payments() {
             "font-bold text-base",
             payment.status === 'confirmed' ? "text-[var(--pt-primary)]" : isPending ? "text-white" : "text-[var(--pt-text-secondary)]"
           )}>
-            {payment.status === 'confirmed' ? '+' : ''}{formatCurrency(payment.amount)}
+            {payment.status === 'confirmed' ? '+' : ''}{formatCurrencyWithCode(payment.amount, payment.currency)}
           </p>
           <p className={cn("text-xs font-medium", status.className)}>
             {status.label}
@@ -548,7 +588,6 @@ export default function Payments() {
         onConfirm={handleConfirmFromDetail}
         onReject={handleRejectFromDetail}
         onDelete={handleDeleteFromDetail}
-        currencySymbol={currencySymbol}
       />
     </DashboardLayout>
   );
