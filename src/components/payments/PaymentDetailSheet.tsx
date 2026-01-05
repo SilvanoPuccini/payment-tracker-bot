@@ -1,10 +1,10 @@
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
 } from "@/components/ui/sheet";
 import {
   ArrowLeft,
-  MoreHorizontal,
   CheckCircle2,
   Clock,
   XCircle,
@@ -16,16 +16,32 @@ import {
   Calendar,
   Hash,
   Sparkles,
-  Image,
+  Image as ImageIcon,
   Plus,
   Pencil,
   Trash2,
   Copy,
+  ExternalLink,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { PaymentWithContact } from "@/hooks/usePayments";
+
+// Helper to extract receipt URL from notes
+const parseReceiptFromNotes = (notes: string | null): { receiptUrl: string | null; cleanNotes: string | null } => {
+  if (!notes) return { receiptUrl: null, cleanNotes: null };
+
+  const receiptMatch = notes.match(/\{\{RECEIPT:(.*?)\}\}/);
+  if (receiptMatch) {
+    const receiptUrl = receiptMatch[1];
+    const cleanNotes = notes.replace(/\{\{RECEIPT:.*?\}\}/, '').trim() || null;
+    return { receiptUrl, cleanNotes };
+  }
+
+  return { receiptUrl: null, cleanNotes: notes };
+};
 
 interface PaymentDetailSheetProps {
   open: boolean;
@@ -100,10 +116,17 @@ export function PaymentDetailSheet({
   onDelete,
   currencySymbol = "S/",
 }: PaymentDetailSheetProps) {
+  const [imageError, setImageError] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+
   if (!payment) return null;
 
   const status = getStatusConfig(payment.status);
   const StatusIcon = status.icon;
+
+  // Parse receipt URL from notes
+  const { receiptUrl, cleanNotes } = parseReceiptFromNotes(payment.notes);
+  const isPdf = receiptUrl?.toLowerCase().endsWith('.pdf');
   const isPending = payment.status === "pending";
 
   const getInitials = (name: string) => {
@@ -356,7 +379,7 @@ export function PaymentDetailSheet({
         <div className="h-6" />
 
         {/* Notes Section */}
-        {payment.notes && (
+        {cleanNotes && (
           <>
             <div className="px-4">
               <div className="flex justify-between items-end mb-2 px-2">
@@ -369,7 +392,7 @@ export function PaymentDetailSheet({
               </div>
               <div className="bg-[var(--pt-surface)] rounded-2xl p-4 shadow-sm border border-white/5">
                 <p className="text-gray-300 text-sm leading-relaxed">
-                  {payment.notes}
+                  {cleanNotes}
                 </p>
               </div>
             </div>
@@ -377,20 +400,91 @@ export function PaymentDetailSheet({
           </>
         )}
 
-        {/* Proof of Payment - TODO: Implementar cuando se configure la relación en Supabase */}
+        {/* Proof of Payment */}
         <div className="px-4">
           <h3 className="text-white text-sm font-bold uppercase tracking-wider opacity-70 mb-3 px-2">
             Comprobante de Pago
           </h3>
           <div className="relative group overflow-hidden rounded-2xl border border-white/10">
-            <div className="bg-[var(--pt-surface)] h-32 w-full flex items-center justify-center">
-              <div className="text-center">
-                <Image className="w-10 h-10 text-gray-500 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">Sin comprobante</p>
+            {receiptUrl && !imageError ? (
+              isPdf ? (
+                // PDF File
+                <a
+                  href={receiptUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[var(--pt-surface)] h-32 w-full flex items-center justify-center hover:bg-white/5 transition-colors"
+                >
+                  <div className="text-center">
+                    <FileText className="w-10 h-10 text-red-400 mx-auto mb-2" />
+                    <p className="text-gray-300 text-sm font-medium">Ver PDF</p>
+                    <p className="text-gray-500 text-xs flex items-center justify-center gap-1 mt-1">
+                      <ExternalLink className="w-3 h-3" />
+                      Abrir en nueva pestaña
+                    </p>
+                  </div>
+                </a>
+              ) : (
+                // Image File
+                <button
+                  onClick={() => setShowImageModal(true)}
+                  className="w-full"
+                >
+                  <img
+                    src={receiptUrl}
+                    alt="Comprobante de pago"
+                    className="w-full h-48 object-cover"
+                    onError={() => setImageError(true)}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
+                      <p className="text-white text-sm font-medium">Ver imagen</p>
+                    </div>
+                  </div>
+                </button>
+              )
+            ) : (
+              // No receipt
+              <div className="bg-[var(--pt-surface)] h-32 w-full flex items-center justify-center">
+                <div className="text-center">
+                  <ImageIcon className="w-10 h-10 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Sin comprobante</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
+
+        {/* Image Modal */}
+        {showImageModal && receiptUrl && !isPdf && (
+          <div
+            className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setShowImageModal(false)}
+          >
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={receiptUrl}
+              alt="Comprobante de pago"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <a
+              href={receiptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute bottom-4 right-4 flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white text-sm hover:bg-white/20 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="w-4 h-4" />
+              Abrir original
+            </a>
+          </div>
+        )}
 
         <div className="h-6" />
 
