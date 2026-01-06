@@ -409,68 +409,98 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Requires Attention */}
+            {/* Requires Attention - Exact replica of HTML design */}
             {(overduePayments.length > 0 || pendingPayments.length > 0) && (
               <div className="animate-slide-up" style={{ animationDelay: '150ms' }}>
-                <p className="pt-section-header">REQUIEREN ATENCIÓN</p>
+                <h3 className="text-lg font-bold text-white mb-3">Requieren Atención</h3>
                 <div className="space-y-3">
-                  {overduePayments.slice(0, 2).map((payment, index) => (
+                  {/* Overdue payments - Red card design */}
+                  {overduePayments.slice(0, 2).map((payment) => (
                     <div
                       key={payment.id}
-                      className="rounded-2xl border-2 border-[var(--pt-red)]/30 bg-[var(--pt-surface)] p-4 cursor-pointer"
+                      className="rounded-2xl bg-[#2a1e1e] border border-red-500/20 p-4 relative overflow-hidden cursor-pointer"
                       onClick={() => handleOpenDetail(payment)}
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[var(--pt-red)]/20 flex items-center justify-center">
-                            <AlertTriangle className="w-5 h-5 text-[var(--pt-red)]" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-white">Pago #{payment.reference_number || payment.id.slice(0, 8)}</p>
-                            <p className="text-xs text-[var(--pt-red)]">
-                              Vencido hace {formatDistanceToNow(new Date(payment.due_date!), { locale: es })}
+                      {/* Background warning icon */}
+                      <div className="absolute top-0 right-0 p-3 opacity-10">
+                        <AlertTriangle className="w-20 h-20 text-red-500" />
+                      </div>
+
+                      <div className="relative z-10">
+                        {/* Header: Title + Time */}
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-red-500" />
+                            <p className="text-sm font-bold text-red-400">
+                              Factura #{payment.reference_number || payment.id.slice(0, 4)} Vencida
                             </p>
                           </div>
+                          <span className="text-xs font-medium text-slate-400">
+                            Hace {formatDistanceToNow(new Date(payment.due_date!), { locale: es })}
+                          </span>
                         </div>
-                        <p className="text-lg font-bold text-white">
+
+                        {/* Amount */}
+                        <p className="text-2xl font-bold text-white mb-1">
                           {formatCurrencyWithCode(payment.amount, payment.currency)}
                         </p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-[var(--pt-text-secondary)]">
+
+                        {/* Client */}
+                        <p className="text-sm text-slate-400 mb-4">
                           Cliente: {payment.contact?.name || 'Desconocido'}
                         </p>
+
+                        {/* WhatsApp button - Full width */}
                         <button
-                          className="flex items-center gap-2 bg-[#25D366] text-white px-4 py-2 rounded-full text-sm font-semibold"
+                          className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold py-3 px-4 rounded-xl transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             // TODO: Send WhatsApp reminder
                           }}
                         >
-                          <Send className="w-4 h-4" />
-                          Enviar Recordatorio
+                          <MessageSquare className="w-5 h-5" />
+                          <span>Enviar Recordatorio por WhatsApp</span>
                         </button>
                       </div>
                     </div>
                   ))}
 
-                  {/* Pending payments alert card */}
+                  {/* Pending payments card - Yellow/Orange theme */}
                   {pendingPayments.length > overduePayments.length && (
                     <div
-                      className="rounded-2xl border border-[var(--pt-yellow)]/30 bg-[var(--pt-surface)] p-4 cursor-pointer"
+                      className="rounded-2xl bg-[#2a2a1e] border border-orange-500/20 p-4 relative overflow-hidden cursor-pointer"
                       onClick={() => navigate("/payments?status=pending")}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[var(--pt-yellow)]/20 flex items-center justify-center">
-                          <Clock className="w-5 h-5 text-[var(--pt-yellow)]" />
+                      {/* Background icon */}
+                      <div className="absolute top-0 right-0 p-3 opacity-10">
+                        <Clock className="w-20 h-20 text-orange-500" />
+                      </div>
+
+                      <div className="relative z-10">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-5 h-5 text-orange-500" />
+                            <p className="text-sm font-bold text-orange-400">
+                              {pendingPayments.length - overduePayments.length} Pagos Pendientes
+                            </p>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
                         </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-white">Pagos Pendientes</p>
-                          <p className="text-xs text-[var(--pt-text-secondary)]">
-                            {pendingPayments.length - overduePayments.length} pagos necesitan revisión
-                          </p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-[var(--pt-text-muted)]" />
+
+                        {/* Total pending amount */}
+                        <p className="text-2xl font-bold text-white mb-1">
+                          {formatCurrencyWithCode(
+                            pendingPayments
+                              .filter(p => !overduePayments.includes(p))
+                              .reduce((sum, p) => sum + p.amount, 0),
+                            userCurrency
+                          )}
+                        </p>
+
+                        <p className="text-sm text-slate-400">
+                          Pagos que necesitan revisión
+                        </p>
                       </div>
                     </div>
                   )}
