@@ -483,26 +483,26 @@ export default function Payments() {
                     </div>
                   </div>
 
-                  {/* Main Amount: Ingresos */}
-                  <div className="mb-4">
-                    <p className="text-[var(--pt-text-muted)] text-xs font-medium mb-1">Ingresos</p>
+                  {/* Main Amount: Ingresos - label left, amount right */}
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[var(--pt-text-muted)] text-sm font-medium">Ingresos</p>
                     <p className={cn(
                       "text-2xl font-bold",
                       isFirst ? "text-[var(--pt-primary)]" : "text-white"
                     )}>
-                      {getCurrencySymbol(currency)}{currencyStats.confirmed.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {getCurrencySymbol(currency)}{currencyStats.confirmed.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
                     </p>
                   </div>
 
                   {/* Secondary Stats: Pendiente + Rechazado */}
-                  <div className="flex gap-6">
+                  <div className="flex justify-between">
                     <div>
                       <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-0.5">Pendiente</p>
                       <p className="text-[var(--pt-yellow)] font-semibold text-sm">
                         {getCurrencySymbol(currency)}{currencyStats.pending.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
                       </p>
                     </div>
-                    <div>
+                    <div className="text-right">
                       <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-0.5">Rechazado</p>
                       <p className="text-[var(--pt-red)] font-semibold text-sm">
                         {getCurrencySymbol(currency)}{currencyStats.rejected.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
