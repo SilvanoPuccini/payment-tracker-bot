@@ -15,6 +15,14 @@ import {
   Building2,
   X,
   Send,
+  Palette,
+  GraduationCap,
+  Megaphone,
+  Briefcase,
+  Code,
+  FileText,
+  Package,
+  Wrench,
 } from "lucide-react";
 import { useDashboardStats, useWeeklyActivity } from "@/hooks/useDashboard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -133,8 +141,40 @@ const Index = () => {
   // Get recent transactions (limit 5)
   const recentPayments = payments?.slice(0, 5) || [];
 
+  // Calculate weekly activity from payments data directly
+  const weeklyActivityData = useMemo(() => {
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const activity: { day: string; payments: number; amount: number }[] = [];
+
+    // Get last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      // Count payments for this day from existing data
+      const dayPayments = payments?.filter(p => {
+        const paymentDate = new Date(p.created_at);
+        return paymentDate >= date && paymentDate < nextDate;
+      }) || [];
+
+      const totalAmount = dayPayments.reduce((sum, p) => sum + p.amount, 0);
+
+      activity.push({
+        day: days[date.getDay()],
+        payments: dayPayments.length,
+        amount: totalAmount,
+      });
+    }
+
+    return activity;
+  }, [payments]);
+
   // Calculate weekly chart max for scaling
-  const maxWeeklyValue = Math.max(...(weeklyData?.map(d => d.payments) || [1]), 1);
+  const maxWeeklyValue = Math.max(...weeklyActivityData.map(d => d.payments), 1);
 
   const getAvatarColor = (index: number) => {
     const colors = [
@@ -175,6 +215,42 @@ const Index = () => {
       default:
         return { label: "Desconocido", className: "text-[var(--pt-text-muted)]" };
     }
+  };
+
+  // Get icon and color based on payment notes/method
+  const getPaymentIcon = (payment: PaymentWithContact, index: number) => {
+    const notes = (payment.notes || '').toLowerCase();
+    const method = (payment.method || '').toLowerCase();
+
+    // Check notes for keywords
+    if (notes.includes('diseño') || notes.includes('logo') || notes.includes('design')) {
+      return { Icon: Palette, bgColor: 'bg-purple-500/20', textColor: 'text-purple-500' };
+    }
+    if (notes.includes('consultor') || notes.includes('asesor') || notes.includes('consulting')) {
+      return { Icon: GraduationCap, bgColor: 'bg-blue-500/20', textColor: 'text-blue-500' };
+    }
+    if (notes.includes('campaña') || notes.includes('rrss') || notes.includes('marketing') || notes.includes('social')) {
+      return { Icon: Megaphone, bgColor: 'bg-pink-500/20', textColor: 'text-pink-500' };
+    }
+    if (notes.includes('desarrollo') || notes.includes('web') || notes.includes('app') || notes.includes('software')) {
+      return { Icon: Code, bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-500' };
+    }
+    if (notes.includes('servicio') || notes.includes('trabajo')) {
+      return { Icon: Wrench, bgColor: 'bg-orange-500/20', textColor: 'text-orange-500' };
+    }
+    if (notes.includes('producto') || notes.includes('venta')) {
+      return { Icon: Package, bgColor: 'bg-teal-500/20', textColor: 'text-teal-500' };
+    }
+
+    // Default cycle through colors
+    const defaults = [
+      { Icon: Briefcase, bgColor: 'bg-purple-500/20', textColor: 'text-purple-500' },
+      { Icon: FileText, bgColor: 'bg-blue-500/20', textColor: 'text-blue-500' },
+      { Icon: Receipt, bgColor: 'bg-pink-500/20', textColor: 'text-pink-500' },
+      { Icon: Wallet, bgColor: 'bg-teal-500/20', textColor: 'text-teal-500' },
+      { Icon: Package, bgColor: 'bg-orange-500/20', textColor: 'text-orange-500' },
+    ];
+    return defaults[index % defaults.length];
   };
 
   const handleOpenDetail = (payment: PaymentWithContact) => {
@@ -242,7 +318,7 @@ const Index = () => {
           </div>
         ) : (
           <>
-            {/* Stats Carousel by Currency - Same as Payments page */}
+            {/* Stats Carousel by Currency - With separator lines */}
             <div className="animate-slide-up">
               <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2">
                 {currencyList.map((currency, index) => {
@@ -277,7 +353,7 @@ const Index = () => {
                       </div>
 
                       {/* Main Amount: Ingresos - label left, amount right */}
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-white/10">
                         <p className="text-[var(--pt-text-muted)] text-sm font-medium">Ingresos</p>
                         <p className={cn(
                           "text-2xl font-bold",
@@ -287,15 +363,15 @@ const Index = () => {
                         </p>
                       </div>
 
-                      {/* Secondary Stats: Pendiente + Rechazado */}
-                      <div className="flex justify-between">
-                        <div>
+                      {/* Secondary Stats: Pendiente + Rechazado with vertical divider */}
+                      <div className="flex pt-3">
+                        <div className="flex-1 pr-3 border-r border-white/10">
                           <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-0.5">Pendiente</p>
                           <p className="text-[var(--pt-yellow)] font-semibold text-sm">
                             {getCurrencySymbol(currency)}{currencyStats.pending.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
                           </p>
                         </div>
-                        <div className="text-right">
+                        <div className="flex-1 pl-3 text-right">
                           <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-0.5">Rechazado</p>
                           <p className="text-[var(--pt-red)] font-semibold text-sm">
                             {getCurrencySymbol(currency)}{currencyStats.rejected.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
@@ -380,7 +456,7 @@ const Index = () => {
               </div>
               <div className="pt-card">
                 <div className="flex items-end justify-between h-32 gap-2">
-                  {(weeklyData || Array(7).fill({ day: '', payments: 0 })).map((day, index) => {
+                  {weeklyActivityData.map((day, index) => {
                     const height = maxWeeklyValue > 0 ? (day.payments / maxWeeklyValue) * 100 : 0;
                     const isActive = day.payments > 0;
                     return (
@@ -400,7 +476,7 @@ const Index = () => {
                           "text-[10px]",
                           isActive ? "text-[var(--pt-primary)]" : "text-[var(--pt-text-muted)]"
                         )}>
-                          {day.day || ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][index]}
+                          {day.day}
                         </span>
                       </div>
                     );
@@ -465,23 +541,23 @@ const Index = () => {
                     </div>
                   ))}
 
-                  {/* Pending payments card - Yellow/Orange theme */}
+                  {/* Pending payments card - Yellow theme */}
                   {pendingPayments.length > overduePayments.length && (
                     <div
-                      className="rounded-2xl bg-[#2a2a1e] border border-orange-500/20 p-4 relative overflow-hidden cursor-pointer"
+                      className="rounded-2xl bg-[#2a2a1e] border border-yellow-500/20 p-4 relative overflow-hidden cursor-pointer"
                       onClick={() => navigate("/payments?status=pending")}
                     >
                       {/* Background icon */}
                       <div className="absolute top-0 right-0 p-3 opacity-10">
-                        <Clock className="w-20 h-20 text-orange-500" />
+                        <Clock className="w-20 h-20 text-yellow-500" />
                       </div>
 
                       <div className="relative z-10">
                         {/* Header */}
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <Clock className="w-5 h-5 text-orange-500" />
-                            <p className="text-sm font-bold text-orange-400">
+                            <Clock className="w-5 h-5 text-yellow-500" />
+                            <p className="text-sm font-bold text-yellow-400">
                               {pendingPayments.length - overduePayments.length} Pagos Pendientes
                             </p>
                           </div>
@@ -508,7 +584,7 @@ const Index = () => {
               </div>
             )}
 
-            {/* Recent Transactions - Últimos Movimientos */}
+            {/* Recent Transactions - Últimos Movimientos (HTML design style) */}
             <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white">Últimos Movimientos</h3>
@@ -520,66 +596,52 @@ const Index = () => {
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {recentPayments.map((payment, index) => {
                   const status = getStatusConfig(payment.status);
                   const isPending = payment.status === 'pending';
+                  const { Icon, bgColor, textColor } = getPaymentIcon(payment, index);
 
                   return (
                     <div
                       key={payment.id}
                       onClick={() => handleOpenDetail(payment)}
-                      className={cn(
-                        "flex items-center gap-3 p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.98]",
-                        isPending
-                          ? "border-l-4 border-l-[var(--pt-yellow)] border-[var(--pt-border)] bg-[var(--pt-surface)] hover:bg-[var(--pt-surface-elevated)]"
-                          : "border-[var(--pt-border)] bg-[var(--pt-surface)] hover:bg-[var(--pt-surface-elevated)]"
-                      )}
+                      className="flex items-center justify-between p-3 rounded-xl bg-[var(--pt-surface)] border border-white/5 cursor-pointer hover:bg-[var(--pt-surface-elevated)] transition-colors"
                     >
-                      {/* Avatar */}
-                      <div className="relative">
+                      <div className="flex items-center gap-3">
+                        {/* Colored Icon */}
                         <div className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md",
-                          getAvatarColor(index)
+                          "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+                          bgColor
                         )}>
-                          {payment.contact?.name ? getInitials(payment.contact.name) : '??'}
+                          <Icon className={cn("w-5 h-5", textColor)} />
                         </div>
-                        {payment.status === 'confirmed' && (
-                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[var(--pt-primary)] rounded-full border-2 border-[var(--pt-bg)] flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" />
-                          </div>
-                        )}
-                        {isPending && (
-                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[var(--pt-yellow)] rounded-full border-2 border-[var(--pt-bg)] flex items-center justify-center">
-                            <Clock className="w-3 h-3 text-[var(--pt-bg)]" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-white truncate">
-                          {payment.contact?.name || 'Desconocido'}
-                        </p>
-                        <div className="flex items-center gap-1.5 text-[var(--pt-text-secondary)] text-xs">
-                          <Building2 className="w-3 h-3" />
-                          <span>{payment.method_detail || translateMethod(payment.method)}</span>
-                          <span>•</span>
-                          <span>{formatPaymentDate(payment.created_at)}</span>
+                        <div>
+                          <p className="text-sm font-bold text-white">
+                            {payment.notes?.split(' ').slice(0, 2).join(' ') || payment.contact?.name || 'Pago'}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {payment.contact?.name || 'Cliente'} • {formatPaymentDate(payment.created_at)}
+                          </p>
                         </div>
                       </div>
-
-                      {/* Amount & Status */}
                       <div className="text-right">
                         <p className={cn(
-                          "font-bold text-base",
-                          payment.status === 'confirmed' ? "text-[var(--pt-primary)]" : isPending ? "text-white" : "text-[var(--pt-text-secondary)]"
+                          "text-sm font-bold",
+                          payment.status === 'confirmed' ? "text-[var(--pt-primary)]" : "text-white"
                         )}>
                           {payment.status === 'confirmed' ? '+' : ''}{formatCurrencyWithCode(payment.amount, payment.currency)}
                         </p>
-                        <p className={cn("text-xs font-medium", status.className)}>
+                        <span className={cn(
+                          "text-[10px] font-medium px-1.5 py-0.5 rounded inline-block mt-0.5",
+                          payment.status === 'confirmed'
+                            ? "bg-[var(--pt-primary)]/10 text-[var(--pt-primary)]"
+                            : isPending
+                            ? "bg-yellow-500/10 text-yellow-500"
+                            : "bg-slate-500/10 text-slate-400"
+                        )}>
                           {status.label}
-                        </p>
+                        </span>
                       </div>
                     </div>
                   );
