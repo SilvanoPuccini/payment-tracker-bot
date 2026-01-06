@@ -100,6 +100,21 @@ export default function Payments() {
     return symbols[currency] || '$';
   };
 
+  // Get currency full name
+  const getCurrencyName = (currency: string) => {
+    const names: Record<string, string> = {
+      'PEN': 'Sol Peruano',
+      'USD': 'Dólar USA',
+      'ARS': 'Peso Argentino',
+      'EUR': 'Euro',
+      'BRL': 'Real Brasileño',
+      'CLP': 'Peso Chileno',
+      'COP': 'Peso Colombiano',
+      'MXN': 'Peso Mexicano',
+    };
+    return names[currency] || currency;
+  };
+
   // Format currency with symbol and code: "$ 200,000 ARS"
   const formatCurrencyWithCode = (amount: number, currency: string) => {
     const symbol = getCurrencySymbol(currency);
@@ -154,21 +169,15 @@ export default function Payments() {
     return stats;
   }, [payments, userCurrency]);
 
-  // Get the dominant currency (most payments) for stats display
-  const dominantCurrency = useMemo(() => {
-    if (!payments || payments.length === 0) return userCurrency;
-
-    const currencyCount: Record<string, number> = {};
-    payments.forEach(p => {
-      const curr = p.currency || userCurrency;
-      currencyCount[curr] = (currencyCount[curr] || 0) + 1;
+  // Get list of currencies sorted by total amount (descending)
+  const currencyList = useMemo(() => {
+    const currencies = Object.keys(statsByCurrency);
+    return currencies.sort((a, b) => {
+      const totalA = statsByCurrency[a].confirmed + statsByCurrency[a].pending;
+      const totalB = statsByCurrency[b].confirmed + statsByCurrency[b].pending;
+      return totalB - totalA;
     });
-
-    return Object.entries(currencyCount).sort((a, b) => b[1] - a[1])[0]?.[0] || userCurrency;
-  }, [payments, userCurrency]);
-
-  // Format stats with the dominant currency
-  const displayStats = statsByCurrency[dominantCurrency] || { confirmed: 0, pending: 0, rejected: 0 };
+  }, [statsByCurrency]);
 
   // Filter payments
   const filteredPayments = useMemo(() => {
@@ -439,55 +448,101 @@ export default function Payments() {
           ))}
         </div>
 
-        {/* Stats Cards */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2 animate-slide-up" style={{ animationDelay: '100ms' }}>
-          {/* Total Card */}
-          <div className="snap-center min-w-[100px] flex-shrink-0 flex flex-col gap-1 rounded-2xl p-3 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="p-1 rounded-full bg-[var(--pt-blue)]/20 text-[var(--pt-blue)]">
-                <Receipt className="w-4 h-4" />
+        {/* Stats Carousel by Currency */}
+        <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2">
+            {currencyList.map((currency, index) => {
+              const currencyStats = statsByCurrency[currency];
+              const isFirst = index === 0;
+
+              return (
+                <div
+                  key={currency}
+                  className={cn(
+                    "snap-center flex-shrink-0 rounded-2xl p-4 border transition-all",
+                    // Mobile: ~280px, Tablet: ~300px, Desktop: flexible
+                    "min-w-[280px] sm:min-w-[300px] md:min-w-[280px] lg:min-w-[300px]",
+                    isFirst
+                      ? "bg-[var(--pt-surface)] border-[var(--pt-primary)]/30"
+                      : "bg-[var(--pt-surface)] border-white/5"
+                  )}
+                >
+                  {/* Header: Currency icon + name + code */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold",
+                      isFirst
+                        ? "bg-[var(--pt-primary)]/20 text-[var(--pt-primary)]"
+                        : "bg-white/10 text-white"
+                    )}>
+                      {getCurrencySymbol(currency)}
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold text-base">{getCurrencyName(currency)}</p>
+                      <p className="text-[var(--pt-text-muted)] text-xs">{currency}</p>
+                    </div>
+                  </div>
+
+                  {/* Main Amount: Ingresos */}
+                  <div className="mb-4">
+                    <p className="text-[var(--pt-text-muted)] text-xs font-medium mb-1">Ingresos</p>
+                    <p className={cn(
+                      "text-2xl font-bold",
+                      isFirst ? "text-[var(--pt-primary)]" : "text-white"
+                    )}>
+                      {getCurrencySymbol(currency)}{currencyStats.confirmed.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+
+                  {/* Secondary Stats: Pendiente + Rechazado */}
+                  <div className="flex gap-6">
+                    <div>
+                      <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-0.5">Pendiente</p>
+                      <p className="text-[var(--pt-yellow)] font-semibold text-sm">
+                        {getCurrencySymbol(currency)}{currencyStats.pending.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-0.5">Rechazado</p>
+                      <p className="text-[var(--pt-red)] font-semibold text-sm">
+                        {getCurrencySymbol(currency)}{currencyStats.rejected.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Empty state when no currencies */}
+            {currencyList.length === 0 && (
+              <div className="snap-center min-w-[280px] flex-shrink-0 rounded-2xl p-4 bg-[var(--pt-surface)] border border-white/5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">Sin datos</p>
+                    <p className="text-[var(--pt-text-muted)] text-xs">Registra pagos para ver stats</p>
+                  </div>
+                </div>
               </div>
-              <span className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">Total</span>
-            </div>
-            <p className="text-white text-xl font-bold">{payments?.length || 0}</p>
-            <p className="text-gray-400 text-[10px]">Transacciones</p>
+            )}
           </div>
 
-          {/* Income Card - Featured */}
-          <div className="snap-center min-w-[120px] flex-shrink-0 flex flex-col gap-1 rounded-2xl p-3 bg-gradient-to-br from-[var(--pt-primary)] to-[var(--pt-primary-hover)] border border-white/10 shadow-lg">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="p-1 rounded-full bg-white/20 text-white">
-                <PiggyBank className="w-4 h-4" />
-              </div>
-              <span className="text-white/70 text-[10px] font-medium uppercase tracking-wider">Ingresos</span>
+          {/* Carousel indicators */}
+          {currencyList.length > 1 && (
+            <div className="flex justify-center gap-1.5 mt-3">
+              {currencyList.map((currency, index) => (
+                <div
+                  key={currency}
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full transition-all",
+                    index === 0 ? "bg-[var(--pt-primary)] w-4" : "bg-white/20"
+                  )}
+                />
+              ))}
             </div>
-            <p className="text-white text-xl font-bold truncate">{dominantCurrency} {getCurrencySymbol(dominantCurrency)}{displayStats.confirmed.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</p>
-            <p className="text-white/60 text-[10px]">Este mes</p>
-          </div>
-
-          {/* Pending Card */}
-          <div className="snap-center min-w-[120px] flex-shrink-0 flex flex-col gap-1 rounded-2xl p-3 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="p-1 rounded-full bg-[var(--pt-yellow)]/20 text-[var(--pt-yellow)]">
-                <Clock className="w-4 h-4" />
-              </div>
-              <span className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">Pendiente</span>
-            </div>
-            <p className="text-white text-xl font-bold truncate">{dominantCurrency} {getCurrencySymbol(dominantCurrency)}{displayStats.pending.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</p>
-            <p className="text-gray-400 text-[10px]">Por cobrar</p>
-          </div>
-
-          {/* Rejected Card */}
-          <div className="snap-center min-w-[120px] flex-shrink-0 flex flex-col gap-1 rounded-2xl p-3 bg-[var(--pt-surface)] border border-white/5 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="p-1 rounded-full bg-[var(--pt-red)]/20 text-[var(--pt-red)]">
-                <XCircle className="w-4 h-4" />
-              </div>
-              <span className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">Rechazado</span>
-            </div>
-            <p className="text-white text-xl font-bold truncate">{dominantCurrency} {getCurrencySymbol(dominantCurrency)}{displayStats.rejected.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</p>
-            <p className="text-gray-400 text-[10px]">Este mes</p>
-          </div>
+          )}
         </div>
 
         {/* Payment List */}
