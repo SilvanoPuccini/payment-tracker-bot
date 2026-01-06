@@ -138,8 +138,33 @@ const Index = () => {
     return new Date(p.due_date) < new Date();
   });
 
+  // Get rejected/cancelled payments
+  const rejectedPayments = payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled') || [];
+
   // Get recent transactions (limit 5)
   const recentPayments = payments?.slice(0, 5) || [];
+
+  // Generate WhatsApp reminder URL using templates
+  const getWhatsAppUrl = (payment: PaymentWithContact, type: 'overdue' | 'rejected') => {
+    const phone = payment.contact?.phone?.replace(/\D/g, '') || '';
+    if (!phone) return null;
+
+    const contactName = payment.contact?.name || 'Cliente';
+    const amount = formatCurrencyWithCode(payment.amount, payment.currency);
+    const businessName = profile?.business_name || profile?.full_name || 'Nosotros';
+
+    let message = '';
+    if (type === 'overdue') {
+      const daysOverdue = payment.due_date
+        ? Math.floor((new Date().getTime() - new Date(payment.due_date).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+      message = `Hola ${contactName}, te recordamos que tienes un pago vencido de ${amount} hace ${daysOverdue} días. Por favor realiza el pago lo antes posible. - ${businessName}`;
+    } else if (type === 'rejected') {
+      message = `Hola ${contactName}, notamos que hubo un problema con tu pago de ${amount}. ¿Podemos ayudarte a resolverlo? - ${businessName}`;
+    }
+
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  };
 
   // Calculate weekly activity from payments data directly
   const weeklyActivityData = useMemo(() => {
@@ -486,60 +511,137 @@ const Index = () => {
             </div>
 
             {/* Requires Attention - Exact replica of HTML design */}
-            {(overduePayments.length > 0 || pendingPayments.length > 0) && (
+            {(overduePayments.length > 0 || pendingPayments.length > 0 || rejectedPayments.length > 0) && (
               <div className="animate-slide-up" style={{ animationDelay: '150ms' }}>
                 <h3 className="text-lg font-bold text-white mb-3">Requieren Atención</h3>
                 <div className="space-y-3">
                   {/* Overdue payments - Red card design */}
-                  {overduePayments.slice(0, 2).map((payment) => (
-                    <div
-                      key={payment.id}
-                      className="rounded-2xl bg-[#2a1e1e] border border-red-500/20 p-4 relative overflow-hidden cursor-pointer"
-                      onClick={() => handleOpenDetail(payment)}
-                    >
-                      {/* Background warning icon */}
-                      <div className="absolute top-0 right-0 p-3 opacity-10">
-                        <AlertTriangle className="w-20 h-20 text-red-500" />
-                      </div>
-
-                      <div className="relative z-10">
-                        {/* Header: Title + Time */}
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-5 h-5 text-red-500" />
-                            <p className="text-sm font-bold text-red-400">
-                              Factura #{payment.reference_number || payment.id.slice(0, 4)} Vencida
-                            </p>
-                          </div>
-                          <span className="text-xs font-medium text-slate-400">
-                            Hace {formatDistanceToNow(new Date(payment.due_date!), { locale: es })}
-                          </span>
+                  {overduePayments.slice(0, 2).map((payment) => {
+                    const whatsappUrl = getWhatsAppUrl(payment, 'overdue');
+                    return (
+                      <div
+                        key={payment.id}
+                        className="rounded-2xl bg-[#2a1e1e] border border-red-500/20 p-4 relative overflow-hidden cursor-pointer"
+                        onClick={() => handleOpenDetail(payment)}
+                      >
+                        {/* Background warning icon */}
+                        <div className="absolute top-0 right-0 p-3 opacity-10">
+                          <AlertTriangle className="w-20 h-20 text-red-500" />
                         </div>
 
-                        {/* Amount */}
-                        <p className="text-2xl font-bold text-white mb-1">
-                          {formatCurrencyWithCode(payment.amount, payment.currency)}
-                        </p>
+                        <div className="relative z-10">
+                          {/* Header: Title + Time */}
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-5 h-5 text-red-500" />
+                              <p className="text-sm font-bold text-red-400">
+                                Factura #{payment.reference_number || payment.id.slice(0, 4)} Vencida
+                              </p>
+                            </div>
+                            <span className="text-xs font-medium text-slate-400">
+                              Hace {formatDistanceToNow(new Date(payment.due_date!), { locale: es })}
+                            </span>
+                          </div>
 
-                        {/* Client */}
-                        <p className="text-sm text-slate-400 mb-4">
-                          Cliente: {payment.contact?.name || 'Desconocido'}
-                        </p>
+                          {/* Amount */}
+                          <p className="text-2xl font-bold text-white mb-1">
+                            {formatCurrencyWithCode(payment.amount, payment.currency)}
+                          </p>
 
-                        {/* WhatsApp button - Full width */}
-                        <button
-                          className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold py-3 px-4 rounded-xl transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // TODO: Send WhatsApp reminder
-                          }}
-                        >
-                          <MessageSquare className="w-5 h-5" />
-                          <span>Enviar Recordatorio por WhatsApp</span>
-                        </button>
+                          {/* Client */}
+                          <p className="text-sm text-slate-400 mb-4">
+                            Cliente: {payment.contact?.name || 'Desconocido'}
+                          </p>
+
+                          {/* WhatsApp button - Full width */}
+                          {whatsappUrl ? (
+                            <a
+                              href={whatsappUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold py-3 px-4 rounded-xl transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MessageSquare className="w-5 h-5" />
+                              <span>Enviar Recordatorio por WhatsApp</span>
+                            </a>
+                          ) : (
+                            <button
+                              className="w-full flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-3 px-4 rounded-xl cursor-not-allowed"
+                              disabled
+                            >
+                              <MessageSquare className="w-5 h-5" />
+                              <span>Sin teléfono registrado</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+
+                  {/* Rejected payments - Dark red/gray card design */}
+                  {rejectedPayments.slice(0, 2).map((payment) => {
+                    const whatsappUrl = getWhatsAppUrl(payment, 'rejected');
+                    return (
+                      <div
+                        key={payment.id}
+                        className="rounded-2xl bg-[#1e1e2a] border border-slate-500/20 p-4 relative overflow-hidden cursor-pointer"
+                        onClick={() => handleOpenDetail(payment)}
+                      >
+                        {/* Background X icon */}
+                        <div className="absolute top-0 right-0 p-3 opacity-10">
+                          <X className="w-20 h-20 text-slate-500" />
+                        </div>
+
+                        <div className="relative z-10">
+                          {/* Header: Title + Time */}
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <X className="w-5 h-5 text-red-500" />
+                              <p className="text-sm font-bold text-red-400">
+                                Pago #{payment.reference_number || payment.id.slice(0, 4)} Rechazado
+                              </p>
+                            </div>
+                            <span className="text-xs font-medium text-slate-400">
+                              {formatPaymentDate(payment.created_at)}
+                            </span>
+                          </div>
+
+                          {/* Amount */}
+                          <p className="text-2xl font-bold text-white mb-1">
+                            {formatCurrencyWithCode(payment.amount, payment.currency)}
+                          </p>
+
+                          {/* Client */}
+                          <p className="text-sm text-slate-400 mb-4">
+                            Cliente: {payment.contact?.name || 'Desconocido'}
+                          </p>
+
+                          {/* WhatsApp button - Full width */}
+                          {whatsappUrl ? (
+                            <a
+                              href={whatsappUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold py-3 px-4 rounded-xl transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MessageSquare className="w-5 h-5" />
+                              <span>Contactar por WhatsApp</span>
+                            </a>
+                          ) : (
+                            <button
+                              className="w-full flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-3 px-4 rounded-xl cursor-not-allowed"
+                              disabled
+                            >
+                              <MessageSquare className="w-5 h-5" />
+                              <span>Sin teléfono registrado</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
 
                   {/* Pending payments card - Yellow theme */}
                   {pendingPayments.length > overduePayments.length && (
