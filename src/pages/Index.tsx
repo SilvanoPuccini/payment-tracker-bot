@@ -447,13 +447,13 @@ const Index = () => {
                       {/* Secondary Stats: Pendiente + Rechazado with vertical divider */}
                       <div className="flex pt-3">
                         <div className="flex-1 pr-3 border-r border-white/10">
-                          <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-0.5">Pendiente</p>
+                          <p className="text-yellow-500 text-[10px] font-medium uppercase tracking-wider mb-0.5">Pendiente</p>
                           <p className="text-[var(--pt-yellow)] font-semibold text-sm">
                             {getCurrencySymbol(currency)}{currencyStats.pending.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
                           </p>
                         </div>
                         <div className="flex-1 pl-3 text-right">
-                          <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-0.5">Rechazado</p>
+                          <p className="text-red-500 text-[10px] font-medium uppercase tracking-wider mb-0.5">Rechazado</p>
                           <p className="text-[var(--pt-red)] font-semibold text-sm">
                             {getCurrencySymbol(currency)}{currencyStats.rejected.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
                           </p>
