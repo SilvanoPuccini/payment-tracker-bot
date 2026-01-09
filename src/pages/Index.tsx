@@ -45,6 +45,8 @@ const Index = () => {
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [detailPayment, setDetailPayment] = useState<PaymentWithContact | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithContact | null>(null);
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+  const [dayDetailOpen, setDayDetailOpen] = useState(false);
 
   // Payment mutations
   const confirmPayment = useConfirmPayment();
@@ -182,19 +184,24 @@ const Index = () => {
 
   // Calculate weekly activity from payments data directly
   const weeklyActivityData = useMemo(() => {
-    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const activity: { day: string; payments: number; amount: number }[] = [];
+    const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    const fullDayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const activity: { day: string; fullDay: string; count: number; amount: number; dayPayments: PaymentWithContact[]; date: Date }[] = [];
 
-    // Get last 7 days
-    for (let i = 6; i >= 0; i--) {
+    // Get last 7 days starting from Monday
+    const today = new Date();
+    const currentDayOfWeek = today.getDay(); // 0 = Sunday
+    const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+
+    for (let i = 0; i < 7; i++) {
       const date = new Date();
-      date.setDate(date.getDate() - i);
+      date.setDate(today.getDate() + mondayOffset + i);
       date.setHours(0, 0, 0, 0);
 
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
 
-      // Count payments for this day from existing data
+      // Get payments for this day
       const dayPayments = payments?.filter(p => {
         const paymentDate = new Date(p.created_at);
         return paymentDate >= date && paymentDate < nextDate;
@@ -203,17 +210,28 @@ const Index = () => {
       const totalAmount = dayPayments.reduce((sum, p) => sum + p.amount, 0);
 
       activity.push({
-        day: days[date.getDay()],
-        payments: dayPayments.length,
+        day: dayNames[i],
+        fullDay: fullDayNames[i],
+        count: dayPayments.length,
         amount: totalAmount,
+        dayPayments: dayPayments,
+        date: date,
       });
     }
 
     return activity;
   }, [payments]);
 
-  // Calculate weekly chart max for scaling
-  const maxWeeklyValue = Math.max(...weeklyActivityData.map(d => d.payments), 1);
+  // Calculate weekly totals
+  const weeklyTotal = weeklyActivityData.reduce((sum, d) => sum + d.amount, 0);
+  const maxWeeklyAmount = Math.max(...weeklyActivityData.map(d => d.amount), 1);
+
+  // Get today's index in the week (0 = Monday)
+  const todayIndex = useMemo(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Monday-based index
+  }, []);
 
   const getAvatarColor = (index: number) => {
     const colors = [
@@ -576,45 +594,137 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Weekly Activity Chart */}
+            {/* Weekly Activity Chart - Stitch Design */}
             <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white">Actividad Semanal</h3>
+              {/* Header */}
+              <div className="flex items-end justify-between mb-4 px-1">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Actividad Semanal</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-white/60 text-sm">
+                      {getCurrencySymbol(userCurrency)} {weeklyTotal.toLocaleString('es-PE', { minimumFractionDigits: 0 })} este periodo
+                    </span>
+                  </div>
+                </div>
                 <button
-                  className="text-[var(--pt-primary)] text-sm font-semibold flex items-center gap-1"
+                  className="bg-white/5 hover:bg-white/10 p-2 rounded-xl text-white/80 transition-colors"
                   onClick={() => navigate("/reports")}
                 >
-                  Ver Reporte
-                  <ChevronRight className="w-4 h-4" />
+                  <TrendingUp className="w-5 h-5" />
                 </button>
               </div>
-              <div className="pt-card">
-                <div className="flex items-end justify-between h-32 gap-2">
-                  {weeklyActivityData.map((day, index) => {
-                    const height = maxWeeklyValue > 0 ? (day.payments / maxWeeklyValue) * 100 : 0;
-                    const isActive = day.payments > 0;
-                    return (
-                      <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                        <div className="w-full flex-1 flex items-end justify-center">
+
+              {/* Chart Card */}
+              <div className="bg-[var(--pt-surface)] rounded-2xl p-4 pt-10 border border-white/5 relative overflow-visible">
+                {/* Legend */}
+                <div className="absolute top-3 right-4 flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[var(--pt-primary)]" />
+                    <span className="text-[9px] font-bold text-white/40 uppercase tracking-wider">Esta Sem.</span>
+                  </div>
+                </div>
+
+                {/* Chart Container */}
+                <div className="flex items-stretch h-[180px]">
+                  {/* Y-Axis Labels */}
+                  <div className="flex flex-col justify-between py-1 text-[10px] font-bold text-white/30 text-right w-12 pr-2 select-none">
+                    <span>{(maxWeeklyAmount).toLocaleString('es-PE', { maximumFractionDigits: 0 })}</span>
+                    <span>{(maxWeeklyAmount * 0.75).toLocaleString('es-PE', { maximumFractionDigits: 0 })}</span>
+                    <span>{(maxWeeklyAmount * 0.5).toLocaleString('es-PE', { maximumFractionDigits: 0 })}</span>
+                    <span>{(maxWeeklyAmount * 0.25).toLocaleString('es-PE', { maximumFractionDigits: 0 })}</span>
+                    <span>0</span>
+                  </div>
+
+                  {/* Bars Container */}
+                  <div className="flex-1 relative">
+                    {/* Grid Lines */}
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                      <div className="w-full border-t border-white/[0.05] border-dashed" />
+                      <div className="w-full border-t border-white/[0.05] border-dashed" />
+                      <div className="w-full border-t border-white/[0.05] border-dashed" />
+                      <div className="w-full border-t border-white/[0.05] border-dashed" />
+                      <div className="w-full border-t border-white/10" />
+                    </div>
+
+                    {/* Bars */}
+                    <div className="absolute inset-0 flex items-end justify-around px-1 pb-px">
+                      {weeklyActivityData.map((day, index) => {
+                        const height = maxWeeklyAmount > 0 ? (day.amount / maxWeeklyAmount) * 100 : 0;
+                        const isToday = index === todayIndex;
+                        const isSelected = selectedDayIndex === index;
+                        const hasData = day.amount > 0;
+
+                        return (
                           <div
-                            className={cn(
-                              "w-full max-w-[40px] rounded-t-lg transition-all duration-500",
-                              isActive
-                                ? "bg-gradient-to-t from-[var(--pt-primary)] to-[var(--pt-primary-light)]"
-                                : "bg-[var(--pt-surface-elevated)]"
+                            key={index}
+                            className="relative flex flex-col items-center w-full max-w-[28px] h-full justify-end group cursor-pointer"
+                            onClick={() => {
+                              if (hasData) {
+                                setSelectedDayIndex(index);
+                                setDayDetailOpen(true);
+                              }
+                            }}
+                          >
+                            {/* Tooltip */}
+                            {(isToday || isSelected) && hasData && (
+                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex flex-col items-center z-30">
+                                <div className={cn(
+                                  "text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap shadow-lg",
+                                  isSelected
+                                    ? "bg-[var(--pt-primary)] text-black"
+                                    : "bg-white text-black"
+                                )}>
+                                  {getCurrencySymbol(userCurrency)} {day.amount.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
+                                </div>
+                                <div className={cn(
+                                  "w-0.5 h-2",
+                                  isSelected ? "bg-[var(--pt-primary)]/60" : "bg-white/60"
+                                )} />
+                              </div>
                             )}
-                            style={{ height: `${Math.max(height, 8)}%` }}
-                          />
-                        </div>
-                        <span className={cn(
-                          "text-[10px]",
-                          isActive ? "text-[var(--pt-primary)]" : "text-[var(--pt-text-muted)]"
-                        )}>
+
+                            {/* Bar */}
+                            <div
+                              className={cn(
+                                "w-full rounded-t-md transition-all duration-300",
+                                hasData
+                                  ? "bg-gradient-to-t from-emerald-600 to-emerald-400"
+                                  : "bg-white/5",
+                                isToday && hasData && "shadow-[0_0_15px_rgba(16,185,129,0.3)]",
+                                isSelected && "ring-2 ring-emerald-400/50"
+                              )}
+                              style={{ height: `${Math.max(height, 5)}%` }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* X-Axis Labels (Days) */}
+                <div className="flex mt-3 ml-12">
+                  <div className="flex-1 flex justify-around px-1">
+                    {weeklyActivityData.map((day, index) => {
+                      const isToday = index === todayIndex;
+                      const hasData = day.amount > 0;
+                      return (
+                        <span
+                          key={index}
+                          className={cn(
+                            "text-[10px] font-bold w-[28px] text-center",
+                            isToday
+                              ? "text-[var(--pt-primary)]"
+                              : hasData
+                              ? "text-white/60"
+                              : "text-white/30"
+                          )}
+                        >
                           {day.day}
                         </span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -943,6 +1053,117 @@ const Index = () => {
         onReject={handleRejectFromDetail}
         onDelete={handleDeleteFromDetail}
       />
+
+      {/* Day Detail Bottom Sheet */}
+      {dayDetailOpen && selectedDayIndex !== null && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200"
+            onClick={() => {
+              setDayDetailOpen(false);
+              setSelectedDayIndex(null);
+            }}
+          />
+
+          {/* Bottom Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0f1713]/95 backdrop-blur-xl rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-hidden">
+            {/* Handle */}
+            <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2" />
+
+            <div className="px-6 py-4 pb-8 overflow-y-auto max-h-[calc(80vh-2rem)]">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    Detalle del {weeklyActivityData[selectedDayIndex].fullDay}
+                  </h2>
+                  <p className="text-[var(--pt-primary)] text-sm font-semibold mt-0.5">
+                    Total: {getCurrencySymbol(userCurrency)} {weeklyActivityData[selectedDayIndex].amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <button
+                  className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                  onClick={() => {
+                    setDayDetailOpen(false);
+                    setSelectedDayIndex(null);
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Payments List */}
+              <div className="space-y-3">
+                {weeklyActivityData[selectedDayIndex].dayPayments.map((payment) => {
+                  const isConfirmed = payment.status === 'confirmed';
+                  const isPending = payment.status === 'pending';
+
+                  return (
+                    <div
+                      key={payment.id}
+                      className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                      onClick={() => {
+                        setDayDetailOpen(false);
+                        setSelectedDayIndex(null);
+                        handleOpenDetail(payment);
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "w-11 h-11 rounded-full flex items-center justify-center",
+                          isConfirmed ? "bg-emerald-500/10" : isPending ? "bg-amber-500/10" : "bg-red-500/10"
+                        )}>
+                          {isConfirmed ? (
+                            <Check className="w-5 h-5 text-emerald-400" />
+                          ) : isPending ? (
+                            <Clock className="w-5 h-5 text-amber-500" />
+                          ) : (
+                            <X className="w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold">
+                            {cleanNotesForDisplay(payment.notes)?.split(' ').slice(0, 3).join(' ') || payment.contact?.name || 'Pago'}
+                          </p>
+                          <p className={cn(
+                            "text-[10px] font-bold uppercase tracking-wider",
+                            isConfirmed ? "text-emerald-400" : isPending ? "text-amber-500" : "text-red-500"
+                          )}>
+                            {isConfirmed ? 'Confirmado' : isPending ? 'Pendiente' : 'Rechazado'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-bold">
+                          {getCurrencySymbol(payment.currency)} {payment.amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-white/30 text-[10px]">{payment.currency}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {weeklyActivityData[selectedDayIndex].dayPayments.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-white/40">No hay pagos este día</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Download Button */}
+              {weeklyActivityData[selectedDayIndex].dayPayments.length > 0 && (
+                <button
+                  className="w-full mt-6 py-4 bg-[var(--pt-primary)] text-black font-bold rounded-2xl active:scale-[0.98] transition-transform"
+                  onClick={() => navigate("/reports")}
+                >
+                  Descargar Reporte del Día
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </DashboardLayout>
   );
 };
