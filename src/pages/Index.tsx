@@ -399,7 +399,7 @@ const Index = () => {
           </div>
         ) : (
           <>
-            {/* Stats Carousel by Currency - Stitch Design with Progress Bar */}
+            {/* Stats Carousel by Currency - With Progress Bar */}
             <div className="animate-slide-up">
               <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2">
                 {currencyList.map((currency, index) => {
@@ -423,28 +423,31 @@ const Index = () => {
                       key={currency}
                       className={cn(
                         "snap-center flex-shrink-0 rounded-2xl p-4 border transition-all",
-                        "min-w-[300px] sm:min-w-[320px] md:min-w-[300px] lg:min-w-[320px]",
+                        "min-w-[280px] sm:min-w-[300px] md:min-w-[280px] lg:min-w-[300px]",
                         isFirst
                           ? "bg-[var(--pt-surface)] border-[var(--pt-primary)]/30"
                           : "bg-[var(--pt-surface)] border-white/5"
                       )}
                     >
-                      {/* Header: Currency code + name + percentage badge */}
+                      {/* Header: Currency icon + name + code + percentage badge */}
                       <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded text-xs font-bold",
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold",
                             isFirst
                               ? "bg-[var(--pt-primary)]/20 text-[var(--pt-primary)]"
                               : "bg-white/10 text-white"
                           )}>
-                            {currency}
-                          </span>
-                          <span className="text-white font-semibold text-sm">{getCurrencyName(currency).split(' ')[0].toUpperCase()}</span>
+                            {getCurrencySymbol(currency)}
+                          </div>
+                          <div>
+                            <p className="text-white font-semibold text-base">{getCurrencyName(currency)}</p>
+                            <p className="text-[var(--pt-text-muted)] text-xs">{currency}</p>
+                          </div>
                         </div>
                         {/* Percentage badge */}
                         <span className={cn(
-                          "px-2 py-0.5 rounded text-xs font-bold",
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold",
                           growthPercent >= 0
                             ? "bg-[var(--pt-primary)]/20 text-[var(--pt-primary)]"
                             : "bg-red-500/20 text-red-500"
@@ -453,24 +456,35 @@ const Index = () => {
                         </span>
                       </div>
 
-                      {/* Main Stats: Confirmados + Pendientes */}
-                      <div className="flex justify-between mb-4">
-                        <div>
-                          <p className="text-[var(--pt-text-muted)] text-[10px] font-medium uppercase tracking-wider mb-1">Confirmados</p>
-                          <p className="text-[var(--pt-primary)] text-xl font-bold">
-                            {getCurrencySymbol(currency)} {currencyStats.confirmed.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
+                      {/* Main Amount: Ingresos - label left, amount right */}
+                      <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                        <p className="text-[var(--pt-text-muted)] text-sm font-medium">Ingresos</p>
+                        <p className={cn(
+                          "text-2xl font-bold",
+                          isFirst ? "text-[var(--pt-primary)]" : "text-white"
+                        )}>
+                          {getCurrencySymbol(currency)}{currencyStats.confirmed.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
+                        </p>
+                      </div>
+
+                      {/* Secondary Stats: Pendiente + Rechazado with vertical divider */}
+                      <div className="flex pt-3">
+                        <div className="flex-1 pr-3 border-r border-white/10">
+                          <p className="text-yellow-500 text-[10px] font-medium uppercase tracking-wider mb-0.5">Pendiente</p>
+                          <p className="text-[var(--pt-yellow)] font-semibold text-sm">
+                            {getCurrencySymbol(currency)}{currencyStats.pending.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-yellow-500 text-[10px] font-medium uppercase tracking-wider mb-1">Pendientes</p>
-                          <p className="text-yellow-500 text-xl font-bold">
-                            {getCurrencySymbol(currency)} {currencyStats.pending.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
+                        <div className="flex-1 pl-3 text-right">
+                          <p className="text-red-500 text-[10px] font-medium uppercase tracking-wider mb-0.5">Rechazado</p>
+                          <p className="text-[var(--pt-red)] font-semibold text-sm">
+                            {getCurrencySymbol(currency)}{currencyStats.rejected.toLocaleString('es-PE', { minimumFractionDigits: 0 })}
                           </p>
                         </div>
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="h-2 rounded-full overflow-hidden flex mb-3 bg-white/5">
+                      <div className="h-1.5 rounded-full overflow-hidden flex mt-4 bg-white/5">
                         {confirmedPercent > 0 && (
                           <div
                             className="bg-[var(--pt-primary)] h-full transition-all duration-500"
@@ -491,15 +505,11 @@ const Index = () => {
                         )}
                       </div>
 
-                      {/* Footer: Rechazados + Total */}
-                      <div className="flex justify-between text-xs">
-                        <p className="text-[var(--pt-text-muted)]">
-                          <span className="text-red-500 font-medium">RECHAZADOS:</span>{' '}
-                          <span className="text-white">{getCurrencySymbol(currency)} {currencyStats.rejected.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</span>
-                        </p>
-                        <p className="text-[var(--pt-text-muted)]">
+                      {/* Footer: Total */}
+                      <div className="flex justify-end mt-2">
+                        <p className="text-[var(--pt-text-muted)] text-xs">
                           <span className="font-medium">TOTAL:</span>{' '}
-                          <span className="text-white">{getCurrencySymbol(currency)} {total.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</span>
+                          <span className="text-white font-semibold">{getCurrencySymbol(currency)} {total.toLocaleString('es-PE', { minimumFractionDigits: 0 })}</span>
                         </p>
                       </div>
                     </div>
