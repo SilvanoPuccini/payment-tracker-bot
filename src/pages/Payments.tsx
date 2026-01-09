@@ -269,10 +269,10 @@ export default function Payments() {
   };
 
   const filters = [
-    { id: 'all', label: 'Todo', count: payments?.length || 0 },
-    { id: 'confirmed', label: 'Confirmado', count: payments?.filter(p => p.status === 'confirmed').length || 0 },
-    { id: 'pending', label: 'Pendiente', count: payments?.filter(p => p.status === 'pending').length || 0 },
-    { id: 'rejected', label: 'Rechazado', count: payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').length || 0 },
+    { id: 'all', label: 'Todo', count: payments?.length || 0, color: 'text-white' },
+    { id: 'confirmed', label: 'Confirmado', count: payments?.filter(p => p.status === 'confirmed').length || 0, color: 'text-[var(--pt-primary)]' },
+    { id: 'pending', label: 'Pendiente', count: payments?.filter(p => p.status === 'pending').length || 0, color: 'text-yellow-500' },
+    { id: 'rejected', label: 'Rechazado', count: payments?.filter(p => p.status === 'rejected' || p.status === 'cancelled').length || 0, color: 'text-red-500' },
   ];
 
   const PaymentItem = ({ payment, index }: { payment: PaymentWithContact; index: number }) => {
@@ -435,7 +435,11 @@ export default function Payments() {
                 statusFilter === filter.id && "active"
               )}
             >
-              {filter.label}
+              <span className={cn(
+                statusFilter === filter.id ? "text-white" : filter.color
+              )}>
+                {filter.label}
+              </span>
               {filter.count > 0 && (
                 <span className={cn(
                   "text-xs",
