@@ -145,7 +145,7 @@ const Index = () => {
   const recentPayments = payments?.slice(0, 5) || [];
 
   // Generate WhatsApp reminder URL using templates
-  const getWhatsAppUrl = (payment: PaymentWithContact, type: 'overdue' | 'rejected') => {
+  const getWhatsAppUrl = (payment: PaymentWithContact, type: 'overdue' | 'rejected' | 'pending') => {
     const phone = payment.contact?.phone?.replace(/\D/g, '') || '';
     if (!phone) return null;
 
@@ -161,10 +161,18 @@ const Index = () => {
       message = `Hola ${contactName}, te recordamos que tienes un pago vencido de ${amount} hace ${daysOverdue} días. Por favor realiza el pago lo antes posible. - ${businessName}`;
     } else if (type === 'rejected') {
       message = `Hola ${contactName}, notamos que hubo un problema con tu pago de ${amount}. ¿Podemos ayudarte a resolverlo? - ${businessName}`;
+    } else if (type === 'pending') {
+      const dueDate = payment.due_date
+        ? format(new Date(payment.due_date), "dd 'de' MMMM", { locale: es })
+        : 'próximamente';
+      message = `Hola ${contactName}, te recordamos que tienes un pago pendiente de ${amount} con vencimiento ${dueDate}. Por favor realiza el pago. - ${businessName}`;
     }
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
+
+  // Get non-overdue pending payments (pending but not overdue yet)
+  const upcomingPendingPayments = pendingPayments.filter(p => !overduePayments.includes(p));
 
   // Calculate weekly activity from payments data directly
   const weeklyActivityData = useMemo(() => {
@@ -579,18 +587,18 @@ const Index = () => {
                     );
                   })}
 
-                  {/* Rejected payments - Dark red/gray card design */}
+                  {/* Rejected payments - Dark red card design */}
                   {rejectedPayments.slice(0, 2).map((payment) => {
                     const whatsappUrl = getWhatsAppUrl(payment, 'rejected');
                     return (
                       <div
                         key={payment.id}
-                        className="rounded-2xl bg-[#1e1e2a] border border-slate-500/20 p-4 relative overflow-hidden cursor-pointer"
+                        className="rounded-2xl bg-[#2a1e1e] border border-red-500/20 p-4 relative overflow-hidden cursor-pointer"
                         onClick={() => handleOpenDetail(payment)}
                       >
                         {/* Background X icon */}
                         <div className="absolute top-0 right-0 p-3 opacity-10">
-                          <X className="w-20 h-20 text-slate-500" />
+                          <X className="w-20 h-20 text-red-500" />
                         </div>
 
                         <div className="relative z-10">
@@ -643,42 +651,96 @@ const Index = () => {
                     );
                   })}
 
-                  {/* Pending payments card - Yellow theme */}
-                  {pendingPayments.length > overduePayments.length && (
+                  {/* Pending payments - Yellow card design (individual cards with WhatsApp) */}
+                  {upcomingPendingPayments.slice(0, 2).map((payment) => {
+                    const whatsappUrl = getWhatsAppUrl(payment, 'pending');
+                    const dueDate = payment.due_date
+                      ? format(new Date(payment.due_date), "dd 'de' MMM", { locale: es })
+                      : null;
+                    return (
+                      <div
+                        key={payment.id}
+                        className="rounded-2xl bg-[#2a2a1e] border border-yellow-500/20 p-4 relative overflow-hidden cursor-pointer"
+                        onClick={() => handleOpenDetail(payment)}
+                      >
+                        {/* Background clock icon */}
+                        <div className="absolute top-0 right-0 p-3 opacity-10">
+                          <Clock className="w-20 h-20 text-yellow-500" />
+                        </div>
+
+                        <div className="relative z-10">
+                          {/* Header: Title + Due date */}
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-5 h-5 text-yellow-500" />
+                              <p className="text-sm font-bold text-yellow-400">
+                                Pago #{payment.reference_number || payment.id.slice(0, 4)} Pendiente
+                              </p>
+                            </div>
+                            {dueDate && (
+                              <span className="text-xs font-medium text-slate-400">
+                                Vence {dueDate}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Amount */}
+                          <p className="text-2xl font-bold text-white mb-1">
+                            {formatCurrencyWithCode(payment.amount, payment.currency)}
+                          </p>
+
+                          {/* Client */}
+                          <p className="text-sm text-slate-400 mb-4">
+                            Cliente: {payment.contact?.name || 'Desconocido'}
+                          </p>
+
+                          {/* WhatsApp button - Full width */}
+                          {whatsappUrl ? (
+                            <a
+                              href={whatsappUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold py-3 px-4 rounded-xl transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MessageSquare className="w-5 h-5" />
+                              <span>Enviar Recordatorio por WhatsApp</span>
+                            </a>
+                          ) : (
+                            <button
+                              className="w-full flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-3 px-4 rounded-xl cursor-not-allowed"
+                              disabled
+                            >
+                              <MessageSquare className="w-5 h-5" />
+                              <span>Sin teléfono registrado</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Summary card if more pending payments exist */}
+                  {upcomingPendingPayments.length > 2 && (
                     <div
                       className="rounded-2xl bg-[#2a2a1e] border border-yellow-500/20 p-4 relative overflow-hidden cursor-pointer"
                       onClick={() => navigate("/payments?status=pending")}
                     >
-                      {/* Background icon */}
-                      <div className="absolute top-0 right-0 p-3 opacity-10">
-                        <Clock className="w-20 h-20 text-yellow-500" />
-                      </div>
-
-                      <div className="relative z-10">
-                        {/* Header */}
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
                             <Clock className="w-5 h-5 text-yellow-500" />
+                          </div>
+                          <div>
                             <p className="text-sm font-bold text-yellow-400">
-                              {pendingPayments.length - overduePayments.length} Pagos Pendientes
+                              +{upcomingPendingPayments.length - 2} pagos pendientes más
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              Ver todos los pagos pendientes
                             </p>
                           </div>
-                          <ChevronRight className="w-5 h-5 text-slate-400" />
                         </div>
-
-                        {/* Total pending amount */}
-                        <p className="text-2xl font-bold text-white mb-1">
-                          {formatCurrencyWithCode(
-                            pendingPayments
-                              .filter(p => !overduePayments.includes(p))
-                              .reduce((sum, p) => sum + p.amount, 0),
-                            userCurrency
-                          )}
-                        </p>
-
-                        <p className="text-sm text-slate-400">
-                          Pagos que necesitan revisión
-                        </p>
+                        <ChevronRight className="w-5 h-5 text-slate-400" />
                       </div>
                     </div>
                   )}
