@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useDashboardStats, useWeeklyActivity } from "@/hooks/useDashboard";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePayments, PaymentWithContact } from "@/hooks/usePayments";
+import { usePayments, useConfirmPayment, useRejectPayment, useDeletePayment, PaymentWithContact } from "@/hooks/usePayments";
 import { useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
@@ -44,6 +44,12 @@ const Index = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [detailPayment, setDetailPayment] = useState<PaymentWithContact | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentWithContact | null>(null);
+
+  // Payment mutations
+  const confirmPayment = useConfirmPayment();
+  const rejectPayment = useRejectPayment();
+  const deletePayment = useDeletePayment();
 
   const hasNoData = !paymentsLoading && (!payments || payments.length === 0);
   const userName = profile?.full_name?.split(' ')[0] || 'Usuario';
@@ -289,6 +295,48 @@ const Index = () => {
   const handleOpenDetail = (payment: PaymentWithContact) => {
     setDetailPayment(payment);
     setDetailSheetOpen(true);
+  };
+
+  // Payment action handlers
+  const handleConfirm = async (id: string) => {
+    await confirmPayment.mutateAsync(id);
+  };
+
+  const handleReject = async (id: string) => {
+    await rejectPayment.mutateAsync(id);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('¿Estás seguro de eliminar este pago?')) {
+      await deletePayment.mutateAsync(id);
+    }
+  };
+
+  const handleEdit = (payment: PaymentWithContact) => {
+    setDetailSheetOpen(false);
+    setSelectedPayment(payment);
+    setDialogOpen(true);
+  };
+
+  const handleConfirmFromDetail = async (id: string) => {
+    await handleConfirm(id);
+    setDetailSheetOpen(false);
+  };
+
+  const handleRejectFromDetail = async (id: string) => {
+    await handleReject(id);
+    setDetailSheetOpen(false);
+  };
+
+  const handleDeleteFromDetail = async (id: string) => {
+    await handleDelete(id);
+    setDetailSheetOpen(false);
+  };
+
+  // Helper to clean notes from {{RECEIPT:...}} pattern
+  const cleanNotesForDisplay = (notes: string | null) => {
+    if (!notes) return null;
+    return notes.replace(/\{\{RECEIPT:.*?\}\}/g, '').trim() || null;
   };
 
   return (
@@ -596,16 +644,16 @@ const Index = () => {
                         className="rounded-2xl bg-[#2a1e1e] border border-red-500/20 p-4 relative overflow-hidden cursor-pointer"
                         onClick={() => handleOpenDetail(payment)}
                       >
-                        {/* Background X icon */}
+                        {/* Background warning icon */}
                         <div className="absolute top-0 right-0 p-3 opacity-10">
-                          <X className="w-20 h-20 text-red-500" />
+                          <AlertTriangle className="w-20 h-20 text-red-500" />
                         </div>
 
                         <div className="relative z-10">
                           {/* Header: Title + Time */}
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <X className="w-5 h-5 text-red-500" />
+                              <AlertTriangle className="w-5 h-5 text-red-500" />
                               <p className="text-sm font-bold text-red-400">
                                 Pago #{payment.reference_number || payment.id.slice(0, 4)} Rechazado
                               </p>
@@ -635,7 +683,7 @@ const Index = () => {
                               onClick={(e) => e.stopPropagation()}
                             >
                               <MessageSquare className="w-5 h-5" />
-                              <span>Contactar por WhatsApp</span>
+                              <span>Enviar Recordatorio por WhatsApp</span>
                             </a>
                           ) : (
                             <button
@@ -782,7 +830,7 @@ const Index = () => {
                         </div>
                         <div>
                           <p className="text-sm font-bold text-white">
-                            {payment.notes?.split(' ').slice(0, 2).join(' ') || payment.contact?.name || 'Pago'}
+                            {cleanNotesForDisplay(payment.notes)?.split(' ').slice(0, 2).join(' ') || payment.contact?.name || 'Pago'}
                           </p>
                           <p className="text-xs text-slate-400">
                             {payment.contact?.name || 'Cliente'} • {formatPaymentDate(payment.created_at)}
@@ -825,8 +873,11 @@ const Index = () => {
       {/* Payment Dialog */}
       <PaymentDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        payment={null}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedPayment(null);
+        }}
+        payment={selectedPayment}
       />
 
       {/* Payment Detail Sheet */}
@@ -834,10 +885,10 @@ const Index = () => {
         open={detailSheetOpen}
         onOpenChange={setDetailSheetOpen}
         payment={detailPayment}
-        onEdit={() => {}}
-        onConfirm={() => {}}
-        onReject={() => {}}
-        onDelete={() => {}}
+        onEdit={handleEdit}
+        onConfirm={handleConfirmFromDetail}
+        onReject={handleRejectFromDetail}
+        onDelete={handleDeleteFromDetail}
       />
     </DashboardLayout>
   );
