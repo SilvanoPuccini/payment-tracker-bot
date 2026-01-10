@@ -266,9 +266,9 @@ const Index = () => {
       case "pending":
         return { label: "Pendiente", className: "text-[var(--pt-yellow)]" };
       case "rejected":
-        return { label: "Rechazado", className: "text-[var(--pt-red)]" };
+        return { label: "Rechazado", className: "text-red-500" };
       case "cancelled":
-        return { label: "Cancelado", className: "text-[var(--pt-red)]" };
+        return { label: "Cancelado", className: "text-red-500" };
       default:
         return { label: "Desconocido", className: "text-[var(--pt-text-muted)]" };
     }
