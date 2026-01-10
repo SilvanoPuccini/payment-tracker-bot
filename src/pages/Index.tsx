@@ -417,9 +417,13 @@ const Index = () => {
           </div>
         ) : (
           <>
-            {/* Stats Carousel by Currency - With Progress Bar */}
-            <div className="animate-slide-up">
-              <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2">
+            {/* Desktop/Tablet Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Main Content Column */}
+              <div className="lg:col-span-8 space-y-6">
+                {/* Stats Carousel by Currency - With Progress Bar */}
+                <div className="animate-slide-up">
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:overflow-visible">
                 {currencyList.map((currency, index) => {
                   const currencyStats = statsByCurrency[currency];
                   const isFirst = index === 0;
@@ -566,8 +570,8 @@ const Index = () => {
               )}
             </div>
 
-            {/* Quick Actions */}
-            <div className="animate-slide-up" style={{ animationDelay: '50ms' }}>
+            {/* Quick Actions - Mobile Only */}
+            <div className="animate-slide-up lg:hidden" style={{ animationDelay: '50ms' }}>
               <p className="pt-section-header">ACCIONES RÁPIDAS</p>
               <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                 <button
@@ -728,6 +732,37 @@ const Index = () => {
                 </div>
               </div>
             </div>
+              </div>{/* End Main Content Column */}
+
+              {/* Sidebar Column */}
+              <div className="lg:col-span-4 space-y-6">
+                {/* Quick Actions - Desktop Sidebar */}
+                <div className="hidden lg:block animate-slide-up bg-[var(--pt-surface)] rounded-2xl p-4 border border-white/5">
+                  <p className="pt-section-header mb-3">ACCIONES RÁPIDAS</p>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      className="pt-btn-secondary w-full justify-start !px-4 !py-3"
+                      onClick={() => setDialogOpen(true)}
+                    >
+                      <Plus className="w-5 h-5" />
+                      Nuevo Pago
+                    </button>
+                    <button
+                      className="pt-btn-secondary w-full justify-start !px-4 !py-3"
+                      onClick={() => navigate("/settings")}
+                    >
+                      <MessageSquare className="w-5 h-5 text-[#25D366]" />
+                      Conectar WhatsApp
+                    </button>
+                    <button
+                      className="pt-btn-secondary w-full justify-start !px-4 !py-3"
+                      onClick={() => navigate("/contacts")}
+                    >
+                      <Users className="w-5 h-5" />
+                      Contactos
+                    </button>
+                  </div>
+                </div>
 
             {/* Requires Attention - Exact replica of HTML design */}
             {(overduePayments.length > 0 || pendingPayments.length > 0 || rejectedPayments.length > 0) && (
@@ -861,6 +896,31 @@ const Index = () => {
                       </div>
                     );
                   })}
+
+                  {/* Summary card if more rejected payments exist */}
+                  {rejectedPayments.length > 2 && (
+                    <div
+                      className="rounded-2xl bg-[#2a1e1e] border border-red-500/20 p-4 relative overflow-hidden cursor-pointer"
+                      onClick={() => navigate("/payments?status=rejected")}
+                    >
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                            <AlertTriangle className="w-5 h-5 text-red-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-red-400">
+                              +{rejectedPayments.length - 2} pagos rechazados más
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              Ver todos los pagos rechazados
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Pending payments - Yellow card design (individual cards with WhatsApp) */}
                   {upcomingPendingPayments.slice(0, 2).map((payment) => {
@@ -1029,6 +1089,8 @@ const Index = () => {
                 )}
               </div>
             </div>
+              </div>{/* End Sidebar Column */}
+            </div>{/* End Grid */}
           </>
         )}
       </div>
