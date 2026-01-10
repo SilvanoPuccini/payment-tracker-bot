@@ -897,6 +897,31 @@ const Index = () => {
                     );
                   })}
 
+                  {/* Summary card if more rejected payments exist */}
+                  {rejectedPayments.length > 2 && (
+                    <div
+                      className="rounded-2xl bg-[#2a1e1e] border border-red-500/20 p-4 relative overflow-hidden cursor-pointer"
+                      onClick={() => navigate("/payments?status=rejected")}
+                    >
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                            <AlertTriangle className="w-5 h-5 text-red-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-red-400">
+                              +{rejectedPayments.length - 2} pagos rechazados más
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              Ver todos los pagos rechazados
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Pending payments - Yellow card design (individual cards with WhatsApp) */}
                   {upcomingPendingPayments.slice(0, 2).map((payment) => {
                     const whatsappUrl = getWhatsAppUrl(payment, 'pending');

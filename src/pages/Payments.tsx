@@ -20,7 +20,7 @@ import {
   Check,
   PiggyBank,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,8 +66,11 @@ const getAvatarColor = (index: number) => {
 };
 
 export default function Payments() {
+  const [searchParams] = useSearchParams();
+  const initialStatus = searchParams.get('status') || 'all';
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithContact | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
