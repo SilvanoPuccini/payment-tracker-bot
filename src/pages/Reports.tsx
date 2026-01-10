@@ -12,6 +12,11 @@ import {
   Plus,
   PieChart,
   Loader2,
+  Wallet,
+  CheckCircle,
+  MessageSquare,
+  BarChart3,
+  Bot,
 } from "lucide-react";
 import {
   Select,
@@ -28,6 +33,8 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  Bar,
+  BarChart,
 } from "recharts";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -40,7 +47,7 @@ import { generatePaymentReport, downloadPDF, type ReportData } from "@/lib/pdf-g
 import { type CurrencyCode } from "@/lib/currency";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, getMonth } from "date-fns";
 import { es } from "date-fns/locale";
 
 // Payment method colors
@@ -66,16 +73,15 @@ const METHOD_LABELS: Record<string, string> = {
   otro: "Otro",
 };
 
-const getAvatarColor = (index: number) => {
-  const colors = [
-    'bg-gradient-to-br from-blue-500 to-blue-600',
-    'bg-gradient-to-br from-purple-500 to-purple-600',
-    'bg-gradient-to-br from-orange-500 to-orange-600',
-    'bg-gradient-to-br from-pink-500 to-pink-600',
-    'bg-gradient-to-br from-teal-500 to-teal-600',
-  ];
-  return colors[index % colors.length];
-};
+const AVATAR_COLORS = [
+  { bg: "bg-blue-900/30", text: "text-blue-400", bar: "#3b82f6" },
+  { bg: "bg-purple-900/30", text: "text-purple-400", bar: "#8b5cf6" },
+  { bg: "bg-orange-900/30", text: "text-orange-400", bar: "#f97316" },
+  { bg: "bg-pink-900/30", text: "text-pink-400", bar: "#ec4899" },
+  { bg: "bg-teal-900/30", text: "text-teal-400", bar: "#14b8a6" },
+];
+
+const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState("month");
@@ -96,10 +102,6 @@ export default function Reports() {
 
   const formatCurrency = (amount: number) => {
     return `${currencySymbol} ${amount.toLocaleString('es-PE', { minimumFractionDigits: 0 })}`;
-  };
-
-  const formatCurrencyFull = (amount: number) => {
-    return `${currencySymbol} ${amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
   };
 
   // Calculate payment method distribution
@@ -147,6 +149,7 @@ export default function Reports() {
 
       data.push({
         day: format(date, 'dd MMM', { locale: es }),
+        shortDay: format(date, 'dd', { locale: es }),
         amount: total,
       });
     }
@@ -154,8 +157,43 @@ export default function Reports() {
     return data;
   }, [payments]);
 
+  // Generate monthly data for annual chart
+  const monthlyChartData = useMemo(() => {
+    if (!payments) return MONTHS.map((month, i) => ({ month, amount: 0, isCurrentMonth: i === new Date().getMonth() }));
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const data = [];
+
+    for (let i = 0; i < 12; i++) {
+      const monthPayments = payments.filter(p => {
+        const pDate = new Date(p.created_at);
+        return pDate.getMonth() === i &&
+               pDate.getFullYear() === now.getFullYear() &&
+               p.status === 'confirmed';
+      });
+      const total = monthPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+      data.push({
+        month: MONTHS[i],
+        amount: total,
+        isCurrentMonth: i === currentMonth,
+      });
+    }
+
+    return data;
+  }, [payments]);
+
+  const maxMonthlyAmount = Math.max(...monthlyChartData.map(d => d.amount), 1);
+
   // Calculate trend percentage
   const trendPercentage = dashboardStats?.paymentsTrend || 0;
+
+  // Stats for summary cards
+  const totalIncome = dashboardStats?.totalAmountThisMonth || 0;
+  const totalPayments = dashboardStats?.totalPaymentsThisMonth || 0;
+  const messagesAnalyzed = payments?.length || 0;
+  const activeContacts = topContacts?.length || 0;
 
   const handleExportPDF = () => {
     if (!payments || payments.length === 0) {
@@ -233,22 +271,41 @@ export default function Reports() {
 
   const now = new Date();
   const periodLabel = `${format(startOfMonth(now), 'dd MMM', { locale: es })} - ${format(endOfMonth(now), 'dd MMM yyyy', { locale: es })}`;
+  const currentYear = now.getFullYear();
 
   const isLoading = loadingDashboard || loadingPayments;
 
+  // Generate conic gradient for donut chart
+  const conicGradient = useMemo(() => {
+    if (paymentMethodData.length === 0) return 'conic-gradient(#333 0% 100%)';
+
+    let gradient = 'conic-gradient(';
+    let currentPercentage = 0;
+
+    paymentMethodData.forEach((method, index) => {
+      const startPercent = currentPercentage;
+      currentPercentage += method.percentage;
+      gradient += `${method.color} ${startPercent}% ${currentPercentage}%`;
+      if (index < paymentMethodData.length - 1) gradient += ', ';
+    });
+
+    gradient += ')';
+    return gradient;
+  }, [paymentMethodData]);
+
   return (
     <DashboardLayout>
-      <div className="space-y-5 pb-24">
+      <div className="space-y-5 pb-32">
         {/* Header */}
         <div className="flex items-center justify-between animate-fade-in">
           <button
             onClick={() => navigate(-1)}
-            className="w-10 h-10 flex items-center justify-center text-white hover:bg-[var(--pt-surface)] rounded-full"
+            className="w-10 h-10 flex items-center justify-center text-white hover:bg-[var(--pt-surface)] rounded-full transition-colors"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-bold text-white">Reportes</h1>
-          <button className="w-10 h-10 flex items-center justify-center text-white hover:bg-[var(--pt-surface)] rounded-full">
+          <h1 className="text-lg font-bold text-white">Reportes</h1>
+          <button className="w-10 h-10 flex items-center justify-center text-white hover:bg-[var(--pt-surface)] rounded-full transition-colors">
             <Share2 className="w-5 h-5" />
           </button>
         </div>
@@ -296,53 +353,71 @@ export default function Reports() {
               </div>
             </div>
 
-            {/* Hero Summary Card */}
-            <div className="pt-card-glow animate-slide-up relative overflow-hidden" style={{ animationDelay: '50ms' }}>
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[var(--pt-primary)]/10 rounded-full blur-3xl" />
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg">💰</span>
-                  <span className="text-xs font-bold text-[var(--pt-text-secondary)] uppercase tracking-wider">
-                    RESUMEN DEL PERÍODO
-                  </span>
+            {/* Summary Cards - 2x2 Grid */}
+            <div className="animate-slide-up" style={{ animationDelay: '50ms' }}>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">💰</span>
+                <h3 className="text-[var(--pt-text-secondary)] text-sm font-bold uppercase tracking-wide">
+                  Resumen del Período
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Ingresos totales */}
+                <div className="bg-[var(--pt-surface)] p-4 rounded-2xl border border-[var(--pt-border)] relative overflow-hidden">
+                  <div className="absolute top-3 right-3 p-1.5 rounded-lg bg-green-900/30 text-green-400">
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <p className="text-[var(--pt-text-secondary)] text-xs font-medium mb-1">Ingresos totales</p>
+                  <p className="text-white text-xl font-bold tracking-tight">
+                    {isLoading ? '---' : formatCurrency(totalIncome)}
+                  </p>
+                  <div className="flex items-center gap-1 mt-2 text-[10px] font-bold text-[var(--pt-primary)]">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>+{Math.abs(trendPercentage).toFixed(1)}% vs mes</span>
+                  </div>
                 </div>
 
-                <div className="mt-3 mb-6">
-                  <span className="text-[var(--pt-text-muted)] text-2xl align-top font-medium">{currencySymbol}</span>
-                  <span className="text-5xl font-bold text-white tracking-tight">
-                    {isLoading ? '---' : (dashboardStats?.totalAmountThisMonth || 0).toLocaleString()}
-                  </span>
-                  <span className="block text-sm text-[var(--pt-text-secondary)] mt-1">Total cobrado</span>
+                {/* Pagos procesados */}
+                <div className="bg-[var(--pt-surface)] p-4 rounded-2xl border border-[var(--pt-border)] relative overflow-hidden">
+                  <div className="absolute top-3 right-3 p-1.5 rounded-lg bg-emerald-900/30 text-emerald-400">
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                  <p className="text-[var(--pt-text-secondary)] text-xs font-medium mb-1">Pagos procesados</p>
+                  <p className="text-white text-xl font-bold tracking-tight">
+                    {isLoading ? '--' : totalPayments}
+                  </p>
+                  <div className="flex items-center gap-1 mt-2 text-[10px] font-bold text-[var(--pt-primary)]">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>+{Math.abs(trendPercentage).toFixed(1)}% vs mes</span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 divide-x divide-[var(--pt-border)]">
-                  <div className="pr-2">
-                    <span className="font-bold text-lg text-white">
-                      {isLoading ? '--' : dashboardStats?.totalPaymentsThisMonth || 0}
-                    </span>
-                    <span className="block text-[10px] text-[var(--pt-text-secondary)] uppercase font-bold tracking-wide">
-                      PAGOS
-                    </span>
+                {/* Mensajes analizados */}
+                <div className="bg-[var(--pt-surface)] p-4 rounded-2xl border border-[var(--pt-border)] relative overflow-hidden">
+                  <div className="absolute top-3 right-3 p-1.5 rounded-lg bg-blue-900/30 text-blue-400">
+                    <MessageSquare className="w-5 h-5" />
                   </div>
-                  <div className="px-2">
-                    <span className="font-bold text-lg text-white">
-                      {isLoading ? '--' : formatCurrency(paymentStats?.pendingAmount || 0)}
-                    </span>
-                    <span className="block text-[10px] text-[var(--pt-yellow)] uppercase font-bold tracking-wide">
-                      PENDIENTE
-                    </span>
+                  <p className="text-[var(--pt-text-secondary)] text-xs font-medium mb-1">Mensajes analizados</p>
+                  <p className="text-white text-xl font-bold tracking-tight">
+                    {isLoading ? '--' : messagesAnalyzed}
+                  </p>
+                  <p className="text-[10px] text-[var(--pt-text-muted)] mt-2">
+                    Este período
+                  </p>
+                </div>
+
+                {/* Contactos activos */}
+                <div className="bg-[var(--pt-surface)] p-4 rounded-2xl border border-[var(--pt-border)] relative overflow-hidden">
+                  <div className="absolute top-3 right-3 p-1.5 rounded-lg bg-orange-900/30 text-orange-400">
+                    <Users className="w-5 h-5" />
                   </div>
-                  <div className="pl-2">
-                    <span className={cn(
-                      "font-bold text-lg",
-                      trendPercentage >= 0 ? "text-[var(--pt-primary)]" : "text-[var(--pt-red)]"
-                    )}>
-                      {trendPercentage >= 0 ? '+' : ''}{trendPercentage.toFixed(0)}%
-                    </span>
-                    <span className="block text-[10px] text-[var(--pt-text-secondary)] uppercase font-bold tracking-wide">
-                      VS MES
-                    </span>
-                  </div>
+                  <p className="text-[var(--pt-text-secondary)] text-xs font-medium mb-1">Contactos activos</p>
+                  <p className="text-white text-xl font-bold tracking-tight">
+                    {isLoading ? '--' : activeContacts}
+                  </p>
+                  <p className="text-[10px] text-[var(--pt-text-muted)] mt-2">
+                    Con pagos registrados
+                  </p>
                 </div>
               </div>
             </div>
@@ -351,9 +426,9 @@ export default function Reports() {
             <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="w-5 h-5 text-[var(--pt-primary)]" />
-                <h3 className="text-base font-bold text-white">EVOLUCIÓN DIARIA</h3>
+                <h3 className="text-base font-bold text-white uppercase">Evolución Diaria</h3>
               </div>
-              <div className="pt-card h-48">
+              <div className="bg-[var(--pt-surface)] rounded-3xl p-4 border border-[var(--pt-border)] h-48 relative">
                 {loadingMonthly ? (
                   <div className="flex items-center justify-center h-full">
                     <Loader2 className="w-8 h-8 animate-spin text-[var(--pt-primary)]" />
@@ -363,24 +438,16 @@ export default function Reports() {
                     <AreaChart data={dailyChartData.slice(-14)}>
                       <defs>
                         <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#12ba66" stopOpacity={0.3} />
+                          <stop offset="5%" stopColor="#12ba66" stopOpacity={0.4} />
                           <stop offset="95%" stopColor="#12ba66" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                       <XAxis
-                        dataKey="day"
+                        dataKey="shortDay"
                         stroke="#64748b"
                         fontSize={10}
                         tickLine={false}
                         axisLine={false}
-                      />
-                      <YAxis
-                        stroke="#64748b"
-                        fontSize={10}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `${currencySymbol}${(value/1000).toFixed(0)}k`}
                       />
                       <Tooltip
                         contentStyle={{
@@ -405,13 +472,67 @@ export default function Reports() {
               </div>
             </div>
 
-            {/* Payment Methods Donut */}
+            {/* Annual Evolution Chart */}
             <div className="animate-slide-up" style={{ animationDelay: '150ms' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-[var(--pt-primary)]" />
+                  <h3 className="text-base font-bold text-white uppercase">Evolución Anual</h3>
+                </div>
+                <span className="text-xs bg-[var(--pt-surface-elevated)] px-2 py-1 rounded text-[var(--pt-text-secondary)] border border-[var(--pt-border)]">
+                  {currentYear}
+                </span>
+              </div>
+              <div className="bg-[var(--pt-surface)] rounded-3xl p-5 border border-[var(--pt-border)]">
+                <p className="text-xs text-[var(--pt-text-muted)] mb-6">Ingresos mensuales vs pagos detectados</p>
+
+                {/* Bar Chart */}
+                <div className="flex items-end justify-between h-32 gap-1.5 px-1">
+                  {monthlyChartData.map((data, index) => {
+                    const height = maxMonthlyAmount > 0 ? (data.amount / maxMonthlyAmount) * 100 : 5;
+                    return (
+                      <div key={index} className="flex flex-col items-center gap-1 flex-1 h-full justify-end">
+                        <div
+                          className={cn(
+                            "w-1.5 rounded-t-sm transition-all",
+                            data.isCurrentMonth
+                              ? "bg-[var(--pt-primary)] shadow-[0_0_10px_rgba(18,186,102,0.4)]"
+                              : "bg-[var(--pt-primary)]/30"
+                          )}
+                          style={{ height: `${Math.max(height, 5)}%` }}
+                        />
+                        <span className={cn(
+                          "text-[9px]",
+                          data.isCurrentMonth ? "text-white font-bold" : "text-[var(--pt-text-muted)]"
+                        )}>
+                          {data.month}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center justify-center gap-4 mt-4">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[var(--pt-primary)]/30" />
+                    <span className="text-[10px] text-[var(--pt-text-muted)]">Detectados</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[var(--pt-primary)]" />
+                    <span className="text-[10px] text-[var(--pt-text-muted)]">Confirmados</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Methods Donut */}
+            <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
               <div className="flex items-center gap-2 mb-4">
                 <PieChart className="w-5 h-5 text-[var(--pt-primary)]" />
-                <h3 className="text-base font-bold text-white">POR MÉTODO DE PAGO</h3>
+                <h3 className="text-base font-bold text-white uppercase">Por Método de Pago</h3>
               </div>
-              <div className="pt-card">
+              <div className="bg-[var(--pt-surface)] rounded-3xl p-5 border border-[var(--pt-border)]">
                 {paymentMethodData.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-[var(--pt-text-secondary)]">No hay datos de métodos</p>
@@ -420,36 +541,13 @@ export default function Reports() {
                   <div className="flex items-center gap-6">
                     {/* Donut Chart */}
                     <div className="relative w-32 h-32 shrink-0">
-                      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                        {(() => {
-                          let currentAngle = 0;
-                          return paymentMethodData.map((method, index) => {
-                            const angle = (method.percentage / 100) * 360;
-                            const startAngle = currentAngle;
-                            currentAngle += angle;
-
-                            const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
-                            const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
-                            const x2 = 50 + 40 * Math.cos(((startAngle + angle) * Math.PI) / 180);
-                            const y2 = 50 + 40 * Math.sin(((startAngle + angle) * Math.PI) / 180);
-                            const largeArcFlag = angle > 180 ? 1 : 0;
-
-                            return (
-                              <path
-                                key={index}
-                                d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                                fill={method.color}
-                                stroke="#112119"
-                                strokeWidth="1"
-                              />
-                            );
-                          });
-                        })()}
-                        <circle cx="50" cy="50" r="25" fill="#1a2c24" />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-[10px] font-bold text-[var(--pt-text-muted)] text-center">
-                          TOTAL<br/>100%
+                      <div
+                        className="w-full h-full rounded-full"
+                        style={{ background: conicGradient }}
+                      />
+                      <div className="absolute inset-4 bg-[var(--pt-surface)] rounded-full flex items-center justify-center">
+                        <span className="text-xs font-bold text-[var(--pt-text-muted)] text-center leading-tight">
+                          TOTAL<br />100%
                         </span>
                       </div>
                     </div>
@@ -460,13 +558,13 @@ export default function Reports() {
                         <div key={index} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div
-                              className="w-3 h-3 rounded-full"
+                              className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: method.color }}
                             />
-                            <span className="text-sm text-[var(--pt-text-secondary)]">{method.name}</span>
+                            <span className="text-sm text-white font-medium">{method.name}</span>
                           </div>
                           <div className="text-right">
-                            <span className="text-sm font-bold text-white">{method.percentage}%</span>
+                            <span className="text-xs font-bold text-white">{method.percentage}%</span>
                             <span className="block text-[10px] text-[var(--pt-text-muted)]">
                               {formatCurrency(method.amount)}
                             </span>
@@ -480,15 +578,15 @@ export default function Reports() {
             </div>
 
             {/* Top Clients */}
-            <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+            <div className="animate-slide-up" style={{ animationDelay: '250ms' }}>
               <div className="flex items-center gap-2 mb-4">
                 <Users className="w-5 h-5 text-[var(--pt-primary)]" />
-                <h3 className="text-base font-bold text-white">TOP CLIENTES</h3>
+                <h3 className="text-base font-bold text-white uppercase">Top Clientes</h3>
               </div>
               {loadingContacts ? (
                 <div className="space-y-3">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-xl bg-[var(--pt-surface)]">
+                    <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-2xl bg-[var(--pt-surface)]">
                       <div className="w-10 h-10 rounded-full bg-[var(--pt-surface-elevated)]" />
                       <div className="flex-1 space-y-2">
                         <div className="h-4 w-24 bg-[var(--pt-surface-elevated)] rounded" />
@@ -506,38 +604,32 @@ export default function Reports() {
                   {topContacts.map((contact, index) => {
                     const totalAmount = topContacts.reduce((sum, c) => sum + (c.total_paid || 0), 0);
                     const percentage = totalAmount > 0 ? Math.round(((contact.total_paid || 0) / totalAmount) * 100) : 0;
+                    const colors = AVATAR_COLORS[index % AVATAR_COLORS.length];
 
                     return (
                       <div
                         key={contact.id}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-[var(--pt-surface)] border border-[var(--pt-border)]"
+                        className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--pt-surface)] border border-[var(--pt-border)]"
                       >
                         {/* Avatar */}
                         <div className={cn(
-                          "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm",
-                          getAvatarColor(index)
+                          "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0",
+                          colors.bg, colors.text
                         )}>
                           {getInitials(contact.name)}
                         </div>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm text-white truncate">{contact.name}</p>
-                          </div>
+                          <p className="font-semibold text-sm text-white truncate">{contact.name}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <div className="flex-1 h-1.5 bg-[var(--pt-surface-elevated)] rounded-full overflow-hidden">
+                            <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
                               <div
                                 className="h-full rounded-full"
-                                style={{
-                                  width: `${percentage}%`,
-                                  backgroundColor: getAvatarColor(index).includes('blue') ? '#3b82f6' :
-                                    getAvatarColor(index).includes('purple') ? '#8b5cf6' :
-                                    getAvatarColor(index).includes('orange') ? '#f97316' : '#12ba66'
-                                }}
+                                style={{ width: `${percentage}%`, backgroundColor: colors.bar }}
                               />
                             </div>
-                            <span className="text-xs text-[var(--pt-text-muted)]">{percentage}% del total</span>
+                            <span className="text-[10px] text-[var(--pt-text-muted)]">{percentage}% del total</span>
                           </div>
                         </div>
 
@@ -552,24 +644,98 @@ export default function Reports() {
                 </div>
               )}
             </div>
+
+            {/* System Performance - At the end as requested */}
+            <div className="animate-slide-up" style={{ animationDelay: '300ms' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-[var(--pt-primary)]" />
+                  <h3 className="text-base font-bold text-white uppercase">Rendimiento del Sistema</h3>
+                </div>
+                <span className="text-[10px] uppercase bg-[var(--pt-primary)]/20 text-[var(--pt-primary)] px-2 py-0.5 rounded-full font-bold">
+                  Operativo
+                </span>
+              </div>
+              <div className="bg-[var(--pt-surface)] rounded-3xl p-5 border border-[var(--pt-border)] space-y-5">
+                {/* Precision */}
+                <div>
+                  <div className="flex justify-between items-end mb-1">
+                    <span className="text-xs text-[var(--pt-text-secondary)]">Precisión de detección</span>
+                    <span className="text-sm font-bold text-white">94.2%</span>
+                  </div>
+                  <div className="w-full bg-black/30 rounded-full h-1.5">
+                    <div className="bg-[var(--pt-primary)] h-1.5 rounded-full" style={{ width: '94.2%' }} />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: 95%</span>
+                    <span className="text-[9px] text-orange-400">0.8% restante</span>
+                  </div>
+                </div>
+
+                {/* Messages Processed */}
+                <div>
+                  <div className="flex justify-between items-end mb-1">
+                    <span className="text-xs text-[var(--pt-text-secondary)]">Mensajes procesados</span>
+                    <span className="text-sm font-bold text-white">98.5%</span>
+                  </div>
+                  <div className="w-full bg-black/30 rounded-full h-1.5">
+                    <div className="bg-[var(--pt-primary)] h-1.5 rounded-full" style={{ width: '98.5%' }} />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: 99%</span>
+                    <span className="text-[9px] text-orange-400">0.5% restante</span>
+                  </div>
+                </div>
+
+                {/* Response Time */}
+                <div>
+                  <div className="flex justify-between items-end mb-1">
+                    <span className="text-xs text-[var(--pt-text-secondary)]">Tiempo de respuesta</span>
+                    <span className="text-sm font-bold text-white">87.3%</span>
+                  </div>
+                  <div className="w-full bg-black/30 rounded-full h-1.5">
+                    <div className="bg-[var(--pt-primary)] h-1.5 rounded-full" style={{ width: '87.3%' }} />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: 90%</span>
+                    <span className="text-[9px] text-orange-400">2.7% restante</span>
+                  </div>
+                </div>
+
+                {/* Auto Confirmations */}
+                <div>
+                  <div className="flex justify-between items-end mb-1">
+                    <span className="text-xs text-[var(--pt-text-secondary)]">Confirmaciones automáticas</span>
+                    <span className="text-sm font-bold text-white">76.8%</span>
+                  </div>
+                  <div className="w-full bg-black/30 rounded-full h-1.5">
+                    <div className="bg-[var(--pt-primary)] h-1.5 rounded-full" style={{ width: '76.8%' }} />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: 80%</span>
+                    <span className="text-[9px] text-orange-400">3.2% restante</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </div>
 
       {/* Fixed Footer Export Buttons */}
       {!hasNoData && (
-        <div className="fixed bottom-20 md:bottom-4 left-0 right-0 p-4 bg-[var(--pt-bg)]/95 backdrop-blur-md border-t border-[var(--pt-border)] z-40">
+        <div className="fixed bottom-20 lg:bottom-4 left-0 right-0 p-4 bg-[var(--pt-bg)]/95 backdrop-blur-md border-t border-[var(--pt-border)] z-40">
           <div className="flex gap-3 max-w-lg mx-auto">
             <button
               onClick={handleExportPDF}
-              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-full border border-[var(--pt-border)] bg-[var(--pt-surface)] font-bold text-sm text-white hover:bg-[var(--pt-surface-elevated)] active:scale-95 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-full border border-[var(--pt-border)] bg-transparent font-bold text-sm text-white hover:bg-[var(--pt-surface)] active:scale-95 transition-all"
             >
-              <FileText className="w-5 h-5 text-[var(--pt-red)]" />
+              <FileText className="w-5 h-5 text-red-500" />
               Exportar PDF
             </button>
             <button
               onClick={handleExportExcel}
-              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-full bg-[var(--pt-primary)] font-bold text-sm text-white shadow-button hover:brightness-110 active:scale-95 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-full bg-[var(--pt-primary)] font-bold text-sm text-white shadow-lg shadow-[var(--pt-primary)]/25 hover:brightness-110 active:scale-95 transition-all"
             >
               <Table2 className="w-5 h-5" />
               Exportar Excel
