@@ -31,7 +31,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-[var(--pt-primary)]/5 rounded-full blur-3xl -ml-48 -mb-48" />
           </div>
 
-          <div className="relative z-10 px-4 py-5 max-w-7xl mx-auto lg:px-8">
+          <div className="relative z-10 px-4 py-5">
             <PlanLimitBanner />
             {children}
           </div>
