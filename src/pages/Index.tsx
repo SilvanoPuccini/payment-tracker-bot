@@ -1091,10 +1091,12 @@ const Index = () => {
             }}
           />
 
-          {/* Bottom Sheet */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0f1713]/95 backdrop-blur-xl rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom duration-300 max-h-[80vh] overflow-hidden">
-            {/* Handle */}
-            <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2" />
+          {/* Bottom Sheet (mobile) / Modal (desktop) */}
+          <div className="fixed z-50 bg-[#0f1713]/95 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.6)] animate-in duration-300 max-h-[80vh] overflow-hidden
+            bottom-0 left-0 right-0 rounded-t-[2rem] slide-in-from-bottom
+            lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:w-full lg:max-w-lg lg:zoom-in-95">
+            {/* Handle - only on mobile */}
+            <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2 lg:hidden" />
 
             <div className="px-6 py-4 pb-8 overflow-y-auto max-h-[calc(80vh-2rem)]">
               {/* Header */}
