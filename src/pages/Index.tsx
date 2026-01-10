@@ -1038,7 +1038,7 @@ const Index = () => {
                             ? "bg-[var(--pt-primary)]/10 text-[var(--pt-primary)]"
                             : isPending
                             ? "bg-yellow-500/10 text-yellow-500"
-                            : "bg-slate-500/10 text-slate-400"
+                            : "bg-red-500/10 text-red-500"
                         )}>
                           {status.label}
                         </span>
