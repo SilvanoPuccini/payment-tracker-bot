@@ -388,7 +388,7 @@ export default function Reports() {
                   </p>
                   <div className="flex items-center gap-1 mt-2 text-[10px] font-bold text-[var(--pt-primary)]">
                     <TrendingUp className="w-3 h-3" />
-                    <span>+100.0% vs mes</span>
+                    <span>+{Math.abs(trendPercentage).toFixed(1)}% vs mes</span>
                   </div>
                 </div>
 
@@ -401,10 +401,9 @@ export default function Reports() {
                   <p className="text-white text-xl font-bold tracking-tight">
                     {isLoading ? '--' : messagesAnalyzed}
                   </p>
-                  <div className="flex items-center gap-1 mt-2 text-[10px] font-bold text-[var(--pt-primary)]">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>+12.8% vs mes</span>
-                  </div>
+                  <p className="text-[10px] text-[var(--pt-text-muted)] mt-2">
+                    Este período
+                  </p>
                 </div>
 
                 {/* Contactos activos */}
@@ -416,10 +415,9 @@ export default function Reports() {
                   <p className="text-white text-xl font-bold tracking-tight">
                     {isLoading ? '--' : activeContacts}
                   </p>
-                  <div className="flex items-center gap-1 mt-2 text-[10px] font-bold text-[var(--pt-primary)]">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>+5.2% vs mes</span>
-                  </div>
+                  <p className="text-[10px] text-[var(--pt-text-muted)] mt-2">
+                    Con pagos registrados
+                  </p>
                 </div>
               </div>
             </div>
