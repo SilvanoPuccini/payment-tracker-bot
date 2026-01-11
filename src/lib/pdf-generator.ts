@@ -2,6 +2,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, CurrencyCode } from './currency';
 
+// Type for jsPDF with autoTable extension
+interface jsPDFWithAutoTable extends jsPDF {
+  lastAutoTable?: { finalY: number };
+}
+
 export interface ReportData {
   title: string;
   subtitle?: string;
@@ -315,7 +320,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       },
     });
 
-    currentY = ((doc as any).lastAutoTable?.finalY || currentY) + 15;
+    currentY = ((doc as jsPDFWithAutoTable).lastAutoTable?.finalY || currentY) + 15;
   }
 
   // ============ MONTHLY EVOLUTION (if data available) ============
@@ -354,7 +359,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
           1: { cellWidth: 50, halign: 'right' },
         },
       });
-      currentY = ((doc as any).lastAutoTable?.finalY || currentY) + 15;
+      currentY = ((doc as jsPDFWithAutoTable).lastAutoTable?.finalY || currentY) + 15;
     }
   }
 
