@@ -208,6 +208,18 @@ export default function Reports() {
     const confirmedPayments = payments.filter(p => p.status === 'confirmed');
     const pendingPayments = payments.filter(p => p.status === 'pending');
 
+    // Prepare top clients data for PDF
+    const topClientsForPDF = topContacts?.map(contact => {
+      const totalAmount = topContacts.reduce((sum, c) => sum + (c.total_paid || 0), 0);
+      const percentage = totalAmount > 0 ? Math.round(((contact.total_paid || 0) / totalAmount) * 100) : 0;
+      return {
+        name: contact.name,
+        totalPaid: contact.total_paid || 0,
+        paymentCount: contact.payment_count || 0,
+        percentage,
+      };
+    }) || [];
+
     const reportData: ReportData = {
       title: 'Reporte de Pagos',
       subtitle: `Periodo: ${format(startDate, 'MMMM yyyy', { locale: es })}`,
@@ -226,6 +238,11 @@ export default function Reports() {
         method: p.method || 'Otro',
         status: p.status === 'confirmed' ? 'Confirmado' : p.status === 'pending' ? 'Pendiente' : 'Rechazado',
       })),
+      // New comprehensive data
+      paymentMethods: paymentMethodData,
+      topClients: topClientsForPDF,
+      monthlyData: monthlyChartData.map(m => ({ month: m.month, amount: m.amount })),
+      trendPercentage: trendPercentage,
       currency,
       generatedBy: profile?.full_name || 'Usuario',
       businessName: profile?.business_name || undefined,
