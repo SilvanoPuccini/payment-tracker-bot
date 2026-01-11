@@ -1,28 +1,6 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { formatCurrency, CurrencyCode } from './currency';
-
-// AutoTable options interface
-interface AutoTableOptions {
-  head?: string[][];
-  body?: (string | number)[][];
-  startY?: number;
-  theme?: 'striped' | 'grid' | 'plain';
-  headStyles?: Record<string, unknown>;
-  styles?: Record<string, unknown>;
-  columnStyles?: Record<number, Record<string, unknown>>;
-  margin?: { left?: number; right?: number; top?: number; bottom?: number };
-  tableWidth?: 'auto' | 'wrap' | number;
-  alternateRowStyles?: Record<string, unknown>;
-}
-
-// Extend jsPDF type to include autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: AutoTableOptions) => jsPDF;
-    lastAutoTable?: { finalY: number };
-  }
-}
 
 export interface ReportData {
   title: string;
@@ -307,7 +285,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
     doc.text('👥 TOP CLIENTES', margin, currentY);
     currentY += 5;
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [['#', 'Cliente', 'Total Pagado', 'Pagos', '% del Total']],
       body: data.topClients.map((client, index) => [
@@ -337,7 +315,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       },
     });
 
-    currentY = (doc.lastAutoTable?.finalY || currentY) + 15;
+    currentY = ((doc as any).lastAutoTable?.finalY || currentY) + 15;
   }
 
   // ============ MONTHLY EVOLUTION (if data available) ============
@@ -356,7 +334,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
 
     const monthsWithData = data.monthlyData.filter(m => m.amount > 0);
     if (monthsWithData.length > 0) {
-      doc.autoTable({
+      autoTable(doc, {
         startY: currentY,
         head: [['Mes', 'Ingresos']],
         body: monthsWithData.map(m => [m.month, formatCurrency(m.amount, data.currency)]),
@@ -376,7 +354,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
           1: { cellWidth: 50, halign: 'right' },
         },
       });
-      currentY = (doc.lastAutoTable?.finalY || currentY) + 15;
+      currentY = ((doc as any).lastAutoTable?.finalY || currentY) + 15;
     }
   }
 
@@ -395,7 +373,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   doc.text(`Mostrando ${Math.min(data.payments.length, 50)} de ${data.payments.length} pagos`, margin, 28);
 
   // Payments table
-  doc.autoTable({
+  autoTable(doc, {
     startY: 35,
     head: [['Fecha', 'Contacto', 'Monto', 'Método', 'Estado']],
     body: data.payments.slice(0, 50).map((p) => [
@@ -426,17 +404,17 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       3: { cellWidth: 30 },
       4: { cellWidth: 28 },
     },
-    didParseCell: (data) => {
+    didParseCell: (cellData) => {
       // Color status column
-      if (data.column.index === 4 && data.section === 'body') {
-        const status = data.cell.raw as string;
+      if (cellData.column.index === 4 && cellData.section === 'body') {
+        const status = cellData.cell.raw as string;
         if (status === 'Confirmado') {
-          data.cell.styles.textColor = EMERALD_600;
-          data.cell.styles.fontStyle = 'bold';
+          cellData.cell.styles.textColor = EMERALD_600;
+          cellData.cell.styles.fontStyle = 'bold';
         } else if (status === 'Pendiente') {
-          data.cell.styles.textColor = YELLOW_500;
+          cellData.cell.styles.textColor = YELLOW_500;
         } else if (status === 'Rechazado') {
-          data.cell.styles.textColor = RED_500;
+          cellData.cell.styles.textColor = RED_500;
         }
       }
     },
@@ -489,7 +467,7 @@ export function generateContactReport(data: ContactReportData): jsPDF {
     ['Confiabilidad', `${data.summary.reliabilityScore}%`],
   ];
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: summaryY + 5,
     body: summaryData,
     theme: 'plain',
@@ -505,7 +483,7 @@ export function generateContactReport(data: ContactReportData): jsPDF {
   doc.setTextColor(...SLATE_800);
   doc.text('Historial de Pagos', 14, 130);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 135,
     head: [['Fecha', 'Monto', 'Metodo', 'Estado']],
     body: data.payments.map((p) => [
@@ -564,7 +542,7 @@ export function generateOverdueReport(
   doc.text(`Cantidad de pagos: ${overduePayments.length}`, 14, 62);
 
   // Table
-  doc.autoTable({
+  autoTable(doc, {
     startY: 75,
     head: [['Contacto', 'Teléfono', 'Monto', 'Vencimiento', 'Días']],
     body: overduePayments.map((p) => [
