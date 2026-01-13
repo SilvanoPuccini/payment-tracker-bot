@@ -106,6 +106,18 @@ const COLORS = {
 };
 
 // ============ HELPER FUNCTIONS ============
+
+// Formatear número con coma como separador decimal (formato español)
+function formatNumber(num: number, decimals: number = 1): string {
+  return num.toFixed(decimals).replace('.', ',');
+}
+
+// Formatear porcentaje con signo
+function formatPercentChange(value: number): string {
+  const sign = value >= 0 ? '+' : '\u2212'; // usar signo menos real
+  return `${sign}${formatNumber(Math.abs(value))}%`;
+}
+
 function addHeader(doc: jsPDF, data: ReportData) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
@@ -120,12 +132,12 @@ function addHeader(doc: jsPDF, data: ReportData) {
   doc.setFont('helvetica', 'bold');
   doc.text('PayTrack', margin, 20);
 
-  // Subtitle con tilde
+  // Subtitle
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text('Sistema de Gesti\u00F3n de Pagos | Reporte Mensual', margin, 28);
 
-  // Period con tilde
+  // Period
   const periodText = `Per\u00EDodo: ${formatDateRange(data.dateRange.from, data.dateRange.to)}`;
   doc.setFontSize(9);
   doc.text(periodText, margin, 36);
@@ -134,9 +146,8 @@ function addHeader(doc: jsPDF, data: ReportData) {
   doc.setFontSize(8);
   doc.text(`Generado: ${formatDateTime(new Date())}`, pageWidth - margin, 20, { align: 'right' });
   if (data.businessName) {
-    doc.text(data.businessName, pageWidth - margin, 28, { align: 'right' });
+    doc.text(`Responsable: ${data.businessName}`, pageWidth - margin, 28, { align: 'right' });
   }
-  doc.text(`Por: ${data.generatedBy}`, pageWidth - margin, 36, { align: 'right' });
 }
 
 function addSectionTitle(doc: jsPDF, title: string, y: number): number {
@@ -174,7 +185,7 @@ function addFooter(doc: jsPDF) {
     doc.setTextColor(...COLORS.textMuted);
     doc.setFont('helvetica', 'normal');
     doc.text(
-      'PayTrack - Sistema de Gesti\u00F3n de Pagos | Reporte generado autom\u00E1ticamente',
+      'PayTrack \u2013 Sistema de Gesti\u00F3n de Pagos | Reporte generado autom\u00E1ticamente',
       margin,
       pageHeight - 12
     );
@@ -194,25 +205,56 @@ function addFooter(doc: jsPDF) {
 }
 
 function formatDateRange(from: Date, to: Date): string {
-  const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long' };
-  const fromStr = from.toLocaleDateString('es-PE', options);
-  const toStr = to.toLocaleDateString('es-PE', { ...options, year: 'numeric' });
-  return `${fromStr} - ${toStr}`;
+  const fromDay = from.getDate().toString().padStart(2, '0');
+  const toDay = to.getDate().toString().padStart(2, '0');
+  const fromMonth = from.toLocaleDateString('es-PE', { month: 'long' });
+  const toMonth = to.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+
+  // Formato: "01 de enero – 13 de enero de 2026"
+  return `${fromDay} de ${fromMonth} \u2013 ${toDay} de ${toMonth}`;
 }
 
 function formatDateTime(date: Date): string {
-  return date.toLocaleDateString('es-PE', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const day = date.getDate();
+  const month = date.toLocaleDateString('es-PE', { month: 'long' });
+  const year = date.getFullYear();
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'p. m.' : 'a. m.';
+  const hour12 = hours % 12 || 12;
+
+  return `${day} de ${month} de ${year}, ${hour12}:${minutes} ${ampm}`;
 }
 
 // Función para pluralizar correctamente
 function pluralize(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
+}
+
+// Traducir método de pago al español con acentos
+function translateMethod(method: string): string {
+  const translations: Record<string, string> = {
+    'transfer': 'Transferencia',
+    'Transferencia': 'Transferencia',
+    'cash': 'Efectivo',
+    'Efectivo': 'Efectivo',
+    'credit': 'Cr\u00E9dito',
+    'Credito': 'Cr\u00E9dito',
+    'Crédito': 'Cr\u00E9dito',
+    'debit': 'D\u00E9bito',
+    'Debito': 'D\u00E9bito',
+    'Débito': 'D\u00E9bito',
+    'deposit': 'Dep\u00F3sito',
+    'Deposito': 'Dep\u00F3sito',
+    'Depósito': 'Dep\u00F3sito',
+    'yape': 'Yape',
+    'Yape': 'Yape',
+    'plin': 'Plin',
+    'Plin': 'Plin',
+    'other': 'Otro',
+    'Otro': 'Otro',
+  };
+  return translations[method] || method;
 }
 
 // ============ ALERT DETECTION ============
@@ -234,8 +276,8 @@ function detectAlerts(data: ReportData): Alert[] {
   if (rejectionRate > 20) {
     alerts.push({
       level: 'critical',
-      message: `Alta tasa de rechazo (${rejectionRate.toFixed(1)}%): Se detectaron ${formatCurrency(data.summary.rejectedAmount, data.currency)} en pagos rechazados.`,
-      action: 'Revisar validaci\u00F3n de m\u00E9todos de pago y seguimiento con clientes.'
+      message: `Alta tasa de rechazo (${formatNumber(rejectionRate)}%)`,
+      action: `Se detectaron ${formatCurrency(data.summary.rejectedAmount, data.currency)} en pagos rechazados. Revisar validaci\u00F3n de m\u00E9todos de pago.`
     });
   }
 
@@ -247,8 +289,8 @@ function detectAlerts(data: ReportData): Alert[] {
   if (pendingRate > 30) {
     alerts.push({
       level: 'warning',
-      message: `Monto pendiente elevado: ${formatCurrency(data.summary.pendingAmount, data.currency)} (${pendingRate.toFixed(1)}%) pendiente de confirmaci\u00F3n.`,
-      action: 'Activar recordatorios autom\u00E1ticos v\u00EDa WhatsApp.'
+      message: `Monto pendiente elevado (${formatNumber(pendingRate)}%)`,
+      action: `${formatCurrency(data.summary.pendingAmount, data.currency)} pendiente de confirmaci\u00F3n. Activar recordatorios autom\u00E1ticos.`
     });
   }
 
@@ -259,9 +301,9 @@ function detectAlerts(data: ReportData): Alert[] {
 
   if (confirmationRate < 50 && data.summary.totalPayments > 3) {
     alerts.push({
-      level: 'critical',
-      message: `Tasa de confirmaci\u00F3n baja (${confirmationRate.toFixed(1)}%).`,
-      action: 'Simplificar flujo de confirmaci\u00F3n con bot\u00F3n de un clic.'
+      level: 'warning',
+      message: `Tasa de confirmaci\u00F3n baja (${formatNumber(confirmationRate)}%)`,
+      action: 'Recomendaci\u00F3n: simplificar el flujo de confirmaci\u00F3n mediante un bot\u00F3n de un clic.'
     });
   }
 
@@ -288,6 +330,9 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   const effectivenessRate = totalAmount > 0
     ? (data.summary.confirmedAmount / totalAmount) * 100
     : 0;
+  const pendingRate = totalAmount > 0
+    ? (data.summary.pendingAmount / totalAmount) * 100
+    : 0;
 
   const alerts = detectAlerts(data);
   const trend = data.trendPercentage || 0;
@@ -299,15 +344,22 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   // RESUMEN EJECUTIVO
   currentY = addSectionTitle(doc, 'RESUMEN EJECUTIVO', currentY);
 
-  // KPIs Table - Con tildes correctas
+  // Subtítulo métricas
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.textSecondary);
+  doc.setFont('helvetica', 'bold');
+  doc.text('M\u00C9TRICAS PRINCIPALES', margin, currentY);
+  currentY += 6;
+
+  // KPIs Table - Con formato español
   const kpisData = [
-    ['M\u00C9TRICA', 'VALOR', 'VS. MES ANTERIOR'],
-    ['Ingresos Totales', formatCurrency(data.summary.confirmedAmount, data.currency), `${trend >= 0 ? '\u2191' : '\u2193'} ${Math.abs(trend).toFixed(1)}%`],
-    ['Pagos Procesados', `${data.summary.totalPayments} ${pluralize(data.summary.totalPayments, 'transacci\u00F3n', 'transacciones')}`, `\u2191 100.0%`],
-    ['Monto Pendiente', formatCurrency(data.summary.pendingAmount, data.currency), `\u2193 15.0%`],
-    ['Contactos Activos', `${data.summary.contactsCount} ${pluralize(data.summary.contactsCount, 'cliente', 'clientes')}`, `\u2191 50.0%`],
-    ['Ticket Promedio', formatCurrency(avgTicket, data.currency), `\u2191 18.5%`],
-    ['Tasa de Confirmaci\u00F3n', `${confirmationRate.toFixed(1)}%`, `\u2193 5.0%`],
+    ['M\u00E9trica', 'Valor', 'Variaci\u00F3n vs. mes anterior'],
+    ['Ingresos totales', formatCurrency(data.summary.confirmedAmount, data.currency), formatPercentChange(trend)],
+    ['Pagos procesados', `${data.summary.totalPayments} ${pluralize(data.summary.totalPayments, 'transacci\u00F3n', 'transacciones')}`, '+100,0%'],
+    ['Monto pendiente', formatCurrency(data.summary.pendingAmount, data.currency), '+15,0%'],
+    ['Contactos activos', `${data.summary.contactsCount} ${pluralize(data.summary.contactsCount, 'cliente', 'clientes')}`, '+50,0%'],
+    ['Ticket promedio', formatCurrency(avgTicket, data.currency), '+18,5%'],
+    ['Tasa de confirmaci\u00F3n', `${formatNumber(confirmationRate)}%`, '\u22125,0%'],
   ];
 
   autoTable(doc, {
@@ -337,14 +389,14 @@ export function generatePaymentReport(data: ReportData): jsPDF {
 
   currentY = ((doc as jsPDFWithAutoTable).lastAutoTable?.finalY || currentY) + 10;
 
-  // ANÁLISIS DE SALUD FINANCIERA - Con tilde
+  // ANÁLISIS DE SALUD FINANCIERA
   currentY = addSectionTitle(doc, 'AN\u00C1LISIS DE SALUD FINANCIERA', currentY);
 
   const healthData = [
-    ['Ingresos Confirmados', formatCurrency(data.summary.confirmedAmount, data.currency), `${effectivenessRate.toFixed(1)}%`],
-    ['Pagos Pendientes', formatCurrency(data.summary.pendingAmount, data.currency), `${(100 - effectivenessRate - rejectionRate).toFixed(1)}%`],
-    ['Pagos Rechazados', formatCurrency(data.summary.rejectedAmount, data.currency), `${rejectionRate.toFixed(1)}% tasa rechazo`],
-    ['Efectividad de Cobro', `${effectivenessRate.toFixed(1)}%`, 'Objetivo: 85%'],
+    ['Ingresos confirmados', `${formatCurrency(data.summary.confirmedAmount, data.currency)} (${formatNumber(effectivenessRate)}%)`],
+    ['Pagos pendientes', `${formatCurrency(data.summary.pendingAmount, data.currency)} (${formatNumber(pendingRate)}%)`],
+    ['Pagos rechazados', `${formatCurrency(data.summary.rejectedAmount, data.currency)} (${formatNumber(rejectionRate)}% de tasa de rechazo)`],
+    ['Efectividad de cobro', `${formatNumber(effectivenessRate)}%`],
   ];
 
   autoTable(doc, {
@@ -357,21 +409,32 @@ export function generatePaymentReport(data: ReportData): jsPDF {
     },
     columnStyles: {
       0: { cellWidth: 55 },
-      1: { halign: 'right', cellWidth: 55, fontStyle: 'bold' },
-      2: { halign: 'right', cellWidth: 50, textColor: COLORS.textSecondary },
+      1: { halign: 'left', cellWidth: 105 },
     },
     didParseCell: (cellData) => {
       if (cellData.row.index === 0 && cellData.column.index === 1) {
         cellData.cell.styles.textColor = COLORS.success;
+        cellData.cell.styles.fontStyle = 'bold';
       } else if (cellData.row.index === 1 && cellData.column.index === 1) {
         cellData.cell.styles.textColor = COLORS.warning;
+        cellData.cell.styles.fontStyle = 'bold';
       } else if (cellData.row.index === 2 && cellData.column.index === 1) {
         cellData.cell.styles.textColor = COLORS.danger;
+        cellData.cell.styles.fontStyle = 'bold';
+      } else if (cellData.row.index === 3) {
+        cellData.cell.styles.fontStyle = 'bold';
       }
     },
   });
 
-  currentY = ((doc as jsPDFWithAutoTable).lastAutoTable?.finalY || currentY) + 10;
+  currentY = ((doc as jsPDFWithAutoTable).lastAutoTable?.finalY || currentY) + 2;
+
+  // Objetivo debajo
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.textSecondary);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Objetivo: 85%', margin, currentY + 3);
+  currentY += 10;
 
   // ALERTAS
   if (alerts.length > 0) {
@@ -385,18 +448,14 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       doc.setFillColor(...bgColor);
       doc.roundedRect(margin, currentY, contentWidth, alert.action ? 18 : 12, 2, 2, 'F');
 
-      // Alert icon circle
-      doc.setFillColor(...textColor);
-      doc.circle(margin + 6, currentY + 6, 3, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(...COLORS.white);
+      // Alert icon
+      doc.setFontSize(10);
+      doc.setTextColor(...textColor);
       doc.setFont('helvetica', 'bold');
-      doc.text('!', margin + 5, currentY + 8);
+      doc.text('\u26A0\uFE0F', margin + 4, currentY + 7); // ⚠️
 
       // Alert text
       doc.setFontSize(8);
-      doc.setTextColor(...textColor);
-      doc.setFont('helvetica', 'bold');
       doc.text(alert.message, margin + 14, currentY + 7);
 
       if (alert.action) {
@@ -411,7 +470,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
     currentY += 5;
   }
 
-  // DISTRIBUCIÓN POR MÉTODO DE PAGO - Con tildes
+  // DISTRIBUCIÓN POR MÉTODO DE PAGO
   if (data.paymentMethods && data.paymentMethods.length > 0) {
     if (currentY > pageHeight - 70) {
       doc.addPage();
@@ -421,17 +480,17 @@ export function generatePaymentReport(data: ReportData): jsPDF {
     currentY = addSectionTitle(doc, 'DISTRIBUCI\u00D3N POR M\u00C9TODO DE PAGO', currentY);
 
     const methodsTableData = data.paymentMethods.map(m => [
-      m.name,
+      translateMethod(m.name),
       formatCurrency(m.amount, data.currency),
       `${m.percentage}%`,
-      `${m.count || Math.round(m.percentage * data.summary.totalPayments / 100)} ${pluralize(m.count || 1, 'pago', 'pagos')}`,
+      m.count?.toString() || Math.round(m.percentage * data.summary.totalPayments / 100).toString(),
     ]);
 
     autoTable(doc, {
       startY: currentY,
-      head: [['M\u00C9TODO', 'MONTO', '% DEL TOTAL', 'TRANSACCIONES']],
+      head: [['M\u00E9todo', 'Monto', '% del total', 'Transacciones']],
       body: methodsTableData,
-      foot: [['TOTAL', formatCurrency(totalAmount, data.currency), '100%', `${data.summary.totalPayments} ${pluralize(data.summary.totalPayments, 'pago', 'pagos')}`]],
+      foot: [['Total', formatCurrency(totalAmount, data.currency), '100%', data.summary.totalPayments.toString()]],
       theme: 'striped',
       headStyles: {
         fillColor: COLORS.bgNeutral,
@@ -473,7 +532,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       doc.text('Insight: ', margin + 4, currentY + 7);
       doc.setFont('helvetica', 'normal');
       doc.text(
-        `${top2[0].name} y ${top2[1].name} dominan con ${top2Percentage}% de los ingresos (${formatCurrency(top2Total, data.currency)}).`,
+        `${translateMethod(top2[0].name)} y ${translateMethod(top2[1].name).toLowerCase()} concentran el ${top2Percentage}% de los ingresos (${formatCurrency(top2Total, data.currency)}).`,
         margin + 20,
         currentY + 7
       );
@@ -485,7 +544,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   doc.addPage();
   currentY = 20;
 
-  // TOP CLIENTES DEL PERÍODO - Con tilde
+  // TOP CLIENTES DEL PERÍODO
   if (data.topClients && data.topClients.length > 0) {
     currentY = addSectionTitle(doc, 'TOP CLIENTES DEL PER\u00CDODO', currentY);
 
@@ -500,7 +559,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
 
     autoTable(doc, {
       startY: currentY,
-      head: [['#', 'CLIENTE', 'TOTAL PAGADO', 'PAGOS', '% TOTAL', 'ESTADO']],
+      head: [['#', 'Cliente', 'Total pagado', 'Pagos', '% del total', 'Estado']],
       body: clientsTableData,
       theme: 'striped',
       headStyles: {
@@ -543,10 +602,11 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       let impact = 'Medio';
 
       if (c.totalPaid > 100000) {
-        action = 'Cliente VIP: Ofrecer descuentos por pronto pago';
+        action = 'Cliente VIP: ofrecer descuentos por pronto pago';
         impact = 'Alto';
       } else if (c.hasPending) {
-        action = `Seguimiento urgente: ${formatCurrency(c.totalPaid * 0.3, data.currency)} sin confirmar`;
+        const pendingAmount = c.totalPaid * 0.3;
+        action = `Seguimiento urgente: ${formatCurrency(pendingAmount, data.currency)} sin confirmar`;
         impact = 'Cr\u00EDtico';
       }
 
@@ -555,7 +615,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
 
     autoTable(doc, {
       startY: currentY,
-      head: [['CLIENTE', 'ACCI\u00D3N PRIORITARIA', 'IMPACTO']],
+      head: [['Cliente', 'Acci\u00F3n prioritaria', 'Impacto']],
       body: actionsData,
       theme: 'plain',
       headStyles: {
@@ -599,22 +659,22 @@ export function generatePaymentReport(data: ReportData): jsPDF {
 
   const transactionsData = data.payments.slice(0, 15).map(p => {
     let statusIcon = '\u2022'; // bullet
-    if (p.status === 'Confirmado') statusIcon = '\u2713'; // check
-    else if (p.status === 'Pendiente') statusIcon = '\u23F3'; // hourglass
-    else if (p.status === 'Rechazado') statusIcon = '\u2717'; // X
+    if (p.status === 'Confirmado') statusIcon = '\u2713'; // ✓
+    else if (p.status === 'Pendiente') statusIcon = '\u23F3'; // ⏳
+    else if (p.status === 'Rechazado') statusIcon = '\u2717'; // ✗
 
     return [
       p.date,
       p.contact.length > 20 ? p.contact.substring(0, 18) + '...' : p.contact,
       formatCurrency(p.amount, data.currency),
-      p.method,
+      translateMethod(p.method),
       `${statusIcon} ${p.status}`,
     ];
   });
 
   autoTable(doc, {
     startY: currentY,
-    head: [['FECHA', 'CLIENTE', 'MONTO', 'M\u00C9TODO', 'ESTADO']],
+    head: [['Fecha', 'Cliente', 'Monto', 'M\u00E9todo', 'Estado']],
     body: transactionsData,
     theme: 'striped',
     headStyles: {
@@ -657,20 +717,20 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   const pendingCount = data.payments.filter(p => p.status === 'Pendiente').length;
   const rejectedCount = data.payments.filter(p => p.status === 'Rechazado').length;
 
-  const confirmedPct = data.summary.totalPayments > 0 ? (confirmedCount / data.summary.totalPayments * 100).toFixed(1) : '0';
-  const pendingPct = data.summary.totalPayments > 0 ? (pendingCount / data.summary.totalPayments * 100).toFixed(1) : '0';
-  const rejectedPct = data.summary.totalPayments > 0 ? (rejectedCount / data.summary.totalPayments * 100).toFixed(1) : '0';
+  const confirmedPct = data.summary.totalPayments > 0 ? (confirmedCount / data.summary.totalPayments * 100) : 0;
+  const pendingPct = data.summary.totalPayments > 0 ? (pendingCount / data.summary.totalPayments * 100) : 0;
+  const rejectedPct = data.summary.totalPayments > 0 ? (rejectedCount / data.summary.totalPayments * 100) : 0;
 
   const statusSummary = [
-    [`\u2713 Confirmado`, `${confirmedCount} ${pluralize(confirmedCount, 'pago', 'pagos')}`, formatCurrency(data.summary.confirmedAmount, data.currency), `${confirmedPct}%`],
-    [`\u23F3 Pendiente`, `${pendingCount} ${pluralize(pendingCount, 'pago', 'pagos')}`, formatCurrency(data.summary.pendingAmount, data.currency), `${pendingPct}%`],
-    [`\u2717 Rechazado`, `${rejectedCount} ${pluralize(rejectedCount, 'pago', 'pagos')}`, formatCurrency(data.summary.rejectedAmount, data.currency), `${rejectedPct}%`],
-    ['TOTAL', `${data.summary.totalPayments} ${pluralize(data.summary.totalPayments, 'pago', 'pagos')}`, formatCurrency(totalAmount, data.currency), '100%'],
+    ['\u2713 Confirmado', `${confirmedCount} ${pluralize(confirmedCount, 'pago', 'pagos')}`, formatCurrency(data.summary.confirmedAmount, data.currency), `${formatNumber(confirmedPct)}%`],
+    ['\u23F3 Pendiente', `${pendingCount} ${pluralize(pendingCount, 'pago', 'pagos')}`, formatCurrency(data.summary.pendingAmount, data.currency), `${formatNumber(pendingPct)}%`],
+    ['\u2717 Rechazado', `${rejectedCount} ${pluralize(rejectedCount, 'pago', 'pagos')}`, formatCurrency(data.summary.rejectedAmount, data.currency), `${formatNumber(rejectedPct)}%`],
+    ['Total', `${data.summary.totalPayments} ${pluralize(data.summary.totalPayments, 'pago', 'pagos')}`, formatCurrency(totalAmount, data.currency), '100%'],
   ];
 
   autoTable(doc, {
     startY: currentY,
-    head: [['ESTADO', 'CANTIDAD', 'MONTO TOTAL', '% DEL TOTAL']],
+    head: [['Estado', 'Cantidad', 'Monto total', '% del total']],
     body: statusSummary,
     theme: 'plain',
     headStyles: {
@@ -698,7 +758,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
           cellData.cell.styles.textColor = COLORS.warning;
         } else if (status.includes('Rechazado')) {
           cellData.cell.styles.textColor = COLORS.danger;
-        } else if (status === 'TOTAL') {
+        } else if (status === 'Total') {
           cellData.cell.styles.fontStyle = 'bold';
         }
       }
@@ -714,20 +774,20 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   doc.addPage();
   currentY = 20;
 
-  // MÉTRICAS DE RENDIMIENTO - Con tildes
+  // MÉTRICAS DE RENDIMIENTO DEL SISTEMA
   currentY = addSectionTitle(doc, 'M\u00C9TRICAS DE RENDIMIENTO DEL SISTEMA', currentY);
 
   const metricsData = [
-    ['Tasa de Detecci\u00F3n Autom\u00E1tica', '90.0%', '95%', effectivenessRate > 85 ? '\u2713 \u00D3ptimo' : '\u23F3 Por debajo'],
-    ['Tiempo Promedio de Procesamiento', '2.5 min', '< 3 min', '\u2713 \u00D3ptimo'],
-    ['Mensajes Analizados', `${data.summary.totalPayments * 14} msgs`, '150 msgs', '\u23F3 Por debajo'],
-    ['Tasa de Confirmaci\u00F3n Autom\u00E1tica', `${confirmationRate.toFixed(1)}%`, '70%', confirmationRate > 70 ? '\u2713 \u00D3ptimo' : '\u2717 Cr\u00EDtico'],
-    ['Disponibilidad del Sistema', '99.8%', '99.5%', '\u2713 Excelente'],
+    ['Tasa de detecci\u00F3n autom\u00E1tica', '90,0%', '95%', effectivenessRate > 85 ? '\u00D3ptimo' : 'Por debajo'],
+    ['Tiempo promedio de procesamiento', '2,5 min', '< 3 min', '\u00D3ptimo'],
+    ['Mensajes analizados', `${data.summary.totalPayments * 14} msgs`, '150 msgs', data.summary.totalPayments * 14 >= 150 ? '\u00D3ptimo' : 'Por debajo'],
+    ['Tasa de confirmaci\u00F3n autom\u00E1tica', `${formatNumber(confirmationRate)}%`, '70%', confirmationRate >= 70 ? '\u00D3ptimo' : 'Cr\u00EDtico'],
+    ['Disponibilidad del sistema', '99,8%', '99,5%', 'Excelente'],
   ];
 
   autoTable(doc, {
     startY: currentY,
-    head: [['M\u00C9TRICA', 'VALOR ACTUAL', 'OBJETIVO', 'ESTADO']],
+    head: [['M\u00E9trica', 'Valor actual', 'Objetivo', 'Estado']],
     body: metricsData,
     theme: 'striped',
     headStyles: {
@@ -762,20 +822,20 @@ export function generatePaymentReport(data: ReportData): jsPDF {
 
   currentY = ((doc as jsPDFWithAutoTable).lastAutoTable?.finalY || currentY) + 10;
 
-  // PROYECCIONES Y TENDENCIAS - Con tilde
+  // PROYECCIONES Y TENDENCIAS
   currentY = addSectionTitle(doc, 'PROYECCIONES Y TENDENCIAS', currentY);
 
   const projectedRevenue = data.summary.confirmedAmount * 3;
   const projectionsData = [
-    ['Ingresos Esperados (Mes Completo)', formatCurrency(projectedRevenue, data.currency), 'Alta (85%)'],
-    ['Nuevos Clientes Potenciales', '+5 clientes', 'Media (60%)'],
-    ['Tasa de Confirmaci\u00F3n Mejorada', '65%', 'Alta (80%)'],
-    ['Volumen de Transacciones', `${data.summary.totalPayments * 3} pagos/mes`, 'Alta (90%)'],
+    ['Ingresos esperados (mes completo)', formatCurrency(projectedRevenue, data.currency), 'Alta (85%)'],
+    ['Nuevos clientes potenciales', '+5 clientes', 'Media (60%)'],
+    ['Tasa de confirmaci\u00F3n mejorada', '65%', 'Alta (80%)'],
+    ['Volumen de transacciones', `${data.summary.totalPayments * 3} pagos/mes`, 'Alta (90%)'],
   ];
 
   autoTable(doc, {
     startY: currentY,
-    head: [['CONCEPTO', 'PROYECCI\u00D3N', 'CONFIANZA']],
+    head: [['Concepto', 'Proyecci\u00F3n', 'Confianza']],
     body: projectionsData,
     theme: 'plain',
     headStyles: {
@@ -807,7 +867,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
 
   currentY = ((doc as jsPDFWithAutoTable).lastAutoTable?.finalY || currentY) + 10;
 
-  // RECOMENDACIONES ESTRATÉGICAS - Con tilde
+  // RECOMENDACIONES ESTRATÉGICAS
   currentY = addSectionTitle(doc, 'RECOMENDACIONES ESTRAT\u00C9GICAS', currentY);
 
   const recommendations = [
@@ -815,7 +875,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       title: 'Mejorar tasa de confirmaci\u00F3n',
       priority: 'Alta',
       actions: [
-        'Implementar recordatorios autom\u00E1ticos a las 24h y 48h',
+        'Implementar recordatorios autom\u00E1ticos a las 24 h y 48 h',
         'Agregar bot\u00F3n de confirmaci\u00F3n con un clic en WhatsApp',
         'Ofrecer incentivo del 2% por confirmaci\u00F3n inmediata',
       ],
@@ -851,7 +911,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
     const priorityColor = rec.priority === 'Alta' ? COLORS.danger : COLORS.warning;
     doc.setFontSize(7);
     doc.setTextColor(...priorityColor);
-    doc.text(`(Prioridad ${rec.priority})`, margin + 80, currentY);
+    doc.text(`(Prioridad ${rec.priority})`, margin + 70, currentY);
 
     currentY += 5;
 
@@ -919,9 +979,9 @@ export function generateContactReport(data: ContactReportData): jsPDF {
   currentY = addSectionTitle(doc, 'RESUMEN', currentY);
 
   const summaryData = [
-    ['Total Pagado', formatCurrency(data.summary.totalPaid, data.currency)],
+    ['Total pagado', formatCurrency(data.summary.totalPaid, data.currency)],
     ['Pendiente', formatCurrency(data.summary.pendingAmount, data.currency)],
-    ['Pagos Realizados', data.summary.paymentCount.toString()],
+    ['Pagos realizados', data.summary.paymentCount.toString()],
     ['Confiabilidad', `${data.summary.reliabilityScore}%`],
   ];
 
@@ -953,7 +1013,7 @@ export function generateContactReport(data: ContactReportData): jsPDF {
       return [
         p.date,
         formatCurrency(p.amount, data.currency),
-        p.method,
+        translateMethod(p.method),
         `${statusIcon} ${p.status}`,
       ];
     }),
@@ -1010,7 +1070,7 @@ export function generateOverdueReport(
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Generado: ${new Date().toLocaleDateString('es-PE')}`, pageWidth - margin, 20, { align: 'right' });
-  doc.text(`Por: ${generatedBy}`, pageWidth - margin, 28, { align: 'right' });
+  doc.text(`Responsable: ${generatedBy}`, pageWidth - margin, 28, { align: 'right' });
 
   let currentY = 50;
 
