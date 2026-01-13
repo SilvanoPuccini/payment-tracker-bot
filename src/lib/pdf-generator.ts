@@ -112,9 +112,9 @@ function formatNumber(num: number, decimals: number = 1): string {
   return num.toFixed(decimals).replace('.', ',');
 }
 
-// Formatear porcentaje con signo
+// Formatear porcentaje con signo (ASCII seguro para PDF)
 function formatPercentChange(value: number): string {
-  const sign = value >= 0 ? '+' : '\u2212'; // usar signo menos real
+  const sign = value >= 0 ? '+' : '-';
   return `${sign}${formatNumber(Math.abs(value))}%`;
 }
 
@@ -359,7 +359,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
     ['Monto pendiente', formatCurrency(data.summary.pendingAmount, data.currency), '+15,0%'],
     ['Contactos activos', `${data.summary.contactsCount} ${pluralize(data.summary.contactsCount, 'cliente', 'clientes')}`, '+50,0%'],
     ['Ticket promedio', formatCurrency(avgTicket, data.currency), '+18,5%'],
-    ['Tasa de confirmaci\u00F3n', `${formatNumber(confirmationRate)}%`, '\u22125,0%'],
+    ['Tasa de confirmaci\u00F3n', `${formatNumber(confirmationRate)}%`, '-5,0%'],
   ];
 
   autoTable(doc, {
@@ -448,11 +448,11 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       doc.setFillColor(...bgColor);
       doc.roundedRect(margin, currentY, contentWidth, alert.action ? 18 : 12, 2, 2, 'F');
 
-      // Alert icon
+      // Alert icon (ASCII seguro)
       doc.setFontSize(10);
       doc.setTextColor(...textColor);
       doc.setFont('helvetica', 'bold');
-      doc.text('\u26A0\uFE0F', margin + 4, currentY + 7); // ⚠️
+      doc.text('(!)', margin + 4, currentY + 7);
 
       // Alert text
       doc.setFontSize(8);
@@ -554,7 +554,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       formatCurrency(c.totalPaid, data.currency),
       c.paymentCount.toString(),
       `${c.percentage}%`,
-      c.hasPending ? '\u23F3 Pendiente' : '\u2713 Activo',
+      c.hasPending ? 'Pendiente' : 'Activo',
     ]);
 
     autoTable(doc, {
@@ -607,7 +607,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       } else if (c.hasPending) {
         const pendingAmount = c.totalPaid * 0.3;
         action = `Seguimiento urgente: ${formatCurrency(pendingAmount, data.currency)} sin confirmar`;
-        impact = 'Cr\u00EDtico';
+        impact = 'Critico';
       }
 
       return [c.name, action, impact];
@@ -636,7 +636,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       didParseCell: (cellData) => {
         if (cellData.column.index === 2 && cellData.section === 'body') {
           const impact = cellData.cell.raw as string;
-          if (impact.includes('Cr\u00EDtico') || impact.includes('Critico')) {
+          if (impact.includes('Critico')) {
             cellData.cell.styles.textColor = COLORS.danger;
             cellData.cell.styles.fontStyle = 'bold';
           } else if (impact === 'Alto') {
@@ -658,17 +658,12 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   currentY += 6;
 
   const transactionsData = data.payments.slice(0, 15).map(p => {
-    let statusIcon = '\u2022'; // bullet
-    if (p.status === 'Confirmado') statusIcon = '\u2713'; // ✓
-    else if (p.status === 'Pendiente') statusIcon = '\u23F3'; // ⏳
-    else if (p.status === 'Rechazado') statusIcon = '\u2717'; // ✗
-
     return [
       p.date,
       p.contact.length > 20 ? p.contact.substring(0, 18) + '...' : p.contact,
       formatCurrency(p.amount, data.currency),
       translateMethod(p.method),
-      `${statusIcon} ${p.status}`,
+      p.status,
     ];
   });
 
@@ -722,9 +717,9 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   const rejectedPct = data.summary.totalPayments > 0 ? (rejectedCount / data.summary.totalPayments * 100) : 0;
 
   const statusSummary = [
-    ['\u2713 Confirmado', `${confirmedCount} ${pluralize(confirmedCount, 'pago', 'pagos')}`, formatCurrency(data.summary.confirmedAmount, data.currency), `${formatNumber(confirmedPct)}%`],
-    ['\u23F3 Pendiente', `${pendingCount} ${pluralize(pendingCount, 'pago', 'pagos')}`, formatCurrency(data.summary.pendingAmount, data.currency), `${formatNumber(pendingPct)}%`],
-    ['\u2717 Rechazado', `${rejectedCount} ${pluralize(rejectedCount, 'pago', 'pagos')}`, formatCurrency(data.summary.rejectedAmount, data.currency), `${formatNumber(rejectedPct)}%`],
+    ['Confirmado', `${confirmedCount} ${pluralize(confirmedCount, 'pago', 'pagos')}`, formatCurrency(data.summary.confirmedAmount, data.currency), `${formatNumber(confirmedPct)}%`],
+    ['Pendiente', `${pendingCount} ${pluralize(pendingCount, 'pago', 'pagos')}`, formatCurrency(data.summary.pendingAmount, data.currency), `${formatNumber(pendingPct)}%`],
+    ['Rechazado', `${rejectedCount} ${pluralize(rejectedCount, 'pago', 'pagos')}`, formatCurrency(data.summary.rejectedAmount, data.currency), `${formatNumber(rejectedPct)}%`],
     ['Total', `${data.summary.totalPayments} ${pluralize(data.summary.totalPayments, 'pago', 'pagos')}`, formatCurrency(totalAmount, data.currency), '100%'],
   ];
 
@@ -778,10 +773,10 @@ export function generatePaymentReport(data: ReportData): jsPDF {
   currentY = addSectionTitle(doc, 'M\u00C9TRICAS DE RENDIMIENTO DEL SISTEMA', currentY);
 
   const metricsData = [
-    ['Tasa de detecci\u00F3n autom\u00E1tica', '90,0%', '95%', effectivenessRate > 85 ? '\u00D3ptimo' : 'Por debajo'],
-    ['Tiempo promedio de procesamiento', '2,5 min', '< 3 min', '\u00D3ptimo'],
-    ['Mensajes analizados', `${data.summary.totalPayments * 14} msgs`, '150 msgs', data.summary.totalPayments * 14 >= 150 ? '\u00D3ptimo' : 'Por debajo'],
-    ['Tasa de confirmaci\u00F3n autom\u00E1tica', `${formatNumber(confirmationRate)}%`, '70%', confirmationRate >= 70 ? '\u00D3ptimo' : 'Cr\u00EDtico'],
+    ['Tasa de detecci\u00F3n autom\u00E1tica', '90,0%', '95%', effectivenessRate > 85 ? 'Optimo' : 'Por debajo'],
+    ['Tiempo promedio de procesamiento', '2,5 min', '< 3 min', 'Optimo'],
+    ['Mensajes analizados', `${data.summary.totalPayments * 14} msgs`, '150 msgs', data.summary.totalPayments * 14 >= 150 ? 'Optimo' : 'Por debajo'],
+    ['Tasa de confirmaci\u00F3n autom\u00E1tica', `${formatNumber(confirmationRate)}%`, '70%', confirmationRate >= 70 ? 'Optimo' : 'Critico'],
     ['Disponibilidad del sistema', '99,8%', '99,5%', 'Excelente'],
   ];
 
@@ -809,9 +804,9 @@ export function generatePaymentReport(data: ReportData): jsPDF {
     didParseCell: (cellData) => {
       if (cellData.column.index === 3 && cellData.section === 'body') {
         const status = cellData.cell.raw as string;
-        if (status.includes('\u00D3ptimo') || status.includes('Excelente')) {
+        if (status.includes('Optimo') || status.includes('Excelente')) {
           cellData.cell.styles.textColor = COLORS.success;
-        } else if (status.includes('Cr\u00EDtico')) {
+        } else if (status.includes('Critico')) {
           cellData.cell.styles.textColor = COLORS.danger;
         } else {
           cellData.cell.styles.textColor = COLORS.warning;
@@ -920,7 +915,7 @@ export function generatePaymentReport(data: ReportData): jsPDF {
       doc.setFontSize(8);
       doc.setTextColor(...COLORS.textSecondary);
       doc.setFont('helvetica', 'normal');
-      doc.text(`\u2022 ${action}`, margin + 5, currentY);
+      doc.text(`- ${action}`, margin + 5, currentY);
       currentY += 4;
     });
 
@@ -1005,16 +1000,11 @@ export function generateContactReport(data: ContactReportData): jsPDF {
     startY: currentY,
     head: [['Fecha', 'Monto', 'M\u00E9todo', 'Estado']],
     body: data.payments.map((p) => {
-      let statusIcon = '\u2022';
-      if (p.status === 'Confirmado') statusIcon = '\u2713';
-      else if (p.status === 'Pendiente') statusIcon = '\u23F3';
-      else if (p.status === 'Rechazado') statusIcon = '\u2717';
-
       return [
         p.date,
         formatCurrency(p.amount, data.currency),
         translateMethod(p.method),
-        `${statusIcon} ${p.status}`,
+        p.status,
       ];
     }),
     theme: 'striped',
