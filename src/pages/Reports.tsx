@@ -50,25 +50,38 @@ import { cn } from "@/lib/utils";
 import { format, startOfMonth, endOfMonth, subMonths, getMonth } from "date-fns";
 import { es } from "date-fns/locale";
 
-// Payment method colors
+// Payment method colors - Colores distintos para cada método
 const METHOD_COLORS: Record<string, string> = {
-  yape: "#742284",
-  plin: "#00C8F8",
-  transfer: "#12ba66",
-  transferencia: "#12ba66",
-  cash: "#FFB02E",
+  yape: "#742284",      // Morado Yape
+  plin: "#00C8F8",      // Celeste Plin
+  transfer: "#3b82f6",  // Azul
+  transferencia: "#3b82f6",
+  cash: "#FFB02E",      // Amarillo/Naranja
   efectivo: "#FFB02E",
-  other: "#8aa394",
-  otro: "#8aa394",
+  credit: "#e74c3c",    // Rojo
+  credito: "#e74c3c",
+  debit: "#9b59b6",     // Violeta
+  debito: "#9b59b6",
+  deposit: "#1abc9c",   // Turquesa
+  deposito: "#1abc9c",
+  other: "#95a5a6",     // Gris
+  otro: "#95a5a6",
 };
 
+// Labels en español
 const METHOD_LABELS: Record<string, string> = {
   yape: "Yape",
   plin: "Plin",
-  transfer: "Transfer",
-  transferencia: "Transfer",
+  transfer: "Transferencia",
+  transferencia: "Transferencia",
   cash: "Efectivo",
   efectivo: "Efectivo",
+  credit: "Credito",
+  credito: "Credito",
+  debit: "Debito",
+  debito: "Debito",
+  deposit: "Deposito",
+  deposito: "Deposito",
   other: "Otro",
   otro: "Otro",
 };
@@ -118,14 +131,27 @@ export default function Reports() {
     });
 
     const total = payments.length;
-    return Object.entries(methodCounts)
+    const totalAmount = Object.values(methodAmounts).reduce((sum, amt) => sum + amt, 0);
+
+    // Calculate percentages and ensure they sum to 100%
+    const methods = Object.entries(methodCounts)
       .map(([method, count]) => ({
         name: METHOD_LABELS[method] || method.charAt(0).toUpperCase() + method.slice(1),
         percentage: Math.round((count / total) * 100),
         amount: methodAmounts[method],
+        count: count,
         color: METHOD_COLORS[method] || METHOD_COLORS.other,
       }))
-      .sort((a, b) => b.percentage - a.percentage);
+      .sort((a, b) => b.amount - a.amount); // Ordenar por monto, no por porcentaje
+
+    // Ajustar porcentajes para que sumen exactamente 100%
+    const totalPercentage = methods.reduce((sum, m) => sum + m.percentage, 0);
+    if (totalPercentage !== 100 && methods.length > 0) {
+      const diff = 100 - totalPercentage;
+      methods[0].percentage += diff; // Ajustar el primero
+    }
+
+    return methods;
   }, [payments]);
 
   // Generate daily data for chart
@@ -205,20 +231,40 @@ export default function Reports() {
     const now = new Date();
     const startDate = startOfMonth(now);
 
+    // Calcular montos por estado
     const confirmedPayments = payments.filter(p => p.status === 'confirmed');
     const pendingPayments = payments.filter(p => p.status === 'pending');
+    const rejectedPayments = payments.filter(p => p.status === 'rejected');
 
-    // Prepare top clients data for PDF
+    const confirmedAmount = confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const pendingAmount = pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const rejectedAmount = rejectedPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // Prepare top clients data for PDF con estado de pendientes
     const topClientsForPDF = topContacts?.map(contact => {
       const totalAmount = topContacts.reduce((sum, c) => sum + (c.total_paid || 0), 0);
       const percentage = totalAmount > 0 ? Math.round(((contact.total_paid || 0) / totalAmount) * 100) : 0;
+
+      // Verificar si el cliente tiene pagos pendientes
+      const clientPendingPayments = pendingPayments.filter(p => p.contact?.name === contact.name);
+      const hasPending = clientPendingPayments.length > 0;
+
       return {
         name: contact.name,
         totalPaid: contact.total_paid || 0,
         paymentCount: contact.payment_count || 0,
         percentage,
+        hasPending,
       };
     }) || [];
+
+    // Preparar métodos de pago con count
+    const paymentMethodsForPDF = paymentMethodData.map(m => ({
+      name: m.name,
+      percentage: m.percentage,
+      amount: m.amount,
+      count: m.count,
+    }));
 
     const reportData: ReportData = {
       title: 'Reporte de Pagos',
@@ -226,20 +272,20 @@ export default function Reports() {
       dateRange: { from: startDate, to: now },
       summary: {
         totalPayments: payments.length,
-        confirmedAmount: confirmedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-        pendingAmount: pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-        rejectedAmount: 0,
+        confirmedAmount,
+        pendingAmount,
+        rejectedAmount,
         contactsCount: topContacts?.length || 0,
       },
       payments: payments.slice(0, 50).map((p: PaymentWithContact) => ({
         date: p.payment_date || format(new Date(p.created_at), 'dd/MM/yyyy'),
         contact: p.contact?.name || 'Sin contacto',
         amount: p.amount || 0,
-        method: p.method || 'Otro',
+        method: METHOD_LABELS[(p.method || 'otro').toLowerCase()] || p.method || 'Otro',
         status: p.status === 'confirmed' ? 'Confirmado' : p.status === 'pending' ? 'Pendiente' : 'Rechazado',
       })),
-      // New comprehensive data
-      paymentMethods: paymentMethodData,
+      // Datos completos
+      paymentMethods: paymentMethodsForPDF,
       topClients: topClientsForPDF,
       monthlyData: monthlyChartData.map(m => ({ month: m.month, amount: m.amount })),
       trendPercentage: trendPercentage,
