@@ -241,7 +241,7 @@ export default function Contacts() {
               {starredContacts.map((contact) => (
                 <div
                   key={contact.id}
-                  onClick={() => { setSelectedContact(contact); setDialogOpen(true); }}
+                  onClick={() => navigate(`/contacts/${contact.id}`)}
                   className="pt-favorite-card cursor-pointer hover:border-[var(--pt-primary)]/30 transition-all min-w-[140px]"
                 >
                   {/* Avatar with initials */}
@@ -340,7 +340,7 @@ export default function Contacts() {
                     return (
                       <div
                         key={contact.id}
-                        onClick={() => { setSelectedContact(contact); setDialogOpen(true); }}
+                        onClick={() => navigate(`/contacts/${contact.id}`)}
                         className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--pt-border)] bg-[var(--pt-surface)] cursor-pointer hover:bg-[var(--pt-surface-elevated)] transition-all"
                       >
                         {/* Avatar with initials */}
