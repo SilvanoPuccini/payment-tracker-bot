@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { RefreshCw, X, Download } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { RefreshCw, X, Download, AlertTriangle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function PWAUpdatePrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -16,39 +18,60 @@ export function PWAUpdatePrompt() {
       console.log('SW Registered:', r);
     },
     onRegisterError(error) {
-      console.log('SW registration error', error);
+      console.error('SW registration error:', error);
+      setUpdateError('Error al registrar el Service Worker');
+      toast.error('Error al inicializar la aplicacion. Por favor recarga la pagina.');
     },
   });
 
   useEffect(() => {
     if (needRefresh) {
       setShowPrompt(true);
+      setUpdateError(null);
     }
   }, [needRefresh]);
 
-  const handleUpdate = () => {
-    updateServiceWorker(true);
+  const handleUpdate = async () => {
+    try {
+      setIsUpdating(true);
+      setUpdateError(null);
+      await updateServiceWorker(true);
+    } catch (error) {
+      console.error('Error updating service worker:', error);
+      setUpdateError('Error al actualizar. Intenta recargar la pagina.');
+      setIsUpdating(false);
+      toast.error('Error al actualizar la aplicacion');
+    }
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
     setNeedRefresh(false);
+    setUpdateError(null);
   };
 
   if (!showPrompt) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 flex justify-center sm:left-auto sm:right-4 sm:w-auto">
-      <Card className="glass-card border-emerald-500/50 shadow-lg animate-slide-up w-full sm:w-auto">
+      <Card className={`glass-card shadow-lg animate-slide-up w-full sm:w-auto ${updateError ? 'border-red-500/50' : 'border-emerald-500/50'}`}>
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20 shrink-0">
-              <RefreshCw className="h-5 w-5 text-emerald-500" />
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg shrink-0 ${updateError ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
+              {updateError ? (
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+              ) : isUpdating ? (
+                <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+              ) : (
+                <RefreshCw className="h-5 w-5 text-emerald-500" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-foreground text-sm">Nueva version disponible</p>
+              <p className="font-medium text-foreground text-sm">
+                {updateError ? 'Error al actualizar' : isUpdating ? 'Actualizando...' : 'Nueva version disponible'}
+              </p>
               <p className="text-xs text-muted-foreground">
-                Actualiza para obtener las mejoras
+                {updateError || (isUpdating ? 'Por favor espera' : 'Actualiza para obtener las mejoras')}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -57,16 +80,29 @@ export function PWAUpdatePrompt() {
                 size="icon"
                 className="h-8 w-8"
                 onClick={handleDismiss}
+                disabled={isUpdating}
               >
                 <X className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
-                className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                onClick={handleUpdate}
+                className={updateError ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}
+                onClick={updateError ? () => window.location.reload() : handleUpdate}
+                disabled={isUpdating}
               >
-                <Download className="h-4 w-4 mr-1" />
-                Actualizar
+                {isUpdating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : updateError ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Recargar
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-1" />
+                    Actualizar
+                  </>
+                )}
               </Button>
             </div>
           </div>
