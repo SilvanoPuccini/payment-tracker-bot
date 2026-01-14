@@ -35,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { formatCurrencySimple, getCurrencySymbol } from "@/lib/currency";
 
 // Avatar colors based on name
 const AVATAR_COLORS = [
@@ -67,10 +68,11 @@ export default function Contacts() {
   const deleteContact = useDeleteContact();
 
   const userCurrency = profile?.currency || 'PEN';
-  const currencySymbol = userCurrency === 'PEN' ? 'S/' : userCurrency === 'USD' ? '$' : userCurrency;
 
+  // Format currency using user's default currency
+  // Note: Contact totals don't have currency info, so we use user's default
   const formatCurrency = (amount: number) => {
-    return `${currencySymbol}${amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
+    return formatCurrencySimple(amount, userCurrency);
   };
 
   // Filter contacts
@@ -238,20 +240,31 @@ export default function Contacts() {
               </button>
             </div>
             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
-              {starredContacts.map((contact) => (
+              {starredContacts.map((contact) => {
+                const avatarUrl = (contact.custom_fields as { avatar_url?: string } | null)?.avatar_url;
+
+                return (
                 <div
                   key={contact.id}
                   onClick={() => navigate(`/contacts/${contact.id}`)}
                   className="pt-favorite-card cursor-pointer hover:border-[var(--pt-primary)]/30 transition-all min-w-[140px]"
                 >
-                  {/* Avatar with initials */}
+                  {/* Avatar with image or initials */}
                   <div className="relative">
-                    <div className={cn(
-                      "w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg bg-gradient-to-br",
-                      getAvatarColor(contact.name)
-                    )}>
-                      {getInitials(contact.name)}
-                    </div>
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={contact.name}
+                        className="w-16 h-16 rounded-full object-cover shadow-lg"
+                      />
+                    ) : (
+                      <div className={cn(
+                        "w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg bg-gradient-to-br",
+                        getAvatarColor(contact.name)
+                      )}>
+                        {getInitials(contact.name)}
+                      </div>
+                    )}
                     {/* Status indicator - green dot for active */}
                     <div className={cn(
                       "absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-[var(--pt-bg)]",
@@ -282,7 +295,8 @@ export default function Contacts() {
                     </p>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}
@@ -336,6 +350,7 @@ export default function Contacts() {
                   {groupedContacts[letter].map((contact, index) => {
                     const hasPending = (contact.pending_amount || 0) > 0;
                     const globalIndex = letterIndex * 10 + index;
+                    const avatarUrl = (contact.custom_fields as { avatar_url?: string } | null)?.avatar_url;
 
                     return (
                       <div
@@ -343,9 +358,15 @@ export default function Contacts() {
                         onClick={() => navigate(`/contacts/${contact.id}`)}
                         className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--pt-border)] bg-[var(--pt-surface)] cursor-pointer hover:bg-[var(--pt-surface-elevated)] transition-all"
                       >
-                        {/* Avatar with initials */}
+                        {/* Avatar with image or initials */}
                         <div className="relative shrink-0">
-                          {contact.company ? (
+                          {avatarUrl ? (
+                            <img
+                              src={avatarUrl}
+                              alt={contact.name}
+                              className="w-12 h-12 rounded-full object-cover shadow-md"
+                            />
+                          ) : contact.company ? (
                             <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--pt-surface-elevated)] shadow-md">
                               <Briefcase className="w-5 h-5 text-[var(--pt-primary)]" />
                             </div>

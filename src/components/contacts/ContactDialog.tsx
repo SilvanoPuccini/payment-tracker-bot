@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,12 +21,15 @@ import {
   Camera,
   UserPlus,
   ChevronDown,
+  ImageIcon,
 } from "lucide-react";
 import { useCreateContact, useUpdateContact } from "@/hooks/useContacts";
 import { useLimitedActions } from "@/hooks/useLimitedActions";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
+import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type Contact = Tables<'contacts'>;
 
@@ -57,10 +60,26 @@ const validateEmail = (email: string) => {
   return { valid: true, error: null };
 };
 
+// Avatar colors
+const AVATAR_COLORS = [
+  'from-blue-500 to-blue-600',
+  'from-purple-500 to-purple-600',
+  'from-pink-500 to-pink-600',
+  'from-teal-500 to-teal-600',
+  'from-orange-500 to-orange-600',
+  'from-emerald-500 to-emerald-600',
+];
+
+const getAvatarColor = (name: string) => {
+  const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+};
+
 export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProps) {
   const isEditing = !!contact;
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     showUpgradeModal,
     limitReached,
@@ -80,6 +99,10 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
     status: "active" as string,
     is_starred: false,
   });
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [touched, setTouched] = useState({
     name: false,
@@ -110,6 +133,10 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
         status: contact.status || "active",
         is_starred: contact.is_starred || false,
       });
+      // Get avatar_url from custom_fields if exists
+      const customFields = contact.custom_fields as { avatar_url?: string } | null;
+      setAvatarUrl(customFields?.avatar_url || null);
+      setAvatarPreview(customFields?.avatar_url || null);
       setTouched({ name: true, phone: true, email: true });
     } else {
       setFormData({
@@ -122,9 +149,66 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
         status: "active",
         is_starred: false,
       });
+      setAvatarUrl(null);
+      setAvatarPreview(null);
       setTouched({ name: false, phone: false, email: false });
     }
   }, [contact, open]);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Por favor selecciona una imagen");
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("La imagen debe ser menor a 2MB");
+      return;
+    }
+
+    // Show preview immediately
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+
+    // Upload to Supabase Storage
+    setUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `contact-${Date.now()}.${fileExt}`;
+      const filePath = `contact-avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setAvatarUrl(publicUrl);
+      toast.success("Imagen cargada correctamente");
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      toast.error("Error al subir la imagen");
+      setAvatarPreview(avatarUrl); // Revert to previous
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,15 +219,21 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
     if (!isFormValid) return;
 
     try {
+      // Include avatar_url in custom_fields
+      const dataToSubmit = {
+        ...formData,
+        custom_fields: avatarUrl ? { avatar_url: avatarUrl } : null,
+      };
+
       if (isEditing && contact) {
         await updateContact.mutateAsync({
           id: contact.id,
-          ...formData,
+          ...dataToSubmit,
         });
         onOpenChange(false);
       } else {
         const result = await checkAndExecute("contacts", async () => {
-          return await createContact.mutateAsync(formData);
+          return await createContact.mutateAsync(dataToSubmit);
         });
         if (result) {
           onOpenChange(false);
@@ -200,24 +290,58 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
             {/* Avatar Section */}
             <div className="flex flex-col items-center justify-center mb-2">
               <div className="relative group">
-                <div className="w-24 h-24 rounded-full bg-[var(--pt-surface)] border-2 border-dashed border-[var(--pt-primary)] flex items-center justify-center overflow-hidden">
-                  {formData.name ? (
-                    <span className="text-3xl font-bold text-[var(--pt-primary)]">
-                      {getInitials(formData.name)}
-                    </span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+                <div
+                  onClick={handleAvatarClick}
+                  className={cn(
+                    "w-24 h-24 rounded-full flex items-center justify-center overflow-hidden cursor-pointer transition-all",
+                    avatarPreview
+                      ? "ring-4 ring-[var(--pt-primary)]/30"
+                      : "bg-[var(--pt-surface)] border-2 border-dashed border-[var(--pt-primary)]"
+                  )}
+                >
+                  {uploadingAvatar ? (
+                    <Loader2 className="w-8 h-8 text-[var(--pt-primary)] animate-spin" />
+                  ) : avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : formData.name ? (
+                    <div className={cn(
+                      "w-full h-full flex items-center justify-center bg-gradient-to-br",
+                      getAvatarColor(formData.name)
+                    )}>
+                      <span className="text-3xl font-bold text-white">
+                        {getInitials(formData.name)}
+                      </span>
+                    </div>
                   ) : (
                     <User className="w-10 h-10 text-[var(--pt-primary)]/60" />
                   )}
                 </div>
                 <button
                   type="button"
-                  className="absolute bottom-0 right-0 bg-[var(--pt-primary)] text-white p-2 rounded-full border-4 border-[var(--pt-bg)] shadow-xl flex items-center justify-center hover:bg-[var(--pt-primary-hover)] transition-colors"
+                  onClick={handleAvatarClick}
+                  disabled={uploadingAvatar}
+                  className="absolute bottom-0 right-0 bg-[var(--pt-primary)] text-white p-2 rounded-full border-4 border-[var(--pt-bg)] shadow-xl flex items-center justify-center hover:bg-[var(--pt-primary)]/80 transition-colors disabled:opacity-50"
                 >
-                  <Camera className="w-4 h-4" />
+                  {uploadingAvatar ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
                 </button>
               </div>
               <p className="mt-3 text-xs font-semibold text-[var(--pt-primary)]/80">
-                Anadir foto de perfil
+                {avatarPreview ? "Cambiar foto" : "Anadir foto de perfil"}
               </p>
             </div>
 
