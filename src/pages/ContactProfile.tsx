@@ -151,6 +151,7 @@ export default function ContactProfile() {
   }
 
   const contact = contactData;
+  const avatarUrl = (contact.custom_fields as { avatar_url?: string } | null)?.avatar_url;
   const clientSince = contact.created_at
     ? format(new Date(contact.created_at), "'Cliente desde' MMM yyyy", { locale: es })
     : 'Cliente nuevo';
@@ -179,12 +180,20 @@ export default function ContactProfile() {
         <div className="flex flex-col items-center animate-slide-up">
           {/* Avatar */}
           <div className="relative mb-4">
-            <div className={cn(
-              "w-28 h-28 rounded-full flex items-center justify-center text-white font-bold text-3xl shadow-lg bg-gradient-to-br ring-4 ring-[var(--pt-primary)]/20 ring-offset-2 ring-offset-[var(--pt-bg)]",
-              getAvatarColor(contact.name)
-            )}>
-              {getInitials(contact.name)}
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={contact.name}
+                className="w-28 h-28 rounded-full object-cover shadow-lg ring-4 ring-[var(--pt-primary)]/20 ring-offset-2 ring-offset-[var(--pt-bg)]"
+              />
+            ) : (
+              <div className={cn(
+                "w-28 h-28 rounded-full flex items-center justify-center text-white font-bold text-3xl shadow-lg bg-gradient-to-br ring-4 ring-[var(--pt-primary)]/20 ring-offset-2 ring-offset-[var(--pt-bg)]",
+                getAvatarColor(contact.name)
+              )}>
+                {getInitials(contact.name)}
+              </div>
+            )}
             {contact.status === 'active' && (
               <div className="absolute bottom-1 right-1 bg-[var(--pt-primary)] border-2 border-[var(--pt-bg)] rounded-full w-7 h-7 flex items-center justify-center">
                 <Check className="w-4 h-4 text-white" strokeWidth={3} />
