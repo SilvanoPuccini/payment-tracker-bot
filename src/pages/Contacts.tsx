@@ -36,33 +36,21 @@ import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
-// Avatar images - realistic profile photos
-const AVATAR_IMAGES = [
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face",
-  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
-  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face",
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face",
+// Avatar colors based on name
+const AVATAR_COLORS = [
+  'from-blue-500 to-blue-600',
+  'from-purple-500 to-purple-600',
+  'from-pink-500 to-pink-600',
+  'from-teal-500 to-teal-600',
+  'from-orange-500 to-orange-600',
+  'from-emerald-500 to-emerald-600',
+  'from-indigo-500 to-indigo-600',
+  'from-rose-500 to-rose-600',
 ];
 
-const getAvatarImage = (name: string) => {
-  // Generate a consistent index based on name
+const getAvatarColor = (name: string) => {
   const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return AVATAR_IMAGES[hash % AVATAR_IMAGES.length];
-};
-
-const getAvatarColor = (index: number) => {
-  const colors = [
-    'bg-gradient-to-br from-blue-500 to-blue-600',
-    'bg-gradient-to-br from-purple-500 to-purple-600',
-    'bg-gradient-to-br from-pink-500 to-pink-600',
-    'bg-gradient-to-br from-teal-500 to-teal-600',
-    'bg-gradient-to-br from-orange-500 to-orange-600',
-  ];
-  return colors[index % colors.length];
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 };
 
 export default function Contacts() {
@@ -256,27 +244,15 @@ export default function Contacts() {
                   onClick={() => navigate(`/contacts/${contact.id}`)}
                   className="pt-favorite-card cursor-pointer hover:border-[var(--pt-primary)]/30 transition-all min-w-[140px]"
                 >
-                  {/* Avatar with image */}
+                  {/* Avatar with initials */}
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-full overflow-hidden shadow-lg ring-2 ring-[var(--pt-border)]">
-                      <img
-                        src={getAvatarImage(contact.name)}
-                        alt={contact.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Fallback to initials on error
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                      <div className={cn(
-                        "hidden w-full h-full flex items-center justify-center text-white font-bold text-lg",
-                        getAvatarColor(contact.name.charCodeAt(0))
-                      )}>
-                        {getInitials(contact.name)}
-                      </div>
+                    <div className={cn(
+                      "w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg bg-gradient-to-br",
+                      getAvatarColor(contact.name)
+                    )}>
+                      {getInitials(contact.name)}
                     </div>
-                    {/* Status indicator */}
+                    {/* Status indicator - green dot for active */}
                     <div className={cn(
                       "absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-[var(--pt-bg)]",
                       contact.status === 'active' ? "bg-[var(--pt-primary)]" : "bg-gray-500"
@@ -288,12 +264,12 @@ export default function Contacts() {
                     {contact.name.split(' ').slice(0, 2).join(' ')}
                   </p>
 
-                  {/* Amount */}
+                  {/* Amount - total paid */}
                   <p className="text-[var(--pt-primary)] font-bold text-base">
                     {formatCurrency(contact.total_paid || 0)}
                   </p>
 
-                  {/* Trust Score */}
+                  {/* Trust Score bar */}
                   <div className="w-full">
                     <div className="pt-progress h-1.5">
                       <div
@@ -301,7 +277,7 @@ export default function Contacts() {
                         style={{ width: `${contact.reliability_score || 100}%` }}
                       />
                     </div>
-                    <p className="text-[10px] text-[var(--pt-text-muted)] text-center mt-1 tracking-wider">
+                    <p className="text-[10px] text-[var(--pt-text-muted)] text-center mt-1 tracking-wider font-medium">
                       TRUST {contact.reliability_score || 100}/100
                     </p>
                   </div>
@@ -367,29 +343,18 @@ export default function Contacts() {
                         onClick={() => navigate(`/contacts/${contact.id}`)}
                         className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--pt-border)] bg-[var(--pt-surface)] cursor-pointer hover:bg-[var(--pt-surface-elevated)] transition-all"
                       >
-                        {/* Avatar with image */}
+                        {/* Avatar with initials */}
                         <div className="relative shrink-0">
                           {contact.company ? (
                             <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--pt-surface-elevated)] shadow-md">
-                              <Briefcase className="w-5 h-5 text-[var(--pt-text-secondary)]" />
+                              <Briefcase className="w-5 h-5 text-[var(--pt-primary)]" />
                             </div>
                           ) : (
-                            <div className="w-12 h-12 rounded-full overflow-hidden shadow-md">
-                              <img
-                                src={getAvatarImage(contact.name)}
-                                alt={contact.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                }}
-                              />
-                              <div className={cn(
-                                "hidden w-full h-full flex items-center justify-center text-white font-bold text-sm",
-                                getAvatarColor(globalIndex)
-                              )}>
-                                {getInitials(contact.name)}
-                              </div>
+                            <div className={cn(
+                              "w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md bg-gradient-to-br",
+                              getAvatarColor(contact.name)
+                            )}>
+                              {getInitials(contact.name)}
                             </div>
                           )}
                         </div>
