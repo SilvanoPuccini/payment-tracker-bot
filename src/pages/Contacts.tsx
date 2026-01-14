@@ -36,6 +36,24 @@ import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
+// Avatar images - realistic profile photos
+const AVATAR_IMAGES = [
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face",
+];
+
+const getAvatarImage = (name: string) => {
+  // Generate a consistent index based on name
+  const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return AVATAR_IMAGES[hash % AVATAR_IMAGES.length];
+};
+
 const getAvatarColor = (index: number) => {
   const colors = [
     'bg-gradient-to-br from-blue-500 to-blue-600',
@@ -232,30 +250,46 @@ export default function Contacts() {
               </button>
             </div>
             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
-              {starredContacts.map((contact, index) => (
+              {starredContacts.map((contact) => (
                 <div
                   key={contact.id}
                   onClick={() => navigate(`/contacts/${contact.id}`)}
-                  className="pt-favorite-card cursor-pointer hover:border-[var(--pt-primary)]/30 transition-all"
+                  className="pt-favorite-card cursor-pointer hover:border-[var(--pt-primary)]/30 transition-all min-w-[140px]"
                 >
-                  {/* Avatar */}
+                  {/* Avatar with image */}
                   <div className="relative">
-                    <div className={cn(
-                      "w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg",
-                      getAvatarColor(index)
-                    )}>
-                      {getInitials(contact.name)}
+                    <div className="w-16 h-16 rounded-full overflow-hidden shadow-lg ring-2 ring-[var(--pt-border)]">
+                      <img
+                        src={getAvatarImage(contact.name)}
+                        alt={contact.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to initials on error
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                      <div className={cn(
+                        "hidden w-full h-full flex items-center justify-center text-white font-bold text-lg",
+                        getAvatarColor(contact.name.charCodeAt(0))
+                      )}>
+                        {getInitials(contact.name)}
+                      </div>
                     </div>
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-[var(--pt-primary)] rounded-full border-2 border-[var(--pt-bg)]" />
+                    {/* Status indicator */}
+                    <div className={cn(
+                      "absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-[var(--pt-bg)]",
+                      contact.status === 'active' ? "bg-[var(--pt-primary)]" : "bg-gray-500"
+                    )} />
                   </div>
 
                   {/* Name */}
-                  <p className="font-semibold text-sm text-white text-center truncate w-full">
-                    {contact.name.split(' ')[0]}
+                  <p className="font-semibold text-sm text-white text-center truncate w-full mt-2">
+                    {contact.name.split(' ').slice(0, 2).join(' ')}
                   </p>
 
                   {/* Amount */}
-                  <p className="text-[var(--pt-primary)] font-bold text-sm">
+                  <p className="text-[var(--pt-primary)] font-bold text-base">
                     {formatCurrency(contact.total_paid || 0)}
                   </p>
 
@@ -267,7 +301,7 @@ export default function Contacts() {
                         style={{ width: `${contact.reliability_score || 100}%` }}
                       />
                     </div>
-                    <p className="text-[10px] text-[var(--pt-text-muted)] text-center mt-1">
+                    <p className="text-[10px] text-[var(--pt-text-muted)] text-center mt-1 tracking-wider">
                       TRUST {contact.reliability_score || 100}/100
                     </p>
                   </div>
@@ -333,18 +367,31 @@ export default function Contacts() {
                         onClick={() => navigate(`/contacts/${contact.id}`)}
                         className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--pt-border)] bg-[var(--pt-surface)] cursor-pointer hover:bg-[var(--pt-surface-elevated)] transition-all"
                       >
-                        {/* Avatar */}
-                        <div className="relative">
-                          <div className={cn(
-                            "w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md",
-                            contact.company ? "bg-[var(--pt-surface-elevated)]" : getAvatarColor(globalIndex)
-                          )}>
-                            {contact.company ? (
+                        {/* Avatar with image */}
+                        <div className="relative shrink-0">
+                          {contact.company ? (
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--pt-surface-elevated)] shadow-md">
                               <Briefcase className="w-5 h-5 text-[var(--pt-text-secondary)]" />
-                            ) : (
-                              getInitials(contact.name)
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-full overflow-hidden shadow-md">
+                              <img
+                                src={getAvatarImage(contact.name)}
+                                alt={contact.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <div className={cn(
+                                "hidden w-full h-full flex items-center justify-center text-white font-bold text-sm",
+                                getAvatarColor(globalIndex)
+                              )}>
+                                {getInitials(contact.name)}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Info */}
@@ -357,8 +404,11 @@ export default function Contacts() {
                               <Star className="w-4 h-4 fill-[var(--pt-yellow)] text-[var(--pt-yellow)]" />
                             )}
                           </div>
-                          <p className="text-xs text-[var(--pt-text-secondary)]">
-                            {contact.payment_count || 0} pagos completados
+                          <p className={cn(
+                            "text-xs",
+                            hasPending ? "text-[var(--pt-yellow)]" : "text-[var(--pt-text-secondary)]"
+                          )}>
+                            {hasPending ? 'Pago pendiente' : `${contact.payment_count || 0} pagos completados`}
                           </p>
                         </div>
 
