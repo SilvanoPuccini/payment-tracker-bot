@@ -23,6 +23,7 @@ import Index from "./pages/Index";
 import Messages from "./pages/Messages";
 import Payments from "./pages/Payments";
 import Contacts from "./pages/Contacts";
+import ContactProfile from "./pages/ContactProfile";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
@@ -92,6 +93,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Contacts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contacts/:id"
+              element={
+                <ProtectedRoute>
+                  <ContactProfile />
                 </ProtectedRoute>
               }
             />
