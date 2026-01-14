@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { cn } from "@/lib/utils";
+import { formatCurrencyWithCode, getCurrencySymbol } from "@/lib/currency";
 import { format, formatDistanceToNow, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -58,11 +59,6 @@ export default function ContactProfile() {
   const { data: allPayments } = usePayments();
 
   const userCurrency = profile?.currency || 'USD';
-  const currencySymbol = userCurrency === 'PEN' ? 'S/' : userCurrency === 'USD' ? '$' : userCurrency === 'ARS' ? '$' : userCurrency;
-
-  const formatCurrency = (amount: number) => {
-    return `${currencySymbol}${amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
-  };
 
   // Get payments for this contact
   const contactPayments = useMemo(() => {
@@ -72,22 +68,61 @@ export default function ContactProfile() {
     );
   }, [allPayments, id]);
 
-  // Calculate stats
+  // Calculate stats grouped by currency
+  const statsByCurrency = useMemo(() => {
+    const stats: Record<string, { paid: number; pending: number }> = {};
+
+    contactPayments.forEach(payment => {
+      const currency = payment.currency || userCurrency;
+      if (!stats[currency]) {
+        stats[currency] = { paid: 0, pending: 0 };
+      }
+
+      if (payment.status === 'confirmed') {
+        stats[currency].paid += Number(payment.amount);
+      } else if (payment.status === 'pending') {
+        stats[currency].pending += Number(payment.amount);
+      }
+    });
+
+    return stats;
+  }, [contactPayments, userCurrency]);
+
+  // Get primary currency (most used)
+  const primaryCurrency = useMemo(() => {
+    const currencies = Object.keys(statsByCurrency);
+    if (currencies.length === 0) return userCurrency;
+
+    // Sort by total amount
+    return currencies.sort((a, b) => {
+      const totalA = statsByCurrency[a].paid + statsByCurrency[a].pending;
+      const totalB = statsByCurrency[b].paid + statsByCurrency[b].pending;
+      return totalB - totalA;
+    })[0];
+  }, [statsByCurrency, userCurrency]);
+
+  // Calculate overall stats
   const stats = useMemo(() => {
-    const totalPaid = contactPayments
-      .filter(p => p.status === 'confirmed')
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-
-    const totalPending = contactPayments
-      .filter(p => p.status === 'pending')
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-
     const confirmedCount = contactPayments.filter(p => p.status === 'confirmed').length;
     const totalCount = contactPayments.length;
     const reliability = totalCount > 0 ? Math.round((confirmedCount / totalCount) * 100) : 100;
 
-    return { totalPaid, totalPending, reliability };
-  }, [contactPayments]);
+    // Get totals for primary currency
+    const primaryStats = statsByCurrency[primaryCurrency] || { paid: 0, pending: 0 };
+
+    return {
+      totalPaid: primaryStats.paid,
+      totalPending: primaryStats.pending,
+      reliability,
+      primaryCurrency,
+      hasMultipleCurrencies: Object.keys(statsByCurrency).length > 1
+    };
+  }, [contactPayments, statsByCurrency, primaryCurrency]);
+
+  // Helper to format amount with correct currency
+  const formatAmount = (amount: number, currency: string) => {
+    return formatCurrencyWithCode(amount, currency);
+  };
 
   // Calculate chart data (last 6 months)
   const chartData = useMemo(() => {
@@ -246,14 +281,14 @@ export default function ContactProfile() {
         <div className="grid grid-cols-3 gap-3 animate-slide-up" style={{ animationDelay: '100ms' }}>
           <div className="flex flex-col gap-1 rounded-xl p-4 bg-[var(--pt-surface)] border border-[var(--pt-border)]">
             <span className="text-[var(--pt-text-muted)] text-xs font-medium">Pagado</span>
-            <span className="text-[var(--pt-primary)] tracking-tight text-lg font-bold leading-none">
-              {formatCurrency(stats.totalPaid)}
+            <span className="text-[var(--pt-primary)] tracking-tight text-base font-bold leading-none">
+              {formatAmount(stats.totalPaid, stats.primaryCurrency)}
             </span>
           </div>
           <div className="flex flex-col gap-1 rounded-xl p-4 bg-[var(--pt-surface)] border border-[var(--pt-border)]">
             <span className="text-[var(--pt-text-muted)] text-xs font-medium">Pendiente</span>
-            <span className="text-[var(--pt-yellow)] tracking-tight text-lg font-bold leading-none">
-              {formatCurrency(stats.totalPending)}
+            <span className="text-[var(--pt-yellow)] tracking-tight text-base font-bold leading-none">
+              {formatAmount(stats.totalPending, stats.primaryCurrency)}
             </span>
           </div>
           <div className="flex flex-col gap-1 rounded-xl p-4 bg-[var(--pt-surface)] border border-[var(--pt-border)]">
@@ -275,7 +310,7 @@ export default function ContactProfile() {
               <p className="text-xs text-[var(--pt-text-muted)] mt-1">Ultimos 6 meses</p>
             </div>
             <div className="text-right">
-              <p className="text-xl font-bold text-white">{formatCurrency(stats.totalPaid + stats.totalPending)}</p>
+              <p className="text-xl font-bold text-white">{formatAmount(stats.totalPaid + stats.totalPending, stats.primaryCurrency)}</p>
               <p className="text-[10px] uppercase tracking-wider text-[var(--pt-primary)] font-bold">TOTAL</p>
             </div>
           </div>
@@ -301,7 +336,7 @@ export default function ContactProfile() {
                   >
                     {hasValue && (
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                        {formatCurrency(data.amount)}
+                        {formatAmount(data.amount, stats.primaryCurrency)}
                       </div>
                     )}
                   </div>
@@ -371,7 +406,7 @@ export default function ContactProfile() {
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className="text-sm font-bold text-white">
-                        {formatCurrency(Number(payment.amount))}
+                        {formatAmount(Number(payment.amount), payment.currency || userCurrency)}
                       </span>
                       <span className={cn(
                         "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium",

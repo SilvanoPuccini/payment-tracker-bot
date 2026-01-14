@@ -121,6 +121,32 @@ export function getCurrencyOptions() {
   }));
 }
 
-export function getCurrencySymbol(currency: CurrencyCode): string {
-  return CURRENCIES[currency]?.symbol || currency;
+export function getCurrencySymbol(currency: CurrencyCode | string): string {
+  return CURRENCIES[currency as CurrencyCode]?.symbol || '$';
+}
+
+/**
+ * Format amount with currency symbol and code
+ * Example: "$10,000 EUR" or "S/1,000 PEN"
+ */
+export function formatCurrencyWithCode(amount: number, currency: string): string {
+  const symbol = getCurrencySymbol(currency as CurrencyCode);
+  const formattedAmount = amount.toLocaleString('es-PE', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
+  return `${symbol}${formattedAmount} ${currency}`;
+}
+
+/**
+ * Format amount with simple symbol (no code)
+ * Example: "€10,000.00" or "S/1,000.00"
+ */
+export function formatCurrencySimple(amount: number, currency: string): string {
+  const symbol = getCurrencySymbol(currency as CurrencyCode);
+  const formattedAmount = amount.toLocaleString('es-PE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  return `${symbol}${formattedAmount}`;
 }

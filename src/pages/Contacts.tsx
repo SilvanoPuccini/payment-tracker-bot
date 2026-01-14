@@ -35,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { formatCurrencySimple, getCurrencySymbol } from "@/lib/currency";
 
 // Avatar colors based on name
 const AVATAR_COLORS = [
@@ -67,10 +68,11 @@ export default function Contacts() {
   const deleteContact = useDeleteContact();
 
   const userCurrency = profile?.currency || 'PEN';
-  const currencySymbol = userCurrency === 'PEN' ? 'S/' : userCurrency === 'USD' ? '$' : userCurrency;
 
+  // Format currency using user's default currency
+  // Note: Contact totals don't have currency info, so we use user's default
   const formatCurrency = (amount: number) => {
-    return `${currencySymbol}${amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
+    return formatCurrencySimple(amount, userCurrency);
   };
 
   // Filter contacts
