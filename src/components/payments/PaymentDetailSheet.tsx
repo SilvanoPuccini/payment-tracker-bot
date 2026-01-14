@@ -3,6 +3,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import {
   ArrowLeft,
@@ -232,6 +233,7 @@ export function PaymentDetailSheet({
         className="bg-[var(--pt-bg)] border-0 rounded-t-3xl h-[95vh] overflow-y-auto p-0"
       >
         <SheetTitle className="sr-only">Detalle de Transacción</SheetTitle>
+        <SheetDescription className="sr-only">Vista detallada del pago con información y acciones</SheetDescription>
 
         {/* Top App Bar */}
         <div className="sticky top-0 z-50 flex items-center bg-[var(--pt-bg)]/95 backdrop-blur-md p-4 justify-between border-b border-white/5">
