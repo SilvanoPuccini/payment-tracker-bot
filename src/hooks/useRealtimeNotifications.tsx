@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
@@ -16,106 +16,119 @@ export function useRealtimeNotifications() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const showPaymentNotification = useCallback((payment: Record<string, unknown>) => {
-    const amount = payment.amount as number;
-    const currency = (payment.currency as string) || 'PEN';
-    const status = payment.status as string;
+  // Use refs to avoid re-creating subscriptions when callbacks change
+  const navigateRef = useRef(navigate);
+  const queryClientRef = useRef(queryClient);
 
-    if (status === 'confirmed') {
-      toast.success(
-        <div className="flex flex-col gap-1">
-          <span className="font-medium">Pago confirmado</span>
-          <span className="text-sm">{currency} {amount?.toFixed(2)}</span>
-        </div>,
-        {
-          action: {
-            label: 'Ver',
-            onClick: () => navigate('/payments'),
-          },
-          duration: 5000,
-        }
-      );
-    } else if (status === 'pending') {
-      toast.info(
-        <div className="flex flex-col gap-1">
-          <span className="font-medium">Nuevo pago detectado</span>
-          <span className="text-sm">{currency} {amount?.toFixed(2)}</span>
-        </div>,
-        {
-          action: {
-            label: 'Ver',
-            onClick: () => navigate('/payments'),
-          },
-          duration: 5000,
-        }
-      );
-    }
+  // Update refs when values change
+  useEffect(() => {
+    navigateRef.current = navigate;
   }, [navigate]);
 
-  const showNotification = useCallback((notification: Record<string, unknown>) => {
-    const type = notification.type as string;
-    const title = notification.title as string;
-    const message = notification.message as string;
-
-    const getIcon = () => {
-      switch (type) {
-        case 'payment_received':
-        case 'payment_confirmed':
-          return '💰';
-        case 'reminder_sent':
-          return '🔔';
-        case 'reminder_failed':
-          return '⚠️';
-        case 'promise_due':
-        case 'promise_overdue':
-          return '📅';
-        case 'message_received':
-          return '💬';
-        default:
-          return '📌';
-      }
-    };
-
-    toast(
-      <div className="flex items-start gap-2">
-        <span className="text-lg">{getIcon()}</span>
-        <div className="flex flex-col gap-0.5">
-          <span className="font-medium">{title}</span>
-          {message && <span className="text-sm text-muted-foreground">{message}</span>}
-        </div>
-      </div>,
-      {
-        duration: 5000,
-      }
-    );
-  }, []);
-
-  const showMessageNotification = useCallback((message: Record<string, unknown>) => {
-    const content = message.content as string;
-    const isPaymentRelated = message.is_payment_related as boolean;
-
-    toast(
-      <div className="flex items-start gap-2">
-        <span className="text-lg">{isPaymentRelated ? '💰' : '💬'}</span>
-        <div className="flex flex-col gap-0.5">
-          <span className="font-medium">Nuevo mensaje</span>
-          <span className="text-sm text-muted-foreground line-clamp-2">{content}</span>
-        </div>
-      </div>,
-      {
-        action: {
-          label: 'Ver',
-          onClick: () => navigate('/messages'),
-        },
-        duration: 5000,
-      }
-    );
-  }, [navigate]);
+  useEffect(() => {
+    queryClientRef.current = queryClient;
+  }, [queryClient]);
 
   useEffect(() => {
     if (!user?.id) return;
 
     console.log('Setting up realtime notifications for user:', user.id);
+
+    const showPaymentNotification = (payment: Record<string, unknown>) => {
+      const amount = payment.amount as number;
+      const currency = (payment.currency as string) || 'PEN';
+      const status = payment.status as string;
+
+      if (status === 'confirmed') {
+        toast.success(
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">Pago confirmado</span>
+            <span className="text-sm">{currency} {amount?.toFixed(2)}</span>
+          </div>,
+          {
+            action: {
+              label: 'Ver',
+              onClick: () => navigateRef.current('/payments'),
+            },
+            duration: 5000,
+          }
+        );
+      } else if (status === 'pending') {
+        toast.info(
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">Nuevo pago detectado</span>
+            <span className="text-sm">{currency} {amount?.toFixed(2)}</span>
+          </div>,
+          {
+            action: {
+              label: 'Ver',
+              onClick: () => navigateRef.current('/payments'),
+            },
+            duration: 5000,
+          }
+        );
+      }
+    };
+
+    const showNotification = (notification: Record<string, unknown>) => {
+      const type = notification.type as string;
+      const title = notification.title as string;
+      const message = notification.message as string;
+
+      const getIcon = () => {
+        switch (type) {
+          case 'payment_received':
+          case 'payment_confirmed':
+            return '💰';
+          case 'reminder_sent':
+            return '🔔';
+          case 'reminder_failed':
+            return '⚠️';
+          case 'promise_due':
+          case 'promise_overdue':
+            return '📅';
+          case 'message_received':
+            return '💬';
+          default:
+            return '📌';
+        }
+      };
+
+      toast(
+        <div className="flex items-start gap-2">
+          <span className="text-lg">{getIcon()}</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium">{title}</span>
+            {message && <span className="text-sm text-muted-foreground">{message}</span>}
+          </div>
+        </div>,
+        {
+          duration: 5000,
+        }
+      );
+    };
+
+    const showMessageNotification = (message: Record<string, unknown>) => {
+      const content = message.content as string;
+      const isPaymentRelated = message.is_payment_related as boolean;
+
+      toast(
+        <div className="flex items-start gap-2">
+          <span className="text-lg">{isPaymentRelated ? '💰' : '💬'}</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium">Nuevo mensaje</span>
+            <span className="text-sm text-muted-foreground line-clamp-2">{content}</span>
+          </div>
+        </div>,
+        {
+          action: {
+            label: 'Ver',
+            onClick: () => navigateRef.current('/messages'),
+          },
+          duration: 5000,
+        }
+      );
+    };
 
     // Subscribe to payments changes
     const paymentsChannel = supabase
@@ -131,8 +144,8 @@ export function useRealtimeNotifications() {
         (payload: RealtimePayload) => {
           console.log('New payment:', payload);
           showPaymentNotification(payload.new);
-          queryClient.invalidateQueries({ queryKey: ['payments'] });
-          queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+          queryClientRef.current.invalidateQueries({ queryKey: ['payments'] });
+          queryClientRef.current.invalidateQueries({ queryKey: ['dashboard-stats'] });
         }
       )
       .on(
@@ -152,8 +165,8 @@ export function useRealtimeNotifications() {
             showPaymentNotification(payload.new);
           }
 
-          queryClient.invalidateQueries({ queryKey: ['payments'] });
-          queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+          queryClientRef.current.invalidateQueries({ queryKey: ['payments'] });
+          queryClientRef.current.invalidateQueries({ queryKey: ['dashboard-stats'] });
         }
       )
       .subscribe();
@@ -172,8 +185,8 @@ export function useRealtimeNotifications() {
         (payload: RealtimePayload) => {
           console.log('New notification:', payload);
           showNotification(payload.new);
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-          queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+          queryClientRef.current.invalidateQueries({ queryKey: ['notifications'] });
+          queryClientRef.current.invalidateQueries({ queryKey: ['unread-notifications-count'] });
         }
       )
       .subscribe();
@@ -194,7 +207,7 @@ export function useRealtimeNotifications() {
           if (payload.new?.sender !== 'user') {
             console.log('New message:', payload);
             showMessageNotification(payload.new);
-            queryClient.invalidateQueries({ queryKey: ['messages'] });
+            queryClientRef.current.invalidateQueries({ queryKey: ['messages'] });
           }
         }
       )
@@ -207,5 +220,5 @@ export function useRealtimeNotifications() {
       supabase.removeChannel(notificationsChannel);
       supabase.removeChannel(messagesChannel);
     };
-  }, [user?.id, queryClient, showPaymentNotification, showNotification, showMessageNotification]);
+  }, [user?.id]); // Only depend on user.id
 }

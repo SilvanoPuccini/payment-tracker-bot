@@ -3,6 +3,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -330,6 +331,9 @@ export function PaymentDialog({ open, onOpenChange, payment, defaultContactId }:
         <SheetTitle className="sr-only">
           {isEditing ? "Editar Pago" : "Registrar Pago"}
         </SheetTitle>
+        <SheetDescription className="sr-only">
+          {isEditing ? "Formulario para editar un pago existente" : "Formulario para registrar un nuevo pago"}
+        </SheetDescription>
 
         {/* Header */}
         <header className="sticky top-0 z-30 bg-[var(--pt-bg)]/95 backdrop-blur-md border-b border-white/5 px-5 py-4 flex items-center justify-between">
