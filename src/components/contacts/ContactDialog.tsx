@@ -2,7 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Switch } from "@/components/ui/switch";
 import {
   Loader2,
@@ -159,7 +162,17 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 gap-0 bg-[var(--pt-bg)] border-[var(--pt-border)] overflow-hidden max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[500px] p-0 gap-0 bg-[var(--pt-bg)] border-[var(--pt-border)] overflow-hidden max-h-[90vh] flex flex-col" aria-describedby="contact-dialog-description">
+        {/* Accessibility - Hidden title and description */}
+        <VisuallyHidden>
+          <DialogTitle>
+            {isEditing ? "Editar Contacto" : "Nuevo Contacto"}
+          </DialogTitle>
+          <DialogDescription id="contact-dialog-description">
+            {isEditing ? "Formulario para modificar los datos del contacto" : "Formulario para crear un nuevo contacto"}
+          </DialogDescription>
+        </VisuallyHidden>
+
         {/* Header */}
         <div className="sticky top-0 z-10 px-5 py-4 flex items-center justify-between bg-[var(--pt-bg)]/95 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center gap-3">
