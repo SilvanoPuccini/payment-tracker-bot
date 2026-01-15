@@ -13,6 +13,7 @@ import { PWAUpdatePrompt, OfflineIndicator, InstallPrompt } from "@/components/p
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Onboarding from "./pages/Onboarding";
+import AuthCallback from "./pages/AuthCallback";
 
 // Public pages
 import Pricing from "./pages/Pricing";
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
 
             {/* Protected routes */}
             <Route
