@@ -5,14 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Zap, Loader2, Lock, AlertCircle, CheckCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Lock, AlertCircle, CheckCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ResetPassword() {
-  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,32 +25,8 @@ export default function ResetPassword() {
     const checkSession = async () => {
       try {
         console.log('ResetPassword: Checking session...');
-        console.log('ResetPassword: URL:', window.location.href);
-        console.log('ResetPassword: Hash:', window.location.hash);
 
-        // Check URL params for code (PKCE flow)
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-
-        if (code) {
-          console.log('ResetPassword: Found code, exchanging...');
-          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-
-          if (exchangeError) {
-            console.error('ResetPassword: Exchange error:', exchangeError);
-            setIsValidSession(false);
-            return;
-          }
-
-          if (data.session) {
-            console.log('ResetPassword: Session established via code');
-            setIsValidSession(true);
-            setIsFromEmail(true);
-            return;
-          }
-        }
-
-        // Check hash params for tokens (implicit flow)
+        // Check hash params for tokens
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
@@ -61,42 +35,67 @@ export default function ResetPassword() {
         console.log('ResetPassword: Hash params - type:', type, 'hasTokens:', !!accessToken);
 
         if (accessToken && refreshToken) {
-          const { error: sessionError } = await supabase.auth.setSession({
+          console.log('ResetPassword: Setting session with tokens...');
+
+          // Set session with timeout
+          const sessionPromise = supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
-          if (sessionError) {
-            console.error('ResetPassword: Session error:', sessionError);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout')), 10000)
+          );
+
+          try {
+            const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+
+            if (result.error) {
+              console.error('ResetPassword: Session error:', result.error);
+              setIsValidSession(false);
+              return;
+            }
+
+            console.log('ResetPassword: Session set successfully!');
+
+            // Clear the hash from URL
+            window.history.replaceState(null, '', window.location.pathname);
+
+            setIsValidSession(true);
+            setIsFromEmail(type === 'recovery');
+            return;
+
+          } catch (err: any) {
+            if (err.message === 'Timeout') {
+              console.log('ResetPassword: Timeout, checking if session exists anyway...');
+
+              const { data: { session } } = await supabase.auth.getSession();
+
+              if (session) {
+                console.log('ResetPassword: Session exists after timeout!');
+                window.history.replaceState(null, '', window.location.pathname);
+                setIsValidSession(true);
+                setIsFromEmail(type === 'recovery');
+                return;
+              }
+            }
+            console.error('ResetPassword: Error:', err);
             setIsValidSession(false);
             return;
           }
-
-          console.log('ResetPassword: Session set from hash tokens');
-          setIsValidSession(true);
-          setIsFromEmail(type === 'recovery');
-          return;
         }
 
-        // Check for existing session
+        // No tokens in hash, check for existing session
+        console.log('ResetPassword: No tokens, checking existing session...');
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('ResetPassword: Existing session?', !!session);
 
         if (session) {
+          console.log('ResetPassword: Found existing session');
           setIsValidSession(true);
-          // If no hash/code, user is changing password from settings
           setIsFromEmail(false);
         } else {
-          // Wait and retry once
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-
-          if (retrySession) {
-            setIsValidSession(true);
-            setIsFromEmail(false);
-          } else {
-            setIsValidSession(false);
-          }
+          console.log('ResetPassword: No session found');
+          setIsValidSession(false);
         }
       } catch (err) {
         console.error('ResetPassword: Error:', err);
@@ -104,7 +103,8 @@ export default function ResetPassword() {
       }
     };
 
-    checkSession();
+    // Small delay to let Supabase initialize
+    setTimeout(checkSession, 100);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,7 +121,6 @@ export default function ResetPassword() {
       return;
     }
 
-    // Check for uppercase, lowercase, and number
     if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
       setError('La contraseña debe tener al menos una mayúscula, una minúscula y un número');
       return;
@@ -147,7 +146,7 @@ export default function ResetPassword() {
       toast.success('Contraseña actualizada correctamente');
 
       setTimeout(() => {
-        navigate('/');
+        navigate('/', { replace: true });
       }, 2000);
     } catch (err) {
       setError('Error al actualizar la contraseña. Intenta de nuevo.');
@@ -266,33 +265,6 @@ export default function ResetPassword() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Only show current password if changing from settings (not from email link) */}
-          {!isFromEmail && (
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword" className="text-xs uppercase tracking-wider text-muted-foreground">
-                Contraseña Actual
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="currentPassword"
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="pl-10 pr-10 h-12 bg-muted/30 border-muted-foreground/20"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">
               Nueva Contraseña
