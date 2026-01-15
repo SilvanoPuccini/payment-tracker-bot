@@ -21,7 +21,9 @@ import {
   Crown,
   CreditCard,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Lock,
+  ChevronRight
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -535,6 +537,36 @@ export default function Settings() {
                   </>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Security Section */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            Seguridad
+          </h2>
+
+          <Card className="glass-card">
+            <CardContent className="pt-6">
+              <button
+                onClick={() => navigate('/reset-password')}
+                className="w-full flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
+                    <Lock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-foreground">Cambiar contraseña</p>
+                    <p className="text-xs text-muted-foreground">
+                      Actualiza tu contraseña de acceso
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </button>
             </CardContent>
           </Card>
         </div>
