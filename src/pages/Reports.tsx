@@ -40,6 +40,7 @@ import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useDashboardStats, useMonthlyStats, useTopContacts } from "@/hooks/useDashboard";
 import { usePaymentStats, usePayments, type PaymentWithContact } from "@/hooks/usePayments";
+import { useSystemMetrics } from "@/hooks/useMessages";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
@@ -107,6 +108,7 @@ export default function Reports() {
   const { data: topContacts, isLoading: loadingContacts } = useTopContacts(5);
   const { data: paymentStats } = usePaymentStats();
   const { data: payments, isLoading: loadingPayments } = usePayments();
+  const { data: systemMetrics } = useSystemMetrics();
 
   const hasNoData = !loadingPayments && (!payments || payments.length === 0);
 
@@ -715,70 +717,152 @@ export default function Reports() {
                   <Bot className="w-5 h-5 text-[var(--pt-primary)]" />
                   <h3 className="text-base font-bold text-white uppercase">Rendimiento del Sistema</h3>
                 </div>
-                <span className="text-[10px] uppercase bg-[var(--pt-primary)]/20 text-[var(--pt-primary)] px-2 py-0.5 rounded-full font-bold">
-                  Operativo
+                <span className={cn(
+                  "text-[10px] uppercase px-2 py-0.5 rounded-full font-bold",
+                  systemMetrics?.isSystemActive
+                    ? "bg-[var(--pt-primary)]/20 text-[var(--pt-primary)]"
+                    : "bg-yellow-500/20 text-yellow-400"
+                )}>
+                  {systemMetrics?.isSystemActive ? "Operativo" : "Sin datos"}
                 </span>
               </div>
               <div className="bg-[var(--pt-surface)] rounded-3xl p-5 border border-[var(--pt-border)] space-y-5">
                 {/* Precision */}
-                <div>
-                  <div className="flex justify-between items-end mb-1">
-                    <span className="text-xs text-[var(--pt-text-secondary)]">Precisión de detección</span>
-                    <span className="text-sm font-bold text-white">94.2%</span>
-                  </div>
-                  <div className="w-full bg-black/30 rounded-full h-1.5">
-                    <div className="bg-[var(--pt-primary)] h-1.5 rounded-full" style={{ width: '94.2%' }} />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: 95%</span>
-                    <span className="text-[9px] text-orange-400">0.8% restante</span>
-                  </div>
-                </div>
+                {(() => {
+                  const precision = systemMetrics?.detectionPrecision || 0;
+                  const target = 95;
+                  const remaining = Math.max(target - precision, 0);
+                  return (
+                    <div>
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-xs text-[var(--pt-text-secondary)]">Precisión de detección</span>
+                        <span className="text-sm font-bold text-white">{precision}%</span>
+                      </div>
+                      <div className="w-full bg-black/30 rounded-full h-1.5">
+                        <div
+                          className={cn(
+                            "h-1.5 rounded-full transition-all",
+                            precision >= target ? "bg-[var(--pt-primary)]" : "bg-yellow-500"
+                          )}
+                          style={{ width: `${Math.min(precision, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: {target}%</span>
+                        {remaining > 0 ? (
+                          <span className="text-[9px] text-orange-400">{remaining.toFixed(1)}% restante</span>
+                        ) : (
+                          <span className="text-[9px] text-[var(--pt-primary)]">Objetivo alcanzado</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Messages Processed */}
-                <div>
-                  <div className="flex justify-between items-end mb-1">
-                    <span className="text-xs text-[var(--pt-text-secondary)]">Mensajes procesados</span>
-                    <span className="text-sm font-bold text-white">98.5%</span>
-                  </div>
-                  <div className="w-full bg-black/30 rounded-full h-1.5">
-                    <div className="bg-[var(--pt-primary)] h-1.5 rounded-full" style={{ width: '98.5%' }} />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: 99%</span>
-                    <span className="text-[9px] text-orange-400">0.5% restante</span>
-                  </div>
-                </div>
+                {(() => {
+                  const processed = systemMetrics?.messagesProcessedRate || 0;
+                  const target = 99;
+                  const remaining = Math.max(target - processed, 0);
+                  return (
+                    <div>
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-xs text-[var(--pt-text-secondary)]">Mensajes procesados</span>
+                        <span className="text-sm font-bold text-white">{processed}%</span>
+                      </div>
+                      <div className="w-full bg-black/30 rounded-full h-1.5">
+                        <div
+                          className={cn(
+                            "h-1.5 rounded-full transition-all",
+                            processed >= target ? "bg-[var(--pt-primary)]" : "bg-yellow-500"
+                          )}
+                          style={{ width: `${Math.min(processed, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: {target}%</span>
+                        {remaining > 0 ? (
+                          <span className="text-[9px] text-orange-400">{remaining.toFixed(1)}% restante</span>
+                        ) : (
+                          <span className="text-[9px] text-[var(--pt-primary)]">Objetivo alcanzado</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Response Time */}
-                <div>
-                  <div className="flex justify-between items-end mb-1">
-                    <span className="text-xs text-[var(--pt-text-secondary)]">Tiempo de respuesta</span>
-                    <span className="text-sm font-bold text-white">87.3%</span>
-                  </div>
-                  <div className="w-full bg-black/30 rounded-full h-1.5">
-                    <div className="bg-[var(--pt-primary)] h-1.5 rounded-full" style={{ width: '87.3%' }} />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: 90%</span>
-                    <span className="text-[9px] text-orange-400">2.7% restante</span>
-                  </div>
-                </div>
+                {(() => {
+                  const responseRate = systemMetrics?.responseTimeRate || 0;
+                  const target = 90;
+                  const remaining = Math.max(target - responseRate, 0);
+                  return (
+                    <div>
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-xs text-[var(--pt-text-secondary)]">Tiempo de respuesta (&lt;1h)</span>
+                        <span className="text-sm font-bold text-white">{responseRate}%</span>
+                      </div>
+                      <div className="w-full bg-black/30 rounded-full h-1.5">
+                        <div
+                          className={cn(
+                            "h-1.5 rounded-full transition-all",
+                            responseRate >= target ? "bg-[var(--pt-primary)]" : "bg-yellow-500"
+                          )}
+                          style={{ width: `${Math.min(responseRate, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: {target}%</span>
+                        {remaining > 0 ? (
+                          <span className="text-[9px] text-orange-400">{remaining.toFixed(1)}% restante</span>
+                        ) : (
+                          <span className="text-[9px] text-[var(--pt-primary)]">Objetivo alcanzado</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Auto Confirmations */}
-                <div>
-                  <div className="flex justify-between items-end mb-1">
-                    <span className="text-xs text-[var(--pt-text-secondary)]">Confirmaciones automáticas</span>
-                    <span className="text-sm font-bold text-white">76.8%</span>
+                {(() => {
+                  const autoRate = systemMetrics?.autoConfirmationsRate || 0;
+                  const target = 80;
+                  const remaining = Math.max(target - autoRate, 0);
+                  return (
+                    <div>
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-xs text-[var(--pt-text-secondary)]">Confirmaciones automáticas</span>
+                        <span className="text-sm font-bold text-white">{autoRate}%</span>
+                      </div>
+                      <div className="w-full bg-black/30 rounded-full h-1.5">
+                        <div
+                          className={cn(
+                            "h-1.5 rounded-full transition-all",
+                            autoRate >= target ? "bg-[var(--pt-primary)]" : "bg-yellow-500"
+                          )}
+                          style={{ width: `${Math.min(autoRate, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: {target}%</span>
+                        {remaining > 0 ? (
+                          <span className="text-[9px] text-orange-400">{remaining.toFixed(1)}% restante</span>
+                        ) : (
+                          <span className="text-[9px] text-[var(--pt-primary)]">Objetivo alcanzado</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Stats summary */}
+                {systemMetrics && (systemMetrics.totalMessages > 0 || systemMetrics.totalAiPayments > 0) && (
+                  <div className="pt-3 border-t border-white/10">
+                    <p className="text-[10px] text-[var(--pt-text-muted)] text-center">
+                      {systemMetrics.totalMessages} mensajes | {systemMetrics.totalAiPayments} pagos detectados por IA (30 días)
+                    </p>
                   </div>
-                  <div className="w-full bg-black/30 rounded-full h-1.5">
-                    <div className="bg-[var(--pt-primary)] h-1.5 rounded-full" style={{ width: '76.8%' }} />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[9px] text-[var(--pt-text-muted)]">Obj: 80%</span>
-                    <span className="text-[9px] text-orange-400">3.2% restante</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </>

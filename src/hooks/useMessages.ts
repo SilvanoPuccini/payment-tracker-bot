@@ -257,3 +257,106 @@ export function useMessageStats() {
     enabled: !!user,
   });
 }
+
+// Get system performance metrics for AI detection
+export function useSystemMetrics() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['system-metrics', user?.id],
+    queryFn: async () => {
+      if (!user) throw new Error('No user logged in');
+
+      // Get messages with AI analysis (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: messages, error: messagesError } = await supabase
+        .from('messages')
+        .select('id, confidence_score, is_payment_related, status, processed_at, created_at')
+        .eq('user_id', user.id)
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      if (messagesError) throw messagesError;
+
+      // Get payments with AI detection (have message_id)
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('id, confidence_score, message_id, confirmed_at, confirmed_by, created_at, status')
+        .eq('user_id', user.id)
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      if (paymentsError) throw paymentsError;
+
+      // Calculate metrics
+      const aiDetectedPayments = payments?.filter(p => p.message_id) || [];
+      const paymentRelatedMessages = messages?.filter(m => m.is_payment_related) || [];
+      const processedMessages = messages?.filter(m => m.processed_at || m.status === 'processed') || [];
+
+      // 1. Detection Precision (average confidence score)
+      let detectionPrecision = 0;
+      const scoresFromPayments = aiDetectedPayments
+        .filter(p => p.confidence_score !== null)
+        .map(p => p.confidence_score as number);
+      const scoresFromMessages = paymentRelatedMessages
+        .filter(m => m.confidence_score !== null)
+        .map(m => m.confidence_score as number);
+
+      const allScores = [...scoresFromPayments, ...scoresFromMessages];
+      if (allScores.length > 0) {
+        detectionPrecision = allScores.reduce((a, b) => a + b, 0) / allScores.length;
+      }
+
+      // 2. Messages Processed Rate
+      let messagesProcessedRate = 0;
+      if (messages && messages.length > 0) {
+        messagesProcessedRate = (processedMessages.length / messages.length) * 100;
+      }
+
+      // 3. Response Time (% within target - payments confirmed within 1 hour)
+      let responseTimeRate = 0;
+      const confirmedPayments = payments?.filter(p => p.confirmed_at && p.created_at) || [];
+      if (confirmedPayments.length > 0) {
+        const withinTarget = confirmedPayments.filter(p => {
+          const created = new Date(p.created_at).getTime();
+          const confirmed = new Date(p.confirmed_at!).getTime();
+          const diffHours = (confirmed - created) / (1000 * 60 * 60);
+          return diffHours <= 1; // Within 1 hour target
+        });
+        responseTimeRate = (withinTarget.length / confirmedPayments.length) * 100;
+      }
+
+      // 4. Auto Confirmations Rate
+      let autoConfirmationsRate = 0;
+      const totalConfirmed = payments?.filter(p => p.status === 'confirmed') || [];
+      if (totalConfirmed.length > 0) {
+        // Auto confirmed = confirmed_by is 'auto' OR high confidence (>= 80)
+        const autoConfirmed = totalConfirmed.filter(p =>
+          p.confirmed_by === 'auto' ||
+          (p.confidence_score !== null && p.confidence_score >= 80)
+        );
+        autoConfirmationsRate = (autoConfirmed.length / totalConfirmed.length) * 100;
+      }
+
+      // Check if AI system is active (has recent WhatsApp messages)
+      const recentMessages = messages?.filter(m => {
+        const created = new Date(m.created_at);
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        return created > oneDayAgo;
+      }) || [];
+      const isSystemActive = recentMessages.length > 0 || aiDetectedPayments.length > 0;
+
+      return {
+        detectionPrecision: Math.round(detectionPrecision * 10) / 10,
+        messagesProcessedRate: Math.round(messagesProcessedRate * 10) / 10,
+        responseTimeRate: Math.round(responseTimeRate * 10) / 10,
+        autoConfirmationsRate: Math.round(autoConfirmationsRate * 10) / 10,
+        isSystemActive,
+        totalMessages: messages?.length || 0,
+        totalAiPayments: aiDetectedPayments.length,
+      };
+    },
+    enabled: !!user,
+  });
+}
