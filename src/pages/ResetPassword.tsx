@@ -22,90 +22,77 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let isMounted = true;
+    let checkCount = 0;
+    const maxChecks = 10;
+
     const checkSession = async () => {
-      try {
-        console.log('ResetPassword: Checking session...');
+      console.log('ResetPassword: Check #' + (checkCount + 1));
 
-        // Check hash params for tokens
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
+      // Check hash for errors first
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const errorCode = hashParams.get('error_code');
+      const type = hashParams.get('type');
+      const hasTokens = hashParams.has('access_token');
 
-        console.log('ResetPassword: Hash params - type:', type, 'hasTokens:', !!accessToken);
+      console.log('ResetPassword: errorCode:', errorCode, 'type:', type, 'hasTokens:', hasTokens);
 
-        if (accessToken && refreshToken) {
-          console.log('ResetPassword: Setting session with tokens...');
-
-          // Set session with timeout
-          const sessionPromise = supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 10000)
-          );
-
-          try {
-            const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
-
-            if (result.error) {
-              console.error('ResetPassword: Session error:', result.error);
-              setIsValidSession(false);
-              return;
-            }
-
-            console.log('ResetPassword: Session set successfully!');
-
-            // Clear the hash from URL
-            window.history.replaceState(null, '', window.location.pathname);
-
-            setIsValidSession(true);
-            setIsFromEmail(type === 'recovery');
-            return;
-
-          } catch (err: any) {
-            if (err.message === 'Timeout') {
-              console.log('ResetPassword: Timeout, checking if session exists anyway...');
-
-              const { data: { session } } = await supabase.auth.getSession();
-
-              if (session) {
-                console.log('ResetPassword: Session exists after timeout!');
-                window.history.replaceState(null, '', window.location.pathname);
-                setIsValidSession(true);
-                setIsFromEmail(type === 'recovery');
-                return;
-              }
-            }
-            console.error('ResetPassword: Error:', err);
-            setIsValidSession(false);
-            return;
-          }
-        }
-
-        // No tokens in hash, check for existing session
-        console.log('ResetPassword: No tokens, checking existing session...');
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (session) {
-          console.log('ResetPassword: Found existing session');
-          setIsValidSession(true);
-          setIsFromEmail(false);
-        } else {
-          console.log('ResetPassword: No session found');
-          setIsValidSession(false);
-        }
-      } catch (err) {
-        console.error('ResetPassword: Error:', err);
-        setIsValidSession(false);
+      // If there's an error in the hash, show invalid state
+      if (errorCode) {
+        console.log('ResetPassword: Error in hash, showing invalid');
+        window.history.replaceState(null, '', window.location.pathname);
+        if (isMounted) setIsValidSession(false);
+        return;
       }
+
+      // Check if session exists (Supabase should auto-detect hash and set session)
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('ResetPassword: Session exists?', !!session);
+
+      if (session) {
+        console.log('ResetPassword: Session found!');
+        // Clear hash from URL if present
+        if (window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        if (isMounted) {
+          setIsValidSession(true);
+          setIsFromEmail(type === 'recovery' || hasTokens);
+        }
+        return;
+      }
+
+      // If we have tokens but no session yet, wait for Supabase to process them
+      if (hasTokens && checkCount < maxChecks) {
+        checkCount++;
+        console.log('ResetPassword: Has tokens, waiting for Supabase to process... (' + checkCount + '/' + maxChecks + ')');
+        setTimeout(checkSession, 500);
+        return;
+      }
+
+      // No session and no tokens (or max retries reached)
+      console.log('ResetPassword: No session found after checks');
+      if (isMounted) setIsValidSession(false);
     };
 
-    // Small delay to let Supabase initialize
-    setTimeout(checkSession, 100);
-  }, []);
+    // Initial delay to let Supabase's auth listener process the hash
+    setTimeout(checkSession, 300);
+
+    // Also listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('ResetPassword: Auth state changed:', event, !!session);
+      if (session && isMounted && isValidSession === null) {
+        window.history.replaceState(null, '', window.location.pathname);
+        setIsValidSession(true);
+        setIsFromEmail(true);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [isValidSession]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,7 +135,7 @@ export default function ResetPassword() {
       setTimeout(() => {
         navigate('/', { replace: true });
       }, 2000);
-    } catch (err) {
+    } catch {
       setError('Error al actualizar la contraseña. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
