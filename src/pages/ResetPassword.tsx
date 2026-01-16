@@ -25,14 +25,27 @@ export default function ResetPassword() {
     const checkSession = async () => {
       try {
         console.log('ResetPassword: Checking session...');
+        console.log('ResetPassword: URL:', window.location.href);
+        console.log('ResetPassword: Hash:', window.location.hash);
 
-        // Check hash params for tokens
+        // Check hash params for tokens or errors
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
+        const errorCode = hashParams.get('error_code');
+        const errorDescription = hashParams.get('error_description');
 
-        console.log('ResetPassword: Hash params - type:', type, 'hasTokens:', !!accessToken);
+        console.log('ResetPassword: Hash params - type:', type, 'hasTokens:', !!accessToken, 'error:', errorCode);
+
+        // Check if there's an error in the hash (e.g., expired OTP link)
+        if (errorCode) {
+          console.log('ResetPassword: Error in hash params:', errorCode, errorDescription);
+          // Clear the hash from URL
+          window.history.replaceState(null, '', window.location.pathname);
+          setIsValidSession(false);
+          return;
+        }
 
         if (accessToken && refreshToken) {
           console.log('ResetPassword: Setting session with tokens...');
@@ -48,7 +61,7 @@ export default function ResetPassword() {
           );
 
           try {
-            const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+            const result = await Promise.race([sessionPromise, timeoutPromise]) as Awaited<typeof sessionPromise>;
 
             if (result.error) {
               console.error('ResetPassword: Session error:', result.error);
@@ -65,8 +78,8 @@ export default function ResetPassword() {
             setIsFromEmail(type === 'recovery');
             return;
 
-          } catch (err: any) {
-            if (err.message === 'Timeout') {
+          } catch (err) {
+            if (err instanceof Error && err.message === 'Timeout') {
               console.log('ResetPassword: Timeout, checking if session exists anyway...');
 
               const { data: { session } } = await supabase.auth.getSession();

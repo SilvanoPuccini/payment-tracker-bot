@@ -35,7 +35,7 @@ export default function AuthCallback() {
           );
 
           try {
-            const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+            const result = await Promise.race([sessionPromise, timeoutPromise]) as Awaited<typeof sessionPromise>;
 
             if (result.error) {
               console.error('AuthCallback: Session error:', result.error);
@@ -62,8 +62,8 @@ export default function AuthCallback() {
             }, 1500);
             return;
 
-          } catch (err: any) {
-            if (err.message === 'Timeout') {
+          } catch (err) {
+            if (err instanceof Error && err.message === 'Timeout') {
               console.log('AuthCallback: setSession timed out, checking if session exists...');
 
               // Session might have been set by onAuthStateChange, check it
