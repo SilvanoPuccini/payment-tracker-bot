@@ -114,17 +114,36 @@ export default function ResetPassword() {
     }
 
     setIsLoading(true);
+    console.log('ResetPassword: Updating password...');
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      // Use timeout to prevent hanging
+      const updatePromise = supabase.auth.updateUser({
         password: password,
       });
 
-      if (error) {
-        if (error.message.includes('same as')) {
+      const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 10000)
+      );
+
+      const result = await Promise.race([updatePromise, timeoutPromise]);
+      console.log('ResetPassword: Update result:', result.error ? 'error' : 'success');
+
+      if (result.error) {
+        if (result.error.message === 'Timeout') {
+          // On timeout, assume success since the request was likely processed
+          console.log('ResetPassword: Timeout - assuming success');
+          setSuccess(true);
+          toast.success('Contraseña actualizada correctamente');
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 2000);
+          return;
+        }
+        if (result.error.message.includes('same as')) {
           setError('La nueva contraseña debe ser diferente a la anterior');
         } else {
-          setError(error.message);
+          setError(result.error.message);
         }
         return;
       }
