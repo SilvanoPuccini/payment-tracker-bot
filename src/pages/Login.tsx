@@ -80,9 +80,9 @@ export default function Login() {
         <div className="text-center space-y-4">
           <div className="flex justify-center">
             <img
-              src="/logofinal.png"
+              src="/logologin.png"
               alt="PayTrack"
-              className="h-24 w-auto"
+              className="h-36 w-auto"
             />
           </div>
           <div>
