@@ -1,13 +1,13 @@
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SpeedInsights } from "@vercel/speed-insights/react";
-import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PWAUpdatePrompt, OfflineIndicator, InstallPrompt } from "@/components/pwa/PWAUpdatePrompt";
+import SplashScreen from "@/components/SplashScreen";
 
 // Auth pages
 import Login from "./pages/Login";
@@ -48,17 +48,23 @@ const queryClient = new QueryClient({
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <OfflineIndicator />
-        <PWAUpdatePrompt />
-        <InstallPrompt />
-        <BrowserRouter>
-          <Routes>
+const App = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          {showSplash && (
+            <SplashScreen onComplete={() => setShowSplash(false)} minDuration={2000} />
+          )}
+          <Toaster />
+          <Sonner />
+          <OfflineIndicator />
+          <PWAUpdatePrompt />
+          <InstallPrompt />
+          <BrowserRouter>
+            <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -163,11 +169,12 @@ const App = () => (
 
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
