@@ -12,118 +12,123 @@ export default function AuthCallback() {
     const handleAuthCallback = async () => {
       try {
         console.log('AuthCallback: Starting...');
-        console.log('AuthCallback: URL:', window.location.href);
-        console.log('AuthCallback: Hash:', window.location.hash);
 
-        // Check for error in URL params
-        const urlParams = new URLSearchParams(window.location.search);
+        // Get hash params
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
 
-        const error = urlParams.get('error') || hashParams.get('error');
-        const errorDescription = urlParams.get('error_description') || hashParams.get('error_description');
+        console.log('AuthCallback: Tokens found?', !!accessToken, !!refreshToken, 'Type:', type);
 
-        if (error) {
-          console.error('AuthCallback: Error from URL:', error, errorDescription);
-          setStatus('error');
-          setMessage(errorDescription || 'Error en la autenticación');
-          setTimeout(() => navigate('/login'), 3000);
-          return;
+        if (accessToken && refreshToken) {
+          console.log('AuthCallback: Setting session...');
+
+          // Set session with timeout
+          const sessionPromise = supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout')), 10000)
+          );
+
+          try {
+            const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+
+            if (result.error) {
+              console.error('AuthCallback: Session error:', result.error);
+              throw result.error;
+            }
+
+            console.log('AuthCallback: Session set successfully!');
+
+            // Clear the hash from URL to prevent issues on refresh
+            window.history.replaceState(null, '', window.location.pathname);
+
+            setStatus('success');
+            setMessage('¡Bienvenido! Redirigiendo...');
+
+            // Small delay then redirect
+            setTimeout(() => {
+              if (type === 'signup' || type === 'email_confirmation') {
+                navigate('/onboarding', { replace: true });
+              } else if (type === 'recovery') {
+                navigate('/reset-password', { replace: true });
+              } else {
+                navigate('/', { replace: true });
+              }
+            }, 1500);
+            return;
+
+          } catch (err: any) {
+            if (err.message === 'Timeout') {
+              console.log('AuthCallback: setSession timed out, checking if session exists...');
+
+              // Session might have been set by onAuthStateChange, check it
+              const { data: { session } } = await supabase.auth.getSession();
+
+              if (session) {
+                console.log('AuthCallback: Session exists after timeout!');
+                window.history.replaceState(null, '', window.location.pathname);
+                setStatus('success');
+                setMessage('¡Bienvenido! Redirigiendo...');
+                setTimeout(() => navigate('/', { replace: true }), 1500);
+                return;
+              }
+            }
+            throw err;
+          }
         }
 
-        // Try to exchange the code for a session (PKCE flow)
+        // Check URL params for code (PKCE flow)
+        const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
+
         if (code) {
           console.log('AuthCallback: Found code, exchanging...');
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
           if (exchangeError) {
             console.error('AuthCallback: Exchange error:', exchangeError);
-            setStatus('error');
-            setMessage('Error al verificar la sesión');
-            setTimeout(() => navigate('/login'), 3000);
-            return;
+            throw exchangeError;
           }
 
           if (data.session) {
-            console.log('AuthCallback: Session established via code exchange');
+            console.log('AuthCallback: Session established via code');
             setStatus('success');
             setMessage('¡Bienvenido! Redirigiendo...');
-            setTimeout(() => navigate('/'), 2000);
+            setTimeout(() => navigate('/', { replace: true }), 1500);
             return;
           }
         }
 
-        // Check for tokens in hash (implicit flow)
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
-
-        console.log('AuthCallback: Tokens in hash?', !!accessToken, !!refreshToken, 'Type:', type);
-
-        if (accessToken && refreshToken) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (sessionError) {
-            console.error('AuthCallback: Session error:', sessionError);
-            setStatus('error');
-            setMessage('Error al establecer la sesión');
-            setTimeout(() => navigate('/login'), 3000);
-            return;
-          }
-
-          console.log('AuthCallback: Session set successfully');
-
-          if (type === 'signup' || type === 'email_confirmation') {
-            setStatus('success');
-            setMessage('¡Email verificado correctamente!');
-            setTimeout(() => navigate('/onboarding'), 2000);
-          } else if (type === 'recovery') {
-            setStatus('success');
-            setMessage('Sesión restaurada. Redirigiendo...');
-            setTimeout(() => navigate('/reset-password'), 2000);
-          } else {
-            setStatus('success');
-            setMessage('¡Bienvenido! Redirigiendo...');
-            setTimeout(() => navigate('/'), 2000);
-          }
-          return;
-        }
-
-        // No code or tokens, check if we already have a session
+        // Check for existing session
+        console.log('AuthCallback: Checking existing session...');
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('AuthCallback: Existing session?', !!session);
 
         if (session) {
+          console.log('AuthCallback: Found existing session');
           setStatus('success');
           setMessage('Sesión activa. Redirigiendo...');
-          setTimeout(() => navigate('/'), 2000);
+          setTimeout(() => navigate('/', { replace: true }), 1500);
         } else {
-          // Wait a moment and check again (session might be loading)
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-
-          if (retrySession) {
-            setStatus('success');
-            setMessage('¡Bienvenido! Redirigiendo...');
-            setTimeout(() => navigate('/'), 2000);
-          } else {
-            setStatus('error');
-            setMessage('No se pudo verificar la sesión');
-            setTimeout(() => navigate('/login'), 3000);
-          }
+          console.log('AuthCallback: No session found');
+          setStatus('error');
+          setMessage('No se pudo verificar la sesión');
+          setTimeout(() => navigate('/login', { replace: true }), 3000);
         }
       } catch (err) {
-        console.error('AuthCallback: Unexpected error:', err);
+        console.error('AuthCallback: Error:', err);
         setStatus('error');
-        setMessage('Error inesperado. Por favor, intenta de nuevo.');
-        setTimeout(() => navigate('/login'), 3000);
+        setMessage('Error en la autenticación');
+        setTimeout(() => navigate('/login', { replace: true }), 3000);
       }
     };
 
-    handleAuthCallback();
+    // Small delay to let Supabase initialize
+    setTimeout(handleAuthCallback, 100);
   }, [navigate]);
 
   return (
