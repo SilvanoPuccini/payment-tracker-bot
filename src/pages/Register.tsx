@@ -141,9 +141,9 @@ export default function Register() {
         <div className="text-center space-y-4">
           <div className="flex justify-center">
             <img
-              src="/logofinal.png"
+              src="/logologin.png"
               alt="PayTrack"
-              className="h-24 w-auto"
+              className="h-32 w-auto"
             />
           </div>
           <div>

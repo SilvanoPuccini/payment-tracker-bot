@@ -32,9 +32,9 @@ export default function SplashScreen({ onComplete, minDuration = 1500 }: SplashS
       {/* Logo container */}
       <div className="relative z-10 flex flex-col items-center">
         <img
-          src="/logopresnetacion.png"
+          src="/loading.png"
           alt="PayTrack"
-          className="w-64 h-auto animate-fade-in"
+          className="w-72 md:w-80 h-auto animate-fade-in"
         />
       </div>
     </div>
