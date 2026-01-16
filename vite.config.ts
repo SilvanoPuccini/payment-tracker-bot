@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "favicon-32x32.png", "favicon-16x16.png"],
       manifest: {
         name: "PayTrack - Sistema de Pagos",
         short_name: "PayTrack",
@@ -29,26 +29,20 @@ export default defineConfig(({ mode }) => ({
         categories: ["business", "finance", "productivity"],
         icons: [
           {
-            src: "/pwa-192x192.png",
+            src: "/android-chrome-192x192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/pwa-512x512.png",
+            src: "/android-chrome-512x512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/pwa-maskable-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "maskable",
-          },
-          {
-            src: "/pwa-maskable-512x512.png",
-            sizes: "512x512",
+            src: "/apple-touch-icon.png",
+            sizes: "180x180",
             type: "image/png",
             purpose: "maskable",
           },

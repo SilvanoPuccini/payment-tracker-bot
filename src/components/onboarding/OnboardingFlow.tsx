@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useOnboarding, OnboardingData } from '@/hooks/useOnboarding';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, Loader2, Home, Zap } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, LayoutDashboard, Check, Building2 } from 'lucide-react';
 
 // Monedas con banderas emoji
 const CURRENCIES = [
@@ -92,7 +92,7 @@ export function OnboardingFlow() {
         <div
           key={i}
           className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-            i <= currentStep ? 'bg-[var(--pt-primary)]' : 'bg-[var(--pt-surface-elevated)]'
+            i <= currentStep ? 'bg-emerald-500' : 'bg-slate-800'
           }`}
         />
       ))}
@@ -100,74 +100,94 @@ export function OnboardingFlow() {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--pt-bg)] flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col">
       <ProgressBar />
 
       {/* Step 0: Bienvenida */}
       {currentStep === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <div className="w-32 h-32 rounded-full bg-[var(--pt-surface)] flex items-center justify-center mb-8 shadow-lg">
-            <span className="text-7xl animate-wave">👋</span>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center relative">
+          {/* Glow effect */}
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-500/30 rounded-full blur-[100px]" />
+
+          {/* Logo */}
+          <div className="relative z-10 mb-6">
+            <img
+              src="/logopresnetacion.png"
+              alt="PayTrack"
+              className="w-48 h-auto"
+            />
           </div>
 
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2 relative z-10">
             ¡Bienvenido a
           </h1>
-          <h1 className="text-3xl font-bold text-[var(--pt-primary)] mb-4">
+          <h1 className="text-3xl font-bold text-emerald-400 mb-4 relative z-10">
             PayTrack!
           </h1>
 
-          <p className="text-[var(--pt-text-secondary)] text-lg mb-12 max-w-xs">
+          <p className="text-slate-400 text-lg mb-12 max-w-xs relative z-10">
             Gestiona tus pagos de forma simple con WhatsApp e Inteligencia Artificial
           </p>
 
           <div className="flex-1" />
 
-          <button
-            onClick={handleNext}
-            className="w-full py-4 px-6 rounded-2xl bg-[var(--pt-primary)] text-white font-bold text-lg flex items-center justify-center gap-2 shadow-button hover:bg-[var(--pt-primary-hover)] transition-all active:scale-98"
-          >
-            Comenzar
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <div className="w-full max-w-sm relative z-10">
+            <button
+              onClick={handleNext}
+              className="w-full py-4 px-6 rounded-2xl bg-emerald-500 text-white font-bold text-lg flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all active:scale-[0.98] shadow-lg shadow-emerald-500/25"
+            >
+              Comenzar
+              <ArrowRight className="w-5 h-5" />
+            </button>
 
-          <button
-            onClick={handleSkip}
-            className="mt-4 mb-8 text-[var(--pt-text-muted)] text-sm hover:text-[var(--pt-text-secondary)] transition-colors"
-          >
-            Saltar configuración
-          </button>
+            <button
+              onClick={handleSkip}
+              className="mt-4 mb-8 w-full text-slate-500 text-sm hover:text-slate-400 transition-colors"
+            >
+              Saltar configuración
+            </button>
+          </div>
         </div>
       )}
 
       {/* Step 1: Nombre del negocio */}
       {currentStep === 1 && (
-        <div className="flex-1 flex flex-col px-6">
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
-            <span className="text-7xl mb-8">🏢</span>
+        <div className="flex-1 flex flex-col px-6 relative">
+          {/* Glow effect */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/20 rounded-full blur-[80px]" />
 
-            <h2 className="text-2xl font-bold text-white mb-8">
-              ¿Cómo se llama<br />tu negocio?
+          <div className="flex-1 flex flex-col items-center justify-center text-center relative z-10">
+            <div className="w-20 h-20 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-8 border border-emerald-500/30">
+              <Building2 className="w-10 h-10 text-emerald-400" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-white mb-3">
+              ¿Cómo se llama tu negocio?
             </h2>
 
-            <input
-              type="text"
-              placeholder="Ej: Mi Tienda Online"
-              value={businessName}
-              onChange={handleBusinessNameChange}
-              autoFocus
-              className="w-full py-4 px-5 rounded-2xl bg-[var(--pt-surface)] border border-[var(--pt-border)] text-white text-lg placeholder:text-[var(--pt-text-muted)] focus:outline-none focus:border-[var(--pt-primary)] transition-colors"
-            />
-
-            <p className="mt-3 text-[var(--pt-text-secondary)] text-sm">
-              Esto aparecerá en tus reportes y recordatorios de cobro
+            <p className="text-slate-400 text-sm mb-8 max-w-xs">
+              Esto aparecerá en tus reportes y recordatorios de cobro para que tus clientes te identifiquen fácilmente.
             </p>
+
+            <div className="w-full max-w-sm">
+              <label className="block text-left text-xs text-slate-500 uppercase tracking-wider mb-2 font-medium">
+                Nombre del negocio
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: Mi Tienda Online"
+                value={businessName}
+                onChange={handleBusinessNameChange}
+                autoFocus
+                className="w-full py-4 px-5 rounded-xl bg-slate-800/50 border border-slate-700 text-white text-lg placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-all"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center justify-between py-6">
+          <div className="flex items-center justify-between py-6 relative z-10">
             <button
               onClick={handleBack}
-              className="flex items-center gap-2 text-[var(--pt-text-secondary)] hover:text-white transition-colors"
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
               Atrás
@@ -175,7 +195,7 @@ export function OnboardingFlow() {
 
             <button
               onClick={handleNext}
-              className="py-3 px-8 rounded-2xl bg-[var(--pt-primary)] text-white font-semibold flex items-center gap-2 shadow-button hover:bg-[var(--pt-primary-hover)] transition-all active:scale-98"
+              className="py-3 px-8 rounded-xl bg-emerald-500 text-white font-semibold flex items-center gap-2 hover:bg-emerald-600 transition-all active:scale-[0.98]"
             >
               Continuar
               <ArrowRight className="w-5 h-5" />
@@ -186,47 +206,50 @@ export function OnboardingFlow() {
 
       {/* Step 2: Selección de moneda */}
       {currentStep === 2 && (
-        <div className="flex-1 flex flex-col px-6">
-          <div className="flex-1 flex flex-col items-center pt-8">
-            <span className="text-7xl mb-6">💰</span>
+        <div className="flex-1 flex flex-col px-6 relative">
+          {/* Glow effect */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/20 rounded-full blur-[80px]" />
+
+          <div className="flex-1 flex flex-col items-center pt-8 relative z-10">
+            <div className="w-20 h-20 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-6 border border-emerald-500/30">
+              <span className="text-4xl">💰</span>
+            </div>
 
             <h2 className="text-2xl font-bold text-white mb-2 text-center">
-              ¿En qué moneda<br />cobras?
+              ¿En qué moneda cobras?
             </h2>
 
-            <p className="text-[var(--pt-text-secondary)] text-center mb-8">
-              Puedes agregar más monedas<br />después en la configuración.
+            <p className="text-slate-400 text-center mb-8 text-sm">
+              Puedes agregar más monedas después en la configuración.
             </p>
 
-            <div className="grid grid-cols-2 gap-3 w-full">
+            <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
               {CURRENCIES.map((curr) => (
                 <button
                   key={curr.value}
                   onClick={() => handleCurrencySelect(curr.value)}
-                  className={`flex items-center gap-3 p-4 rounded-2xl transition-all ${
+                  className={`flex items-center gap-3 p-4 rounded-xl transition-all ${
                     currency === curr.value
-                      ? 'bg-[var(--pt-primary)]/15 border-2 border-[var(--pt-primary)]'
-                      : 'bg-[var(--pt-surface)] border border-[var(--pt-border)] hover:border-[var(--pt-border-strong)]'
+                      ? 'bg-emerald-500/15 border-2 border-emerald-500'
+                      : 'bg-slate-800/50 border border-slate-700 hover:border-slate-600'
                   }`}
                 >
                   <span className="text-3xl">{curr.flag}</span>
                   <div className="text-left">
                     <div className={`font-semibold ${
-                      currency === curr.value ? 'text-[var(--pt-primary)]' : 'text-white'
+                      currency === curr.value ? 'text-emerald-400' : 'text-white'
                     }`}>
                       {curr.value}
                     </div>
                     <div className={`text-sm ${
-                      currency === curr.value ? 'text-[var(--pt-primary)]' : 'text-[var(--pt-text-muted)]'
+                      currency === curr.value ? 'text-emerald-400/70' : 'text-slate-500'
                     }`}>
                       {curr.label}
                     </div>
                   </div>
                   {currency === curr.value && (
-                    <div className="ml-auto w-6 h-6 rounded-full bg-[var(--pt-primary)] flex items-center justify-center">
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
+                    <div className="ml-auto w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white" />
                     </div>
                   )}
                 </button>
@@ -234,10 +257,10 @@ export function OnboardingFlow() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between py-6">
+          <div className="flex items-center justify-between py-6 relative z-10">
             <button
               onClick={handleBack}
-              className="flex items-center gap-2 text-[var(--pt-text-secondary)] hover:text-white transition-colors"
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
               Atrás
@@ -245,7 +268,7 @@ export function OnboardingFlow() {
 
             <button
               onClick={handleNext}
-              className="py-3 px-8 rounded-2xl bg-[var(--pt-primary)] text-white font-semibold flex items-center gap-2 shadow-button hover:bg-[var(--pt-primary-hover)] transition-all active:scale-98"
+              className="py-3 px-8 rounded-xl bg-emerald-500 text-white font-semibold flex items-center gap-2 hover:bg-emerald-600 transition-all active:scale-[0.98]"
             >
               Continuar
               <ArrowRight className="w-5 h-5" />
@@ -256,24 +279,32 @@ export function OnboardingFlow() {
 
       {/* Step 3: Todo listo */}
       {currentStep === 3 && (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <span className="text-8xl mb-6">🎉</span>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center relative">
+          {/* Glow effect */}
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-500/30 rounded-full blur-[100px]" />
 
-          <h2 className="text-3xl font-bold text-white mb-4">
+          {/* Success checkmark */}
+          <div className="relative z-10 mb-6">
+            <div className="w-32 h-32 rounded-full bg-emerald-500/20 flex items-center justify-center border-4 border-emerald-500">
+              <Check className="w-16 h-16 text-emerald-400" strokeWidth={3} />
+            </div>
+          </div>
+
+          <h2 className="text-3xl font-bold text-white mb-4 relative z-10">
             ¡Todo listo!
           </h2>
 
-          <p className="text-[var(--pt-text-secondary)] text-lg mb-12">
-            Tu cuenta está configurada y lista para usar.
+          <p className="text-slate-400 text-lg mb-12 relative z-10">
+            Tu cuenta está configurada y lista para empezar a recibir pagos.
           </p>
 
           <div className="flex-1" />
 
-          <div className="w-full space-y-3 mb-8">
+          <div className="w-full max-w-sm space-y-3 mb-8 relative z-10">
             <button
               onClick={() => handleComplete(true)}
               disabled={isSubmitting}
-              className="w-full py-4 px-6 rounded-2xl bg-[var(--pt-primary)] text-white font-bold text-lg flex items-center justify-center gap-3 shadow-button hover:bg-[var(--pt-primary-hover)] transition-all active:scale-98 disabled:opacity-50"
+              className="w-full py-4 px-6 rounded-xl bg-emerald-500 text-white font-bold text-lg flex items-center justify-center gap-3 hover:bg-emerald-600 transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-emerald-500/25"
             >
               {isSubmitting ? (
                 <Loader2 className="w-6 h-6 animate-spin" />
@@ -287,27 +318,29 @@ export function OnboardingFlow() {
               )}
             </button>
 
-            <div className="flex items-center justify-center gap-2 text-[var(--pt-text-secondary)] text-sm">
-              <Zap className="w-4 h-4 text-[var(--pt-yellow)]" />
+            <p className="text-emerald-400/70 text-sm flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
               Detecta pagos automáticamente
-            </div>
+            </p>
 
             <button
               onClick={() => handleComplete(false)}
               disabled={isSubmitting}
-              className="w-full py-4 px-6 rounded-2xl bg-[var(--pt-surface)] border border-[var(--pt-border)] text-white font-semibold text-lg flex items-center justify-center gap-3 hover:bg-[var(--pt-surface-elevated)] transition-all active:scale-98 disabled:opacity-50"
+              className="w-full py-4 px-6 rounded-xl bg-slate-800/50 border border-slate-700 text-white font-semibold text-lg flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50"
             >
               {isSubmitting ? (
                 <Loader2 className="w-6 h-6 animate-spin" />
               ) : (
                 <>
-                  <Home className="w-5 h-5" />
+                  <LayoutDashboard className="w-5 h-5" />
                   Ir al Dashboard
                 </>
               )}
             </button>
 
-            <p className="text-[var(--pt-text-muted)] text-sm">
+            <p className="text-slate-600 text-sm">
               Configura WhatsApp después
             </p>
           </div>

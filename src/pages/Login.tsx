@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Zap, Loader2, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Login() {
@@ -79,9 +79,11 @@ export default function Login() {
         {/* Logo and Title */}
         <div className="text-center space-y-4">
           <div className="flex justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl gradient-primary shadow-glow">
-              <Zap className="h-8 w-8 text-primary-foreground" />
-            </div>
+            <img
+              src="/logofinal.png"
+              alt="PayTrack"
+              className="h-24 w-auto"
+            />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Iniciar Sesión</h1>
