@@ -31,6 +31,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Reminders from "./pages/Reminders";
+import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -145,6 +146,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Reminders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <ProtectedRoute>
+                  <Help />
                 </ProtectedRoute>
               }
             />
