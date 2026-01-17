@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
@@ -7,15 +7,32 @@ export default function AuthCallback() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Verificando tu cuenta...');
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
-    let checkCount = 0;
-    const maxChecks = 10;
+
+    const redirectTo = (path: string, successMessage: string) => {
+      if (hasRedirected.current || !isMounted) return;
+      hasRedirected.current = true;
+
+      window.history.replaceState(null, '', window.location.pathname);
+      setStatus('success');
+      setMessage(successMessage);
+      setTimeout(() => navigate(path, { replace: true }), 1500);
+    };
+
+    const redirectToError = (errorMessage: string) => {
+      if (hasRedirected.current || !isMounted) return;
+      hasRedirected.current = true;
+
+      window.history.replaceState(null, '', window.location.pathname);
+      setStatus('error');
+      setMessage(errorMessage);
+      setTimeout(() => navigate('/login', { replace: true }), 3000);
+    };
 
     const handleAuthCallback = async () => {
-      console.log('AuthCallback: Check #' + (checkCount + 1));
-
       // Get hash params
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const type = hashParams.get('type');
@@ -26,13 +43,8 @@ export default function AuthCallback() {
 
       // Check for errors in hash
       if (errorCode) {
-        console.log('AuthCallback: Error in hash');
-        window.history.replaceState(null, '', window.location.pathname);
-        if (isMounted) {
-          setStatus('error');
-          setMessage('Error en la autenticación');
-          setTimeout(() => navigate('/login', { replace: true }), 3000);
-        }
+        console.log('AuthCallback: Error in hash:', errorCode);
+        redirectToError('Error en la autenticación');
         return;
       }
 
@@ -51,81 +63,87 @@ export default function AuthCallback() {
           }
 
           if (data.session) {
-            console.log('AuthCallback: Session established via code');
-            if (isMounted) {
-              setStatus('success');
-              setMessage('¡Bienvenido! Redirigiendo...');
-              setTimeout(() => navigate('/', { replace: true }), 1500);
-            }
+            console.log('AuthCallback: Session established via code exchange');
+            redirectTo('/', '¡Bienvenido! Redirigiendo...');
             return;
           }
         } catch (err) {
           console.error('AuthCallback: Code exchange failed:', err);
+          redirectToError('Error al verificar la sesión');
+          return;
         }
       }
 
-      // Check if session exists (Supabase should auto-detect hash)
+      // Check if session already exists
       const { data: { session } } = await supabase.auth.getSession();
       console.log('AuthCallback: Session exists?', !!session);
 
       if (session) {
-        console.log('AuthCallback: Session found!');
-        // Clear hash/params from URL
-        window.history.replaceState(null, '', window.location.pathname);
+        console.log('AuthCallback: Session found, redirecting...');
 
-        if (isMounted) {
-          setStatus('success');
-          setMessage('¡Bienvenido! Redirigiendo...');
-
-          setTimeout(() => {
-            if (type === 'signup' || type === 'email_confirmation') {
-              navigate('/onboarding', { replace: true });
-            } else if (type === 'recovery') {
-              navigate('/reset-password', { replace: true });
-            } else {
-              navigate('/', { replace: true });
-            }
-          }, 1500);
+        if (type === 'signup' || type === 'email_confirmation') {
+          redirectTo('/onboarding', '¡Email confirmado! Redirigiendo...');
+        } else if (type === 'recovery') {
+          redirectTo('/reset-password', 'Redirigiendo a cambiar contraseña...');
+        } else {
+          redirectTo('/', '¡Bienvenido! Redirigiendo...');
         }
         return;
       }
 
-      // If we have tokens but no session yet, wait for Supabase to process
-      if (hasTokens && checkCount < maxChecks) {
-        checkCount++;
-        console.log('AuthCallback: Waiting for Supabase... (' + checkCount + '/' + maxChecks + ')');
-        setTimeout(handleAuthCallback, 500);
+      // If we have tokens in hash, wait a bit for Supabase to process them
+      if (hasTokens) {
+        console.log('AuthCallback: Has tokens, waiting for Supabase to process...');
+        // Supabase should auto-detect and process - wait and recheck
+        setTimeout(async () => {
+          const { data: { session: retrySession } } = await supabase.auth.getSession();
+          if (retrySession) {
+            if (type === 'signup' || type === 'email_confirmation') {
+              redirectTo('/onboarding', '¡Email confirmado! Redirigiendo...');
+            } else if (type === 'recovery') {
+              redirectTo('/reset-password', 'Redirigiendo a cambiar contraseña...');
+            } else {
+              redirectTo('/', '¡Bienvenido! Redirigiendo...');
+            }
+          } else {
+            redirectToError('No se pudo verificar la sesión');
+          }
+        }, 1000);
         return;
       }
 
-      // No session found after all checks
-      console.log('AuthCallback: No session found');
-      if (isMounted) {
-        setStatus('error');
-        setMessage('No se pudo verificar la sesión');
-        setTimeout(() => navigate('/login', { replace: true }), 3000);
-      }
+      // No tokens, no code, no session - something went wrong
+      console.log('AuthCallback: No auth data found');
+      redirectToError('No se encontró información de autenticación');
     };
 
-    // Initial delay to let Supabase process the hash
-    setTimeout(handleAuthCallback, 300);
-
-    // Also listen for auth state changes
+    // Listen for auth state changes FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('AuthCallback: Auth state changed:', event, !!session);
-      if (session && isMounted && status === 'loading') {
-        window.history.replaceState(null, '', window.location.pathname);
-        setStatus('success');
-        setMessage('¡Bienvenido! Redirigiendo...');
-        setTimeout(() => navigate('/', { replace: true }), 1500);
+
+      if (event === 'SIGNED_IN' && session) {
+        // Get type from hash for proper routing
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const type = hashParams.get('type');
+
+        if (type === 'signup' || type === 'email_confirmation') {
+          redirectTo('/onboarding', '¡Email confirmado! Redirigiendo...');
+        } else if (type === 'recovery') {
+          redirectTo('/reset-password', 'Redirigiendo a cambiar contraseña...');
+        } else {
+          redirectTo('/', '¡Bienvenido! Redirigiendo...');
+        }
       }
     });
+
+    // Small delay then check manually
+    setTimeout(handleAuthCallback, 200);
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, status]);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
