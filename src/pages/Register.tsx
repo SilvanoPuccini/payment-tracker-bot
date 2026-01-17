@@ -138,12 +138,12 @@ export default function Register() {
 
       <div className="w-full max-w-sm relative z-10 space-y-6">
         {/* Logo and Title */}
-        <div className="text-center space-y-4">
-          <div className="flex justify-center">
+        <div className="text-center">
+          <div className="flex justify-center mb-1">
             <img
               src="/logofinalsinfondo.png"
               alt="PayTrack"
-              className="h-28 w-auto"
+              className="h-56 w-auto"
             />
           </div>
           <div>

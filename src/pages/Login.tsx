@@ -77,8 +77,8 @@ export default function Login() {
 
       <div className="w-full max-w-sm relative z-10 space-y-8">
         {/* Logo and Title */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center">
+        <div className="text-center">
+          <div className="flex justify-center mb-1">
             <img
               src="/logofinalsinfondo.png"
               alt="PayTrack"
