@@ -303,19 +303,17 @@ export function OnboardingFlow() {
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-48 sm:w-64 h-48 sm:h-64 bg-emerald-500/30 rounded-full blur-[80px] sm:blur-[100px]" />
 
           <div className="flex-1 flex flex-col items-center justify-center text-center relative z-10 max-w-md mx-auto">
-            {/* Círculos concéntricos con check */}
-            <div className="relative w-40 h-40 sm:w-48 sm:h-48 flex items-center justify-center mb-6 sm:mb-8">
-              {/* Círculo exterior 1 - más tenue */}
-              <div className="absolute inset-0 rounded-full border-2 border-emerald-500/20" />
-              {/* Círculo exterior 2 */}
-              <div className="absolute inset-4 rounded-full border-2 border-emerald-500/30" />
-              {/* Círculo exterior 3 */}
-              <div className="absolute inset-8 rounded-full border-2 border-emerald-500/40" />
-              {/* Círculo interior con fondo */}
-              <div className="absolute inset-12 rounded-full bg-emerald-500/20 border-2 border-emerald-500/60" />
+            {/* Círculos concéntricos con check - estilo sólido */}
+            <div className="relative w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center mb-6 sm:mb-8">
+              {/* Círculo exterior - verde más oscuro */}
+              <div className="absolute inset-0 rounded-full bg-[#0d3320]" />
+              {/* Círculo medio - verde medio */}
+              <div className="absolute inset-6 sm:inset-8 rounded-full bg-[#155e3d]" />
+              {/* Círculo interior - verde más claro */}
+              <div className="absolute inset-12 sm:inset-16 rounded-full bg-[#1a7a4c]" />
               {/* Círculo central con check */}
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/50">
-                <Check className="w-6 h-6 sm:w-8 sm:h-8 text-white" strokeWidth={3} />
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500 flex items-center justify-center">
+                <Check className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-900" strokeWidth={3} />
               </div>
             </div>
 
