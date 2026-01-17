@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, Bell, Settings, LogOut, User, Zap, Crown, Search, X, LayoutDashboard, MessageSquare, CreditCard, Users, BarChart3 } from "lucide-react";
+import { Menu, Bell, Settings, LogOut, User, Zap, Crown, Search, X, LayoutDashboard, MessageSquare, CreditCard, Users, BarChart3, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -275,10 +275,10 @@ export function Header() {
                 <span className="text-sm font-medium">Configuración</span>
               </button>
               <button
-                onClick={() => handleNavClick('/profile')}
+                onClick={() => handleNavClick('/help')}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)] transition-all"
               >
-                <User className="w-4 h-4" />
+                <HelpCircle className="w-4 h-4" />
                 <span className="text-sm font-medium">Ayuda</span>
               </button>
               <button
