@@ -2,26 +2,39 @@ import { useState, useCallback } from 'react';
 import { useOnboarding, OnboardingData } from '@/hooks/useOnboarding';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, Loader2, LayoutDashboard, Check, Building2, Coins } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, LayoutDashboard, Check, Building2 } from 'lucide-react';
 
-// Monedas con símbolos de texto
+// Icono de mano con moneda personalizado
+const HandCoinIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    {/* Moneda con símbolo $ */}
+    <circle cx="9" cy="5" r="4.5" />
+    <text x="9" y="7.5" textAnchor="middle" fontSize="6" fill="white" fontWeight="bold">$</text>
+    {/* Flecha hacia arriba */}
+    <path d="M17 2 L17 8 M14 5 L17 2 L20 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    {/* Mano abierta */}
+    <path d="M4 21 L4 15 Q4 13 6 13 L18 13 Q20 13 20 15 L20 17 Q20 21 12 21 L4 21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+// Monedas con símbolos - ordenadas según preferencia
 const CURRENCIES = [
-  { value: 'PEN', label: 'Sol Peruano', symbol: 'S/' },
+  { value: 'ARS', label: 'Peso Argentino', symbol: '$' },
   { value: 'USD', label: 'Dólar', symbol: '$' },
-  { value: 'ARS', label: 'Peso Arg', symbol: '$' },
-  { value: 'CLP', label: 'Peso Chileno', symbol: '$' },
-  { value: 'MXN', label: 'Peso MX', symbol: '$' },
   { value: 'EUR', label: 'Euro', symbol: '€' },
+  { value: 'CLP', label: 'Peso Chileno', symbol: '$' },
+  { value: 'BRL', label: 'Real Brasileño', symbol: 'R$' },
+  { value: 'MXN', label: 'Peso Mexicano', symbol: '$' },
 ];
 
 // Mapeo de moneda a timezone
 const CURRENCY_TIMEZONE: Record<string, string> = {
-  PEN: 'America/Lima',
-  USD: 'America/New_York',
   ARS: 'America/Buenos_Aires',
-  CLP: 'America/Santiago',
-  MXN: 'America/Mexico_City',
+  USD: 'America/New_York',
   EUR: 'Europe/Madrid',
+  CLP: 'America/Santiago',
+  BRL: 'America/Sao_Paulo',
+  MXN: 'America/Mexico_City',
 };
 
 export function OnboardingFlow() {
@@ -112,9 +125,9 @@ export function OnboardingFlow() {
           <div className="flex-1 flex flex-col items-center justify-center text-center relative z-10 max-w-md mx-auto">
             {/* Logo */}
             <img
-              src="/loading.png"
+              src="/logologin.png"
               alt="PayTrack"
-              className="w-40 sm:w-56 md:w-64 h-auto mb-4 sm:mb-6"
+              className="w-48 sm:w-64 md:w-72 h-auto mb-4 sm:mb-6"
             />
 
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
@@ -210,7 +223,7 @@ export function OnboardingFlow() {
 
           <div className="flex-1 flex flex-col items-center justify-center relative z-10 max-w-md mx-auto w-full">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-4 border border-emerald-500/30">
-              <Coins className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400" />
+              <HandCoinIcon className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400" />
             </div>
 
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 text-center">
@@ -260,8 +273,14 @@ export function OnboardingFlow() {
               ))}
             </div>
 
-            <button className="mt-4 text-slate-500 text-xs hover:text-slate-400 transition-colors">
-              ¿No encuentras tu moneda?
+            <button
+              onClick={() => {
+                skipOnboarding();
+                navigate('/settings');
+              }}
+              className="mt-4 text-emerald-500/70 text-xs hover:text-emerald-400 transition-colors underline underline-offset-2"
+            >
+              ¿No encuentras tu moneda? Configúrala aquí
             </button>
           </div>
 
@@ -292,9 +311,20 @@ export function OnboardingFlow() {
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-48 sm:w-64 h-48 sm:h-64 bg-emerald-500/30 rounded-full blur-[80px] sm:blur-[100px]" />
 
           <div className="flex-1 flex flex-col items-center justify-center text-center relative z-10 max-w-md mx-auto">
-            {/* Success checkmark */}
-            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-emerald-500/20 flex items-center justify-center border-4 border-emerald-500 mb-4 sm:mb-6">
-              <Check className="w-12 h-12 sm:w-16 sm:h-16 text-emerald-400" strokeWidth={3} />
+            {/* Círculos concéntricos con check */}
+            <div className="relative w-40 h-40 sm:w-48 sm:h-48 flex items-center justify-center mb-6 sm:mb-8">
+              {/* Círculo exterior 1 - más tenue */}
+              <div className="absolute inset-0 rounded-full border-2 border-emerald-500/20" />
+              {/* Círculo exterior 2 */}
+              <div className="absolute inset-4 rounded-full border-2 border-emerald-500/30" />
+              {/* Círculo exterior 3 */}
+              <div className="absolute inset-8 rounded-full border-2 border-emerald-500/40" />
+              {/* Círculo interior con fondo */}
+              <div className="absolute inset-12 rounded-full bg-emerald-500/20 border-2 border-emerald-500/60" />
+              {/* Círculo central con check */}
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/50">
+                <Check className="w-6 h-6 sm:w-8 sm:h-8 text-white" strokeWidth={3} />
+              </div>
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 sm:mb-4">
