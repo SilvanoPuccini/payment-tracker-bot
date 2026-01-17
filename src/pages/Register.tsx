@@ -146,7 +146,7 @@ export default function Register() {
               className="h-56 w-auto"
             />
           </div>
-          <div className="-mt-4">
+          <div className="-mt-10">
             <h1 className="text-2xl font-bold text-foreground">Crear Cuenta</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Únete a <span className="text-primary">PayTrack</span> y automatiza tu gestión de pagos
