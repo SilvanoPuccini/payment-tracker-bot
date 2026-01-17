@@ -40,8 +40,8 @@ const CURRENCY_TIMEZONE: Record<string, string> = {
 export function OnboardingFlow() {
   const [currentStep, setCurrentStep] = useState(0);
   const [businessName, setBusinessName] = useState('');
-  const [currency, setCurrency] = useState('PEN');
-  const [timezone, setTimezone] = useState('America/Lima');
+  const [currency, setCurrency] = useState('ARS');
+  const [timezone, setTimezone] = useState('America/Buenos_Aires');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { completeOnboarding, skipOnboarding } = useOnboarding();
   const navigate = useNavigate();
@@ -125,9 +125,9 @@ export function OnboardingFlow() {
           <div className="flex-1 flex flex-col items-center justify-center text-center relative z-10 max-w-md mx-auto">
             {/* Logo */}
             <img
-              src="/logologin.png"
+              src="/logopresnetacion.png"
               alt="PayTrack"
-              className="w-48 sm:w-64 md:w-72 h-auto mb-4 sm:mb-6"
+              className="w-40 sm:w-48 h-auto mb-4 sm:mb-6"
             />
 
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
@@ -276,7 +276,7 @@ export function OnboardingFlow() {
             <button
               onClick={() => {
                 skipOnboarding();
-                navigate('/settings');
+                navigate('/profile');
               }}
               className="mt-4 text-emerald-500/70 text-xs hover:text-emerald-400 transition-colors underline underline-offset-2"
             >
