@@ -4,19 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, ArrowRight, Loader2, LayoutDashboard, Check, Building2 } from 'lucide-react';
 
-// Icono de mano con moneda personalizado
-const HandCoinIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    {/* Moneda con símbolo $ */}
-    <circle cx="9" cy="5" r="4.5" />
-    <text x="9" y="7.5" textAnchor="middle" fontSize="6" fill="white" fontWeight="bold">$</text>
-    {/* Flecha hacia arriba */}
-    <path d="M17 2 L17 8 M14 5 L17 2 L20 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    {/* Mano abierta */}
-    <path d="M4 21 L4 15 Q4 13 6 13 L18 13 Q20 13 20 15 L20 17 Q20 21 12 21 L4 21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
 // Monedas con símbolos - ordenadas según preferencia
 const CURRENCIES = [
   { value: 'ARS', label: 'Peso Argentino', symbol: '$' },
@@ -40,8 +27,8 @@ const CURRENCY_TIMEZONE: Record<string, string> = {
 export function OnboardingFlow() {
   const [currentStep, setCurrentStep] = useState(0);
   const [businessName, setBusinessName] = useState('');
-  const [currency, setCurrency] = useState('PEN');
-  const [timezone, setTimezone] = useState('America/Lima');
+  const [currency, setCurrency] = useState('ARS');
+  const [timezone, setTimezone] = useState('America/Buenos_Aires');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { completeOnboarding, skipOnboarding } = useOnboarding();
   const navigate = useNavigate();
@@ -125,9 +112,9 @@ export function OnboardingFlow() {
           <div className="flex-1 flex flex-col items-center justify-center text-center relative z-10 max-w-md mx-auto">
             {/* Logo */}
             <img
-              src="/logologin.png"
+              src="/logopresnetacion.png"
               alt="PayTrack"
-              className="w-48 sm:w-64 md:w-72 h-auto mb-4 sm:mb-6"
+              className="w-40 sm:w-48 h-auto mb-4 sm:mb-6"
             />
 
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
@@ -223,7 +210,12 @@ export function OnboardingFlow() {
 
           <div className="flex-1 flex flex-col items-center justify-center relative z-10 max-w-md mx-auto w-full">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-4 border border-emerald-500/30">
-              <HandCoinIcon className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400" />
+              <img
+                src="/mano-con-dolar.png"
+                alt="Moneda"
+                className="w-10 h-10 sm:w-12 sm:h-12"
+                style={{ filter: 'invert(67%) sepia(52%) saturate(456%) hue-rotate(107deg) brightness(95%) contrast(92%)' }}
+              />
             </div>
 
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 text-center">
@@ -276,7 +268,7 @@ export function OnboardingFlow() {
             <button
               onClick={() => {
                 skipOnboarding();
-                navigate('/settings');
+                navigate('/profile');
               }}
               className="mt-4 text-emerald-500/70 text-xs hover:text-emerald-400 transition-colors underline underline-offset-2"
             >
