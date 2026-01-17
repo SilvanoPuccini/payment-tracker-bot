@@ -85,7 +85,7 @@ export default function Login() {
               className="h-56 w-auto"
             />
           </div>
-          <div className="-mt-4">
+          <div className="-mt-10">
             <h1 className="text-2xl font-bold text-foreground">Iniciar Sesión</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Ingresa a tu cuenta de <span className="text-primary">PayTrack</span>
