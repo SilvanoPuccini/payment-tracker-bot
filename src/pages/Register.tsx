@@ -139,14 +139,14 @@ export default function Register() {
       <div className="w-full max-w-sm relative z-10 space-y-6">
         {/* Logo and Title */}
         <div className="text-center">
-          <div className="flex justify-center mb-1">
+          <div className="flex justify-center">
             <img
               src="/logofinalsinfondo.png"
               alt="PayTrack"
               className="h-56 w-auto"
             />
           </div>
-          <div>
+          <div className="-mt-4">
             <h1 className="text-2xl font-bold text-foreground">Crear Cuenta</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Únete a <span className="text-primary">PayTrack</span> y automatiza tu gestión de pagos
