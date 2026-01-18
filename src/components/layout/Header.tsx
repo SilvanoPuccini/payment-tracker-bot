@@ -279,7 +279,7 @@ export function Header() {
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[var(--pt-text-muted)] hover:bg-[var(--pt-surface)] transition-all"
               >
                 <HelpCircle className="w-4 h-4" />
-                <span className="text-sm font-medium">Ayuda</span>
+                <span className="text-sm font-medium">Ayuda y Soporte</span>
               </button>
               <button
                 onClick={handleSignOut}
