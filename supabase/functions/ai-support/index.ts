@@ -1,9 +1,39 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// CORS Configuration
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(s => s.trim()).filter(Boolean);
+
+function getCorsHeaders(origin?: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+
+  if (!origin) {
+    headers['Access-Control-Allow-Origin'] = '*';
+    return headers;
+  }
+
+  // En desarrollo permitir todo, en producción solo orígenes permitidos
+  if (ALLOWED_ORIGINS.length === 0) {
+    headers['Access-Control-Allow-Origin'] = '*';
+  } else if (ALLOWED_ORIGINS.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  } else {
+    headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[0] || '*';
+  }
+
+  return headers;
+}
+
+// Supabase Admin Client for logging
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false }
+});
 
 interface SupportRequest {
   problem: string;
@@ -24,6 +54,48 @@ interface SupportAnalysis {
   confidence: number;
   category: 'payment' | 'whatsapp' | 'account' | 'technical' | 'other';
   suggestedActions?: string[];
+}
+
+interface LogPayload {
+  user_id: string | null;
+  user_email: string | null;
+  request: { problem: string; context?: SupportRequest['context'] };
+  response: SupportAnalysis | null;
+  status: string;
+  error: string | null;
+}
+
+// Insert log asynchronously (fire and forget)
+async function insertLog(payload: LogPayload): Promise<void> {
+  try {
+    const { error } = await supabaseAdmin.from('ai_support_logs').insert([payload]);
+    if (error) {
+      console.error('Failed to insert log:', error.message);
+    }
+  } catch (e) {
+    console.error('Error inserting log:', e);
+  }
+}
+
+// Verify user token using Supabase Auth
+async function verifyToken(token: string): Promise<{ id: string; email?: string } | null> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const user = await response.json();
+    return user?.id ? { id: user.id, email: user.email } : null;
+  } catch {
+    return null;
+  }
 }
 
 const systemPrompt = `Eres el Asistente de Soporte IA de PayTrack, una aplicación para gestionar y rastrear pagos recibidos por WhatsApp.
@@ -89,13 +161,41 @@ Responde ÚNICAMENTE con JSON válido:
 }`;
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let userId: string | null = null;
+  let userEmail: string | null = null;
+
   try {
-    const { problem, context, userEmail }: SupportRequest = await req.json();
+    // Verificar autenticación
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: 'No autorizado. Se requiere autenticación.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const user = await verifyToken(token);
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Token inválido o expirado.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    userId = user.id;
+    userEmail = user.email || null;
+
+    const { problem, context, userEmail: bodyEmail }: SupportRequest = await req.json();
 
     if (!problem) {
       return new Response(
@@ -104,7 +204,7 @@ serve(async (req) => {
       );
     }
 
-    // Usar API key dedicada para soporte (separada de la de pagos)
+    // Usar API key dedicada para soporte
     const GEMINI_SUPPORT_KEY = Deno.env.get('GEMINI_SUPPORT_API_KEY');
     if (!GEMINI_SUPPORT_KEY) {
       console.error('GEMINI_SUPPORT_API_KEY no está configurada');
@@ -128,10 +228,9 @@ serve(async (req) => {
       }
     }
 
-    console.log('Procesando solicitud de soporte IA...');
-    console.log('Problema:', problem.substring(0, 100));
+    console.log('Procesando solicitud de soporte IA para usuario:', userId);
 
-    // Llamar directamente a la API de Gemini
+    // Llamar a la API de Gemini
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_SUPPORT_KEY}`, {
       method: 'POST',
       headers: {
@@ -163,17 +262,20 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error('Error de Gemini API:', response.status, errorText);
 
+      // Log error
+      insertLog({
+        user_id: userId,
+        user_email: bodyEmail || userEmail,
+        request: { problem, context },
+        response: null,
+        status: 'gemini_error',
+        error: `${response.status}: ${errorText.substring(0, 500)}`,
+      });
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Límite de solicitudes excedido. Intente más tarde.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (response.status === 400) {
-        return new Response(
-          JSON.stringify({ error: 'Error en la solicitud. Verifica tu API key.' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -184,18 +286,25 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    // Gemini API response format
     const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!aiResponse) {
       console.error('Respuesta vacía de la IA');
+
+      insertLog({
+        user_id: userId,
+        user_email: bodyEmail || userEmail,
+        request: { problem, context },
+        response: null,
+        status: 'empty_response',
+        error: 'No AI response content',
+      });
+
       return new Response(
         JSON.stringify({ error: 'No se recibió respuesta del modelo' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Respuesta cruda de IA:', aiResponse.substring(0, 200));
 
     // Parse the JSON response
     let analysis: SupportAnalysis;
@@ -227,7 +336,6 @@ serve(async (req) => {
       };
     } catch (parseError) {
       console.error('Error al parsear respuesta de IA:', parseError);
-      // Fallback: try to extract useful info from raw response
       analysis = {
         diagnosis: 'Análisis completado',
         explanation: aiResponse.substring(0, 300),
@@ -239,7 +347,17 @@ serve(async (req) => {
       };
     }
 
-    console.log('Análisis de soporte completado:', analysis.diagnosis);
+    // Log successful request
+    insertLog({
+      user_id: userId,
+      user_email: bodyEmail || userEmail,
+      request: { problem, context },
+      response: analysis,
+      status: 'success',
+      error: null,
+    });
+
+    console.log('Análisis de soporte completado para usuario:', userId);
 
     return new Response(
       JSON.stringify({
@@ -252,6 +370,19 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error en ai-support:', error);
+
+    // Log error
+    if (userId) {
+      insertLog({
+        user_id: userId,
+        user_email: userEmail,
+        request: { problem: 'unknown' },
+        response: null,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Error desconocido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
