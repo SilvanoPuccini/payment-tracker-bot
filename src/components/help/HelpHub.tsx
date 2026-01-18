@@ -11,6 +11,7 @@ import {
   FileText,
   Clock,
   Home,
+  Mail,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -100,10 +101,10 @@ export function HelpHub({ onNavigate, onSearch }: HelpHubProps) {
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
-          <Home className="w-5 h-5 text-emerald-400" />
+          <HelpCircle className="w-5 h-5 text-emerald-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">Centro de Ayuda</h1>
+          <h1 className="text-xl font-bold text-white">Ayuda y Soporte</h1>
           <p className="text-sm text-slate-400">¿En qué podemos ayudarte?</p>
         </div>
       </div>
@@ -212,18 +213,22 @@ export function HelpHub({ onNavigate, onSearch }: HelpHubProps) {
               <br />
               Respondemos en menos de 20 minutos.
             </p>
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
               <button
                 onClick={() => onNavigate('create-ticket')}
-                className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 transition-colors flex items-center gap-2"
+                className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 Iniciar un Chat
               </button>
+              <button
+                onClick={() => onNavigate('email-support')}
+                className="px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600 text-white text-xs font-medium hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Soporte por Email
+              </button>
             </div>
-            <button className="text-xs text-slate-500 hover:text-slate-400 mt-2 transition-colors">
-              Soporte por Email
-            </button>
           </div>
         </div>
       </div>

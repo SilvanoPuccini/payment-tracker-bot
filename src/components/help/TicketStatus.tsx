@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   FileText,
@@ -11,76 +11,66 @@ import {
   Filter,
   Sparkles,
   MessageCircle,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
-import { SupportTicket, TICKET_STATUS_CONFIG, TICKET_CATEGORIES, TicketStatus as TicketStatusType } from './types';
+import { SupportTicket, TICKET_STATUS_CONFIG, TICKET_CATEGORIES, TicketStatus as TicketStatusType, TicketCategory } from './types';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TicketStatusProps {
   onBack: () => void;
   onCreateTicket: () => void;
 }
 
-// Mock data - En producción vendría de la API
-const MOCK_TICKETS: SupportTicket[] = [
-  {
-    id: 'TK-8E29',
-    userId: '1',
-    category: 'pago_no_detectado',
-    description: 'El pago de María no fue detectado',
-    status: 'in_review',
-    createdAt: new Date(Date.now() - 7200000), // 2 horas
-    updatedAt: new Date(Date.now() - 3600000),
-    estimatedResponseTime: '~1 hora',
-    paymentContext: {
-      paymentId: 'pay-123',
-      contactName: 'María Silva',
-      amount: 15000,
-    },
-  },
-  {
-    id: 'TK-7F41',
-    userId: '1',
-    category: 'pago_incorrecto',
-    description: 'Ticket Creado',
-    status: 'pending',
-    createdAt: new Date(Date.now() - 86400000), // 1 día
-    updatedAt: new Date(Date.now() - 86400000),
-    aiAnalysis: {
-      id: 'ai-1',
-      timestamp: new Date(),
-      problem: 'Análisis por IA Iniciado',
-      diagnosis: 'Procesando...',
-      explanation: '',
-      recommendation: '',
-      resolved: false,
-    },
-  },
-  {
-    id: 'TK-6T01',
-    userId: '1',
-    category: 'conexion_whatsapp',
-    description: 'Limite de tasa excedido',
-    status: 'in_review',
-    createdAt: new Date(Date.now() - 172800000), // 2 días
-    updatedAt: new Date(Date.now() - 86400000),
-  },
-  {
-    id: 'TK-8E55',
-    userId: '1',
-    category: 'error_sistema',
-    description: 'Error de actualización del último problema reportado',
-    status: 'pending',
-    createdAt: new Date(Date.now() - 259200000), // 3 días
-    updatedAt: new Date(Date.now() - 172800000),
-  },
-];
+interface DBTicket {
+  id: string;
+  user_id: string | null;
+  type: string;
+  category: string;
+  subject: string;
+  description: string;
+  contact_name: string;
+  contact_email: string;
+  status: string;
+  priority: string;
+  ai_analysis: any;
+  payment_context: any;
+  created_at: string;
+  updated_at: string;
+  response: string | null;
+}
 
 const STATUS_FILTERS: { value: TicketStatusType | 'all'; label: string }[] = [
   { value: 'all', label: 'Todos' },
-  { value: 'pending', label: 'En Revisión' },
-  { value: 'in_review', label: 'Pendientes' },
+  { value: 'pending', label: 'Pendientes' },
+  { value: 'in_review', label: 'En Revisión' },
   { value: 'resolved', label: 'Resueltos' },
 ];
+
+// Mapeo de status de DB a status del componente
+const mapDBStatus = (status: string): TicketStatusType => {
+  if (status === 'open' || status === 'pending') return 'pending';
+  if (status === 'in_progress' || status === 'in_review') return 'in_review';
+  if (status === 'resolved' || status === 'closed') return 'resolved';
+  return 'pending';
+};
+
+// Convertir ticket de DB a SupportTicket
+const convertDBTicket = (dbTicket: DBTicket): SupportTicket => {
+  return {
+    id: dbTicket.id,
+    userId: dbTicket.user_id || '',
+    category: (dbTicket.category as TicketCategory) || 'otro',
+    description: dbTicket.description || dbTicket.subject,
+    status: mapDBStatus(dbTicket.status),
+    createdAt: new Date(dbTicket.created_at),
+    updatedAt: new Date(dbTicket.updated_at),
+    aiAnalysis: dbTicket.ai_analysis ? (typeof dbTicket.ai_analysis === 'string' ? JSON.parse(dbTicket.ai_analysis) : dbTicket.ai_analysis) : undefined,
+    paymentContext: dbTicket.payment_context ? (typeof dbTicket.payment_context === 'string' ? JSON.parse(dbTicket.payment_context) : dbTicket.payment_context) : undefined,
+  };
+};
 
 const StatusBadge = ({ status }: { status: TicketStatusType }) => {
   const config = TICKET_STATUS_CONFIG[status];
@@ -121,10 +111,51 @@ const formatTimeAgo = (date: Date): string => {
 };
 
 export function TicketStatus({ onBack, onCreateTicket }: TicketStatusProps) {
+  const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState<TicketStatusType | 'all'>('all');
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredTickets = MOCK_TICKETS.filter(
+  // Cargar tickets desde Supabase
+  const loadTickets = async () => {
+    if (!user?.id) {
+      setTickets([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('support_tickets' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        console.warn('Error fetching tickets:', fetchError.message);
+        setTickets([]);
+      } else if (data) {
+        const convertedTickets = (data as unknown as DBTicket[]).map(convertDBTicket);
+        setTickets(convertedTickets);
+      }
+    } catch (err) {
+      console.error('Error loading tickets:', err);
+      setTickets([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, [user?.id]);
+
+  const filteredTickets = tickets.filter(
     (ticket) => statusFilter === 'all' || ticket.status === statusFilter
   );
 
@@ -251,9 +282,23 @@ export function TicketStatus({ onBack, onCreateTicket }: TicketStatusProps) {
 
       {/* Tickets List */}
       <div>
-        <p className="text-sm text-slate-400 mb-3">Tickets Recientes</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm text-slate-400">Tickets Recientes</p>
+          <button
+            onClick={loadTickets}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+          </button>
+        </div>
         <div className="space-y-3">
-          {filteredTickets.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8">
+              <Loader2 className="w-8 h-8 text-emerald-400 mx-auto mb-3 animate-spin" />
+              <p className="text-slate-400 text-sm">Cargando tickets...</p>
+            </div>
+          ) : filteredTickets.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400">No hay tickets</p>

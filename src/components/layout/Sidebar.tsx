@@ -6,7 +6,9 @@ import {
   Users,
   BarChart3,
   Bell,
-  Zap
+  Zap,
+  Settings,
+  HelpCircle,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -17,6 +19,11 @@ const navigation = [
   { name: "Contactos", href: "/contacts", icon: Users },
   { name: "Recordatorios", href: "/reminders", icon: Bell },
   { name: "Reportes", href: "/reports", icon: BarChart3 },
+];
+
+const secondaryNavigation = [
+  { name: "Configuración", href: "/settings", icon: Settings },
+  { name: "Ayuda y Soporte", href: "/help", icon: HelpCircle },
 ];
 
 export function Sidebar() {
@@ -37,28 +44,52 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  isActive
-                    ? "bg-stitch-primary/15 text-stitch-primary"
-                    : "text-stitch-muted hover:bg-stitch-surface-elevated hover:text-stitch-text"
-                )}
-              >
-                <item.icon className={cn("h-5 w-5", isActive && "text-stitch-primary")} />
-                {item.name}
-                {isActive && (
-                  <div className="ml-auto h-1.5 w-1.5 rounded-full bg-stitch-primary animate-pulse-glow" />
-                )}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 px-3 py-4 flex flex-col">
+          <div className="space-y-1">
+            {navigation.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    isActive
+                      ? "bg-stitch-primary/15 text-stitch-primary"
+                      : "text-stitch-muted hover:bg-stitch-surface-elevated hover:text-stitch-text"
+                  )}
+                >
+                  <item.icon className={cn("h-5 w-5", isActive && "text-stitch-primary")} />
+                  {item.name}
+                  {isActive && (
+                    <div className="ml-auto h-1.5 w-1.5 rounded-full bg-stitch-primary animate-pulse-glow" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Secondary Navigation */}
+          <div className="mt-auto pt-4 border-t border-stitch space-y-1">
+            {secondaryNavigation.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    isActive
+                      ? "bg-stitch-primary/15 text-stitch-primary"
+                      : "text-stitch-muted hover:bg-stitch-surface-elevated hover:text-stitch-text"
+                  )}
+                >
+                  <item.icon className={cn("h-5 w-5", isActive && "text-stitch-primary")} />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
         {/* Bottom section */}
