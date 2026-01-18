@@ -7,9 +7,10 @@ import { AIAssistant } from '@/components/help/AIAssistant';
 import { CreateTicket } from '@/components/help/CreateTicket';
 import { TicketStatus } from '@/components/help/TicketStatus';
 import { EmailSupport } from '@/components/help/EmailSupport';
+import { TermsAndConditions } from '@/components/help/TermsAndConditions';
 import { FAQCategory, PaymentContext, AIAnalysis } from '@/components/help/types';
 
-type HelpSection = 'hub' | 'faq' | 'ai-assistant' | 'create-ticket' | 'tickets' | 'email-support';
+type HelpSection = 'hub' | 'faq' | 'ai-assistant' | 'create-ticket' | 'tickets' | 'email-support' | 'terms' | 'privacy';
 
 export default function Help() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,7 +18,7 @@ export default function Help() {
   // Parse initial section from URL
   const getInitialSection = (): HelpSection => {
     const section = searchParams.get('section');
-    if (section && ['hub', 'faq', 'ai-assistant', 'create-ticket', 'tickets', 'email-support'].includes(section)) {
+    if (section && ['hub', 'faq', 'ai-assistant', 'create-ticket', 'tickets', 'email-support', 'terms', 'privacy'].includes(section)) {
       return section as HelpSection;
     }
     return 'hub';
@@ -128,6 +129,21 @@ export default function Help() {
           <EmailSupport
             onBack={handleBack}
             onSuccess={handleTicketSuccess}
+          />
+        );
+
+      case 'terms':
+        return (
+          <TermsAndConditions
+            onBack={handleBack}
+          />
+        );
+
+      case 'privacy':
+        // Por ahora redirige a términos, sección de privacidad
+        return (
+          <TermsAndConditions
+            onBack={handleBack}
           />
         );
 
