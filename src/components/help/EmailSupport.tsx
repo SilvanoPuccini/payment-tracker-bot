@@ -89,9 +89,10 @@ export function EmailSupport({ onBack, onSuccess }: EmailSupportProps) {
       };
 
       // Intentamos insertar en la tabla support_tickets
-      const { error: dbError } = await supabase
-        .from('support_tickets' as any)
-        .insert(ticketData as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: dbError } = await (supabase as any)
+        .from('support_tickets')
+        .insert(ticketData);
 
       if (dbError) {
         console.warn('No se pudo guardar en BD (tabla puede no existir):', dbError.message);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   FileText,
@@ -18,6 +18,7 @@ import { SupportTicket, TICKET_STATUS_CONFIG, TICKET_CATEGORIES, TicketStatus as
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Json } from '@/integrations/supabase/types';
 
 interface TicketStatusProps {
   onBack: () => void;
@@ -35,8 +36,8 @@ interface DBTicket {
   contact_email: string;
   status: string;
   priority: string;
-  ai_analysis: any;
-  payment_context: any;
+  ai_analysis: Json | null;
+  payment_context: Json | null;
   created_at: string;
   updated_at: string;
   response: string | null;
@@ -119,7 +120,7 @@ export function TicketStatus({ onBack, onCreateTicket }: TicketStatusProps) {
   const [error, setError] = useState<string | null>(null);
 
   // Cargar tickets desde Supabase
-  const loadTickets = async () => {
+  const loadTickets = useCallback(async () => {
     if (!user?.id) {
       setTickets([]);
       setIsLoading(false);
@@ -130,8 +131,9 @@ export function TicketStatus({ onBack, onCreateTicket }: TicketStatusProps) {
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('support_tickets' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error: fetchError } = await (supabase as any)
+        .from('support_tickets')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -149,11 +151,11 @@ export function TicketStatus({ onBack, onCreateTicket }: TicketStatusProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     loadTickets();
-  }, [user?.id]);
+  }, [loadTickets]);
 
   const filteredTickets = tickets.filter(
     (ticket) => statusFilter === 'all' || ticket.status === statusFilter
