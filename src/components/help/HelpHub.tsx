@@ -12,6 +12,8 @@ import {
   Clock,
   Home,
   Mail,
+  Scale,
+  Shield,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -230,6 +232,43 @@ export function HelpHub({ onNavigate, onSearch }: HelpHubProps) {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Legal Section */}
+      <div className="pt-4 border-t border-slate-800">
+        <h2 className="text-sm font-medium text-slate-400 mb-3">Información Legal</h2>
+        <div className="space-y-2">
+          <button
+            onClick={() => onNavigate('terms')}
+            className="w-full p-4 rounded-xl bg-slate-800/30 border border-slate-700/50 text-left hover:bg-slate-800/50 hover:border-slate-600 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-slate-700/50 text-slate-400 group-hover:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+                <Scale className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-white text-sm">Términos y Condiciones</p>
+                <p className="text-xs text-slate-500">Condiciones de uso del servicio</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 transition-colors" />
+            </div>
+          </button>
+          <button
+            onClick={() => onNavigate('privacy')}
+            className="w-full p-4 rounded-xl bg-slate-800/30 border border-slate-700/50 text-left hover:bg-slate-800/50 hover:border-slate-600 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-slate-700/50 text-slate-400 group-hover:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-white text-sm">Política de Privacidad</p>
+                <p className="text-xs text-slate-500">Cómo protegemos tus datos</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 transition-colors" />
+            </div>
+          </button>
         </div>
       </div>
     </div>
