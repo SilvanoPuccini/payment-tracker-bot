@@ -14,10 +14,12 @@ import {
   ChevronRight,
   Loader2,
   MessageCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { PaymentContext, AIAnalysis } from './types';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 interface AIAssistantProps {
   initialQuestion?: string;
@@ -32,53 +34,54 @@ interface AnalysisResult {
   recommendation: string;
   resolved: boolean;
   confidence: number;
+  category?: string;
+  suggestedActions?: string[];
 }
 
-// Simulación de análisis IA - En producción conectar con API real
+// Llamar a la Edge Function de AI Support
 const analyzeWithAI = async (problem: string, context?: PaymentContext): Promise<AnalysisResult> => {
-  await new Promise((resolve) => setTimeout(resolve, 2000)); // Simular procesamiento
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-support', {
+      body: {
+        problem,
+        context: context ? {
+          contactName: context.contactName,
+          amount: context.amount,
+          date: context.date,
+          paymentId: context.paymentId,
+        } : undefined,
+      },
+    });
 
-  // Análisis basado en keywords
-  const problemLower = problem.toLowerCase();
+    if (error) {
+      console.error('Error calling AI support:', error);
+      throw new Error(error.message);
+    }
 
-  if (problemLower.includes('no detecta') || problemLower.includes('no aparece')) {
+    if (data?.success && data?.analysis) {
+      return {
+        diagnosis: data.analysis.diagnosis,
+        explanation: data.analysis.explanation,
+        recommendation: data.analysis.recommendation,
+        resolved: data.analysis.resolved,
+        confidence: data.analysis.confidence,
+        category: data.analysis.category,
+        suggestedActions: data.analysis.suggestedActions,
+      };
+    }
+
+    throw new Error('Respuesta inválida del servidor');
+  } catch (error) {
+    console.error('Error en análisis IA:', error);
+    // Fallback response si la API falla
     return {
-      diagnosis: 'El pago no fue detectado automáticamente',
-      explanation: `Parece que el comprobante está borroso. No pude procesar el recibo de ${context?.contactName || 'María Silva'}. La imagen está desenfocada en la esquina inferior derecha, lo que impide leer el ID de transacción.`,
-      recommendation: `Responde a ${context?.contactName || 'María'} por WhatsApp y solicítale una foto clara del comprobante. Si eso no funciona, puedes enviar el PDF digital del banco para una verificación automatizada.`,
-      resolved: true,
-      confidence: 0.85,
+      diagnosis: 'No se pudo conectar con el asistente IA',
+      explanation: 'Hubo un problema al procesar tu consulta. Esto puede deberse a una conexión lenta o un error temporal.',
+      recommendation: 'Por favor intenta nuevamente en unos segundos o crea un ticket de soporte para asistencia inmediata.',
+      resolved: false,
+      confidence: 0,
     };
   }
-
-  if (problemLower.includes('monto') || problemLower.includes('incorrecto')) {
-    return {
-      diagnosis: 'El monto detectado no coincide con el esperado',
-      explanation: 'La IA detectó múltiples valores numéricos en el comprobante. Es posible que se haya capturado un monto de comisión o impuesto en lugar del total.',
-      recommendation: 'Puedes corregir el monto manualmente desde el detalle del pago. La IA aprenderá de esta corrección para futuros análisis similares.',
-      resolved: true,
-      confidence: 0.78,
-    };
-  }
-
-  if (problemLower.includes('whatsapp') || problemLower.includes('conexión')) {
-    return {
-      diagnosis: 'Problema de conexión con WhatsApp',
-      explanation: 'La sesión de WhatsApp puede haberse desconectado. Esto ocurre cuando hay una actualización de WhatsApp o se cerró la sesión desde el teléfono.',
-      recommendation: 'Ve a Configuración > WhatsApp y escanea el código QR nuevamente para reconectar. Asegúrate de mantener el teléfono conectado a internet.',
-      resolved: true,
-      confidence: 0.92,
-    };
-  }
-
-  // Default response
-  return {
-    diagnosis: 'Análisis del problema reportado',
-    explanation: 'He analizado tu consulta pero necesito más información para darte una solución precisa.',
-    recommendation: 'Te recomiendo crear un ticket de soporte para que nuestro equipo pueda ayudarte con más detalle.',
-    resolved: false,
-    confidence: 0.45,
-  };
 };
 
 export function AIAssistant({
