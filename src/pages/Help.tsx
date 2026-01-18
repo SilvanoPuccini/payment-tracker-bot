@@ -6,9 +6,10 @@ import { FAQSection } from '@/components/help/FAQSection';
 import { AIAssistant } from '@/components/help/AIAssistant';
 import { CreateTicket } from '@/components/help/CreateTicket';
 import { TicketStatus } from '@/components/help/TicketStatus';
+import { EmailSupport } from '@/components/help/EmailSupport';
 import { FAQCategory, PaymentContext, AIAnalysis } from '@/components/help/types';
 
-type HelpSection = 'hub' | 'faq' | 'ai-assistant' | 'create-ticket' | 'tickets';
+type HelpSection = 'hub' | 'faq' | 'ai-assistant' | 'create-ticket' | 'tickets' | 'email-support';
 
 export default function Help() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -16,7 +17,7 @@ export default function Help() {
   // Parse initial section from URL
   const getInitialSection = (): HelpSection => {
     const section = searchParams.get('section');
-    if (section && ['hub', 'faq', 'ai-assistant', 'create-ticket', 'tickets'].includes(section)) {
+    if (section && ['hub', 'faq', 'ai-assistant', 'create-ticket', 'tickets', 'email-support'].includes(section)) {
       return section as HelpSection;
     }
     return 'hub';
@@ -119,6 +120,14 @@ export default function Help() {
           <TicketStatus
             onBack={handleBack}
             onCreateTicket={() => navigateToSection('create-ticket')}
+          />
+        );
+
+      case 'email-support':
+        return (
+          <EmailSupport
+            onBack={handleBack}
+            onSuccess={handleTicketSuccess}
           />
         );
 

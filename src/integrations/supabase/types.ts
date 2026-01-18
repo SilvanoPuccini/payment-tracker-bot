@@ -346,6 +346,69 @@ export type Database = {
         }
         Relationships: []
       }
+      support_tickets: {
+        Row: {
+          id: string
+          user_id: string | null
+          type: string
+          category: string
+          subject: string
+          description: string
+          contact_name: string
+          contact_email: string
+          status: string
+          priority: string
+          ai_analysis: Json | null
+          payment_context: Json | null
+          attachment_url: string | null
+          assigned_to: string | null
+          resolved_at: string | null
+          response: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          type: string
+          category: string
+          subject: string
+          description: string
+          contact_name: string
+          contact_email: string
+          status?: string
+          priority?: string
+          ai_analysis?: Json | null
+          payment_context?: Json | null
+          attachment_url?: string | null
+          assigned_to?: string | null
+          resolved_at?: string | null
+          response?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          type?: string
+          category?: string
+          subject?: string
+          description?: string
+          contact_name?: string
+          contact_email?: string
+          status?: string
+          priority?: string
+          ai_analysis?: Json | null
+          payment_context?: Json | null
+          attachment_url?: string | null
+          assigned_to?: string | null
+          resolved_at?: string | null
+          response?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
