@@ -173,27 +173,22 @@ serve(async (req) => {
   let userEmail: string | null = null;
 
   try {
-    // Verificar autenticación
+    // Intentar obtener autenticación (opcional pero recomendada)
     const authHeader = req.headers.get('authorization') || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-    if (!token) {
-      return new Response(
-        JSON.stringify({ error: 'No autorizado. Se requiere autenticación.' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (token) {
+      const user = await verifyToken(token);
+      if (user) {
+        userId = user.id;
+        userEmail = user.email || null;
+        console.log('Usuario autenticado:', userId);
+      } else {
+        console.log('Token inválido, continuando sin autenticación');
+      }
+    } else {
+      console.log('Sin token de autenticación, continuando como anónimo');
     }
-
-    const user = await verifyToken(token);
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Token inválido o expirado.' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    userId = user.id;
-    userEmail = user.email || null;
 
     const { problem, context, userEmail: bodyEmail }: SupportRequest = await req.json();
 
