@@ -8,6 +8,7 @@ import { CreateTicket } from '@/components/help/CreateTicket';
 import { TicketStatus } from '@/components/help/TicketStatus';
 import { EmailSupport } from '@/components/help/EmailSupport';
 import { TermsAndConditions } from '@/components/help/TermsAndConditions';
+import { PrivacyPolicy } from '@/components/help/PrivacyPolicy';
 import { FAQCategory, PaymentContext, AIAnalysis } from '@/components/help/types';
 
 type HelpSection = 'hub' | 'faq' | 'ai-assistant' | 'create-ticket' | 'tickets' | 'email-support' | 'terms' | 'privacy';
@@ -140,9 +141,8 @@ export default function Help() {
         );
 
       case 'privacy':
-        // Por ahora redirige a términos, sección de privacidad
         return (
-          <TermsAndConditions
+          <PrivacyPolicy
             onBack={handleBack}
           />
         );
