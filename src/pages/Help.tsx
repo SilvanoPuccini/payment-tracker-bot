@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { HelpHub } from '@/components/help/HelpHub';
@@ -15,6 +15,11 @@ type HelpSection = 'hub' | 'faq' | 'ai-assistant' | 'create-ticket' | 'tickets' 
 
 export default function Help() {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Scroll to top when section changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [searchParams]);
 
   // Parse initial section from URL
   const getInitialSection = (): HelpSection => {
