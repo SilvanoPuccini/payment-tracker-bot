@@ -103,6 +103,10 @@ interface AIError extends Error {
   retryAfter?: number;
 }
 
+// Get Supabase URL and anon key for direct fetch
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 // Call Edge Function with idempotency and abort support
 const analyzeWithAI = async (
   problem: string,
@@ -116,16 +120,28 @@ const analyzeWithAI = async (
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
     // Combine abort signals
-    const combinedSignal = signal
-      ? { signal: signal.aborted ? signal : controller.signal }
-      : { signal: controller.signal };
-
     if (signal) {
       signal.addEventListener('abort', () => controller.abort());
     }
 
-    const { data, error } = await supabase.functions.invoke('ai-support', {
-      body: {
+    // Get session token if user is logged in (optional but recommended for better rate limits)
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    // Build headers - include Authorization if we have a token
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+    };
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    // Use direct fetch - auth is optional, function handles both cases
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-support`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
         problem,
         context: context ? {
           contactName: context.contactName,
@@ -135,11 +151,15 @@ const analyzeWithAI = async (
         } : undefined,
         idempotencyKey,
         payloadHash: hashPayload(problem, context),
-      },
-      ...combinedSignal,
+      }),
+      signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
+
+    // Parse response
+    const data = await response.json();
+    const error = !response.ok ? { message: data.error || `HTTP ${response.status}` } : null;
 
     if (error) {
       console.error('Error calling AI support:', error);
