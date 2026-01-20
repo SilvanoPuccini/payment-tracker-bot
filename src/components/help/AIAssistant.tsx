@@ -424,30 +424,30 @@ export function AIAssistant({
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] min-h-[500px]">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800 flex-shrink-0">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] min-h-[400px] sm:min-h-[500px]">
+      {/* Header - Compact */}
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white">Asistente IA</h1>
-              <p className="text-xs text-slate-500">Desarrollado por Gemini</p>
+              <h1 className="text-base sm:text-lg font-bold text-white">Asistente IA</h1>
+              <p className="text-[10px] sm:text-xs text-slate-500 hidden xs:block">Desarrollado por Gemini</p>
             </div>
           </div>
         </div>
         {hasMessages && (
           <button
             onClick={handleReset}
-            className="p-2 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
             title="Nueva conversación"
           >
             <RefreshCw className="w-4 h-4" />
@@ -456,77 +456,77 @@ export function AIAssistant({
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto py-4">
+      <div className="flex-1 overflow-y-auto py-3 sm:py-4">
         {!hasMessages ? (
-          // Welcome Screen
+          // Welcome Screen - Compact
           <div className="h-full flex flex-col">
-            {/* Welcome Message */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 mb-6">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-emerald-500/20 flex-shrink-0">
-                  <Sparkles className="w-5 h-5 text-emerald-400" />
+            {/* Welcome Message - Compact */}
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 mb-4 sm:mb-6">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-emerald-500/20 flex-shrink-0">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
                 </div>
-                <div>
-                  <p className="font-semibold text-white">¡Hola! Soy tu asistente de soporte</p>
-                  <p className="text-sm text-slate-400 mt-1">
-                    Puedo ayudarte con problemas de pagos, conexión de WhatsApp y más. ¿En qué puedo ayudarte hoy?
+                <div className="min-w-0">
+                  <p className="font-semibold text-white text-sm sm:text-base">¡Hola! Soy tu asistente</p>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-0.5 sm:mt-1">
+                    ¿En qué puedo ayudarte?
                   </p>
-                  <p className="text-xs text-emerald-400/70 mt-2">Disponible 24/7</p>
                 </div>
+                <span className="text-[10px] sm:text-xs text-emerald-400/70 flex-shrink-0 ml-auto">24/7</span>
               </div>
             </div>
 
-            {/* Quick Actions Grid */}
+            {/* Quick Actions Grid - Responsive */}
             <div className="flex-1">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-medium">
+              <p className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wider mb-2 sm:mb-3 font-medium">
                 Preguntas frecuentes
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
                 {quickActions.map((action) => (
                   <button
                     key={action.id}
                     onClick={() => handleSend(action.query)}
                     disabled={isAnalyzing || rateLimitCountdown > 0}
                     className={cn(
-                      'p-4 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed',
+                      'p-3 sm:p-4 rounded-lg sm:rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex xs:flex-col items-center xs:items-start gap-2 sm:gap-0',
                       action.color
                     )}
                   >
-                    <action.icon className="w-6 h-6 mb-2" />
-                    <p className="text-sm font-medium text-white">{action.label}</p>
+                    <action.icon className="w-5 h-5 sm:w-6 sm:h-6 sm:mb-2 flex-shrink-0" />
+                    <p className="text-xs sm:text-sm font-medium text-white">{action.label}</p>
                   </button>
                 ))}
               </div>
             </div>
           </div>
         ) : (
-          // Chat Messages
-          <div className="space-y-4">
+          // Chat Messages - Compact
+          <div className="space-y-3 sm:space-y-4">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={cn(
-                  'flex gap-3',
+                  'flex gap-2 sm:gap-3',
                   msg.role === 'user' ? 'justify-end' : 'justify-start'
                 )}
               >
                 {msg.role === 'assistant' && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                    <Bot className="w-4 h-4 text-white" />
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                    <Bot className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                   </div>
                 )}
 
                 <div className={cn(
-                  'max-w-[85%] rounded-2xl p-4',
+                  'max-w-[88%] sm:max-w-[85%] rounded-xl sm:rounded-2xl p-2.5 sm:p-4',
                   msg.role === 'user'
-                    ? 'bg-emerald-500 text-white rounded-br-md'
-                    : 'bg-slate-800/70 border border-slate-700/50 rounded-bl-md'
+                    ? 'bg-emerald-500 text-white rounded-br-sm sm:rounded-br-md'
+                    : 'bg-slate-800/70 border border-slate-700/50 rounded-bl-sm sm:rounded-bl-md'
                 )}>
                   {msg.role === 'assistant' && msg.analysis && (
-                    <div className="mb-3 pb-3 border-b border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div className="mb-2 sm:mb-3 pb-2 sm:pb-3 border-b border-slate-700/50">
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 flex-wrap">
                         <span className={cn(
-                          'px-2 py-0.5 rounded-full text-xs font-medium',
+                          'px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium',
                           getCategoryColor(msg.analysis.category)
                         )}>
                           {msg.analysis.category === 'payment' ? 'Pagos' :
@@ -535,53 +535,53 @@ export function AIAssistant({
                            msg.analysis.category === 'technical' ? 'Técnico' : 'General'}
                         </span>
                         <span className={cn(
-                          'flex items-center gap-1 text-xs',
+                          'flex items-center gap-1 text-[10px] sm:text-xs',
                           msg.analysis.resolved ? 'text-emerald-400' : 'text-amber-400'
                         )}>
                           {msg.analysis.resolved ? (
-                            <><CheckCircle className="w-3 h-3" /> Resuelto</>
+                            <><CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> Resuelto</>
                           ) : (
-                            <><AlertCircle className="w-3 h-3" /> Requiere acción</>
+                            <><AlertCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> Acción</>
                           )}
                         </span>
                       </div>
-                      <p className="font-medium text-white text-sm">{msg.analysis.diagnosis}</p>
+                      <p className="font-medium text-white text-xs sm:text-sm">{msg.analysis.diagnosis}</p>
                     </div>
                   )}
 
                   <p className={cn(
-                    'text-sm leading-relaxed',
+                    'text-xs sm:text-sm leading-relaxed',
                     msg.role === 'user' ? 'text-white' : 'text-slate-300'
                   )}>
                     {msg.content}
                   </p>
 
                   {msg.role === 'assistant' && msg.analysis?.recommendation && (
-                    <div className="mt-3 pt-3 border-t border-slate-700/50">
-                      <p className="text-xs text-emerald-400 font-medium mb-1">💡 Recomendación:</p>
-                      <p className="text-sm text-slate-300">{msg.analysis.recommendation}</p>
+                    <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-slate-700/50">
+                      <p className="text-[10px] sm:text-xs text-emerald-400 font-medium mb-0.5 sm:mb-1">💡 Recomendación:</p>
+                      <p className="text-xs sm:text-sm text-slate-300">{msg.analysis.recommendation}</p>
                     </div>
                   )}
                 </div>
 
                 {msg.role === 'user' && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-slate-700 flex items-center justify-center">
-                    <User className="w-4 h-4 text-slate-300" />
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-slate-700 flex items-center justify-center">
+                    <User className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300" />
                   </div>
                 )}
               </div>
             ))}
 
-            {/* Loading */}
+            {/* Loading - Compact */}
             {isAnalyzing && (
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-white" />
+              <div className="flex gap-2 sm:gap-3">
+                <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                  <Bot className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                 </div>
-                <div className="bg-slate-800/70 border border-slate-700/50 rounded-2xl rounded-bl-md p-4">
+                <div className="bg-slate-800/70 border border-slate-700/50 rounded-xl sm:rounded-2xl rounded-bl-sm sm:rounded-bl-md p-2.5 sm:p-4">
                   <div className="flex items-center gap-2 text-slate-400">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Analizando...</span>
+                    <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                    <span className="text-xs sm:text-sm">Analizando...</span>
                   </div>
                 </div>
               </div>
@@ -592,18 +592,18 @@ export function AIAssistant({
         )}
       </div>
 
-      {/* Feedback (only show after response) */}
+      {/* Feedback - Compact (only show after response) */}
       {hasMessages && lastAnalysis && !isAnalyzing && (
-        <div className="py-3 border-t border-slate-800 flex-shrink-0">
+        <div className="py-2 sm:py-3 border-t border-slate-800 flex-shrink-0">
           {feedback ? (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-400">
+              <p className="text-xs sm:text-sm text-slate-400">
                 {feedback === 'helpful' ? '✨ ¡Gracias!' : '📝 Lo tendremos en cuenta'}
               </p>
               {feedback === 'not_helpful' && (
                 <button
                   onClick={handleCreateTicketWithContext}
-                  className="px-4 py-2 rounded-xl bg-slate-700 text-white text-sm font-medium hover:bg-slate-600 transition-colors"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-slate-700 text-white text-xs sm:text-sm font-medium hover:bg-slate-600 transition-colors"
                 >
                   Crear ticket
                 </button>
@@ -611,19 +611,19 @@ export function AIAssistant({
             </div>
           ) : (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">¿Te fue útil?</p>
-              <div className="flex gap-2">
+              <p className="text-xs sm:text-sm text-slate-500">¿Te fue útil?</p>
+              <div className="flex gap-1.5 sm:gap-2">
                 <button
                   onClick={() => setFeedback('helpful')}
-                  className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+                  className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
                 >
-                  <ThumbsUp className="w-4 h-4" />
+                  <ThumbsUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
                 <button
                   onClick={() => setFeedback('not_helpful')}
-                  className="p-2 rounded-xl bg-slate-700/50 text-slate-400 hover:bg-slate-700 transition-colors"
+                  className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-700/50 text-slate-400 hover:bg-slate-700 transition-colors"
                 >
-                  <ThumbsDown className="w-4 h-4" />
+                  <ThumbsDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               </div>
             </div>
@@ -631,9 +631,9 @@ export function AIAssistant({
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="pt-3 border-t border-slate-800 flex-shrink-0">
-        <div className="flex gap-3">
+      {/* Input Area - Compact */}
+      <div className="pt-2 sm:pt-3 border-t border-slate-800 flex-shrink-0">
+        <div className="flex gap-2 sm:gap-3">
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
@@ -646,32 +646,32 @@ export function AIAssistant({
                   handleSend();
                 }
               }}
-              className="w-full px-4 py-3 pr-12 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none resize-none text-sm"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 pr-10 sm:pr-12 rounded-lg sm:rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none resize-none text-xs sm:text-sm"
               rows={1}
             />
             <button
               onClick={() => handleSend()}
               disabled={!inputValue.trim() || isAnalyzing || rateLimitCountdown > 0}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 transition-colors"
+              className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 transition-colors"
             >
               {isAnalyzing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
               ) : rateLimitCountdown > 0 ? (
-                <Clock className="w-4 h-4" />
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               ) : (
-                <Send className="w-4 h-4" />
+                <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               )}
             </button>
           </div>
         </div>
-        <p className="text-xs text-slate-600 mt-2 text-center">
+        <p className="text-[10px] sm:text-xs text-slate-600 mt-1.5 sm:mt-2 text-center">
           {rateLimitCountdown > 0 ? (
             <span className="text-amber-400 flex items-center justify-center gap-1">
-              <Clock className="w-3 h-3" />
-              Espera {rateLimitCountdown}s antes de enviar
+              <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              Espera {rateLimitCountdown}s
             </span>
           ) : (
-            'Presiona Enter para enviar'
+            <span className="hidden sm:inline">Presiona Enter para enviar</span>
           )}
         </p>
       </div>
