@@ -1,25 +1,42 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   Sparkles,
   Send,
-  Image,
   CheckCircle,
   AlertCircle,
   ThumbsUp,
   ThumbsDown,
   Loader2,
-  MessageSquare,
-  Zap,
   Bot,
   User,
   RefreshCw,
-  ExternalLink,
+  CreditCard,
+  Smartphone,
+  Settings,
+  MessageCircle,
+  Clock,
 } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
 import { PaymentContext, AIAnalysis } from './types';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+
+// Generate unique idempotency key
+const generateIdempotencyKey = (): string => {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+};
+
+// Hash function for payload deduplication
+const hashPayload = (problem: string, context?: PaymentContext): string => {
+  const payload = JSON.stringify({ problem: problem.trim().toLowerCase(), context });
+  let hash = 0;
+  for (let i = 0; i < payload.length; i++) {
+    const char = payload.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(36);
+};
 
 interface AIAssistantProps {
   initialQuestion?: string;
@@ -46,17 +63,67 @@ interface ChatMessage {
   analysis?: AnalysisResult;
 }
 
-// Preguntas sugeridas rápidas
-const quickQuestions = [
-  { icon: '💳', text: 'Pago no detectado', query: 'Un pago de mi cliente no fue detectado automáticamente' },
-  { icon: '📱', text: 'WhatsApp desconectado', query: 'Mi WhatsApp se desconectó y no recibo mensajes' },
-  { icon: '🔢', text: 'Monto incorrecto', query: 'El monto detectado es diferente al real del comprobante' },
-  { icon: '👥', text: 'Contacto duplicado', query: 'Tengo el mismo contacto duplicado con diferentes números' },
+// Quick action buttons
+const quickActions = [
+  {
+    id: 'payment',
+    icon: CreditCard,
+    label: 'Pago no detectado',
+    query: 'Un pago de mi cliente no fue detectado automáticamente',
+    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+  },
+  {
+    id: 'whatsapp',
+    icon: Smartphone,
+    label: 'WhatsApp desconectado',
+    query: 'Mi WhatsApp se desconectó y no recibo mensajes',
+    color: 'text-green-400 bg-green-500/10 border-green-500/20'
+  },
+  {
+    id: 'config',
+    icon: Settings,
+    label: 'Configuración cuenta',
+    query: 'Necesito ayuda con la configuración de mi cuenta',
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+  },
+  {
+    id: 'human',
+    icon: MessageCircle,
+    label: 'Hablar con humano',
+    query: 'Quiero hablar con un agente de soporte humano',
+    color: 'text-purple-400 bg-purple-500/10 border-purple-500/20'
+  },
 ];
 
-// Llamar a la Edge Function de AI Support
-const analyzeWithAI = async (problem: string, context?: PaymentContext): Promise<AnalysisResult> => {
+// Error types for differentiated handling
+type AIErrorType = 'rate_limit' | 'network' | 'server' | 'timeout' | 'unknown';
+
+interface AIError extends Error {
+  type: AIErrorType;
+  retryAfter?: number;
+}
+
+// Call Edge Function with idempotency and abort support
+const analyzeWithAI = async (
+  problem: string,
+  context?: PaymentContext,
+  idempotencyKey?: string,
+  signal?: AbortSignal
+): Promise<AnalysisResult> => {
   try {
+    // Create fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+    // Combine abort signals
+    const combinedSignal = signal
+      ? { signal: signal.aborted ? signal : controller.signal }
+      : { signal: controller.signal };
+
+    if (signal) {
+      signal.addEventListener('abort', () => controller.abort());
+    }
+
     const { data, error } = await supabase.functions.invoke('ai-support', {
       body: {
         problem,
@@ -66,29 +133,77 @@ const analyzeWithAI = async (problem: string, context?: PaymentContext): Promise
           date: context.date,
           paymentId: context.paymentId,
         } : undefined,
+        idempotencyKey,
+        payloadHash: hashPayload(problem, context),
       },
+      ...combinedSignal,
     });
+
+    clearTimeout(timeoutId);
 
     if (error) {
       console.error('Error calling AI support:', error);
-      throw new Error(error.message);
+      const aiError = new Error(error.message) as AIError;
+
+      // Detect error type from message
+      if (error.message?.includes('429') || error.message?.toLowerCase().includes('rate')) {
+        aiError.type = 'rate_limit';
+        aiError.retryAfter = 30;
+      } else if (error.message?.includes('timeout') || error.message?.includes('aborted')) {
+        aiError.type = 'timeout';
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        aiError.type = 'network';
+      } else if (error.message?.includes('500') || error.message?.includes('server')) {
+        aiError.type = 'server';
+      } else {
+        aiError.type = 'unknown';
+      }
+
+      throw aiError;
     }
 
     if (data?.success && data?.analysis) {
-      return {
-        diagnosis: data.analysis.diagnosis,
-        explanation: data.analysis.explanation,
-        recommendation: data.analysis.recommendation,
-        resolved: data.analysis.resolved,
-        confidence: data.analysis.confidence,
-        category: data.analysis.category,
-        suggestedActions: data.analysis.suggestedActions,
-      };
+      return data.analysis;
+    }
+
+    // Handle rate limit response from backend
+    if (data?.error === 'rate_limit') {
+      const aiError = new Error(data.message || 'Límite de solicitudes excedido') as AIError;
+      aiError.type = 'rate_limit';
+      aiError.retryAfter = data.retryAfter || 30;
+      throw aiError;
     }
 
     throw new Error('Respuesta inválida del servidor');
   } catch (error) {
     console.error('Error en análisis IA:', error);
+
+    const aiError = error as AIError;
+
+    // Return specific error messages based on type
+    if (aiError.type === 'rate_limit') {
+      return {
+        diagnosis: 'Límite de solicitudes alcanzado',
+        explanation: `Has realizado demasiadas consultas en poco tiempo. Por favor espera ${aiError.retryAfter || 30} segundos antes de intentar nuevamente.`,
+        recommendation: 'Utiliza el sistema de tickets si necesitas ayuda urgente mientras esperas.',
+        resolved: false,
+        confidence: 0,
+        category: 'technical',
+        isRateLimited: true,
+        retryAfter: aiError.retryAfter,
+      } as AnalysisResult & { isRateLimited?: boolean; retryAfter?: number };
+    }
+
+    if (aiError.name === 'AbortError' || aiError.type === 'timeout') {
+      return {
+        diagnosis: 'Tiempo de espera agotado',
+        explanation: 'La consulta tardó demasiado en procesarse. Esto puede deberse a alta demanda del servicio.',
+        recommendation: 'Intenta nuevamente en unos momentos o simplifica tu consulta.',
+        resolved: false,
+        confidence: 0,
+      };
+    }
+
     return {
       diagnosis: 'No se pudo conectar con el asistente IA',
       explanation: 'Hubo un problema al procesar tu consulta. Esto puede deberse a una conexión lenta o un error temporal.',
@@ -105,33 +220,132 @@ export function AIAssistant({
   onBack,
   onCreateTicket,
 }: AIAssistantProps) {
-  const [problem, setProblem] = useState(initialQuestion);
+  const [inputValue, setInputValue] = useState(initialQuestion);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [feedback, setFeedback] = useState<'helpful' | 'not_helpful' | null>(null);
   const [lastAnalysis, setLastAnalysis] = useState<AnalysisResult | null>(null);
+  const [rateLimitCountdown, setRateLimitCountdown] = useState<number>(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleAnalyze = async (query?: string) => {
-    const questionText = query || problem;
-    if (!questionText.trim()) return;
+  // Request lock (mutex) to prevent concurrent requests
+  const isRequestPending = useRef(false);
+  // AbortController ref for canceling previous requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+  // Last processed payload hash to prevent duplicate submissions
+  const lastPayloadHashRef = useRef<string>('');
 
-    // Agregar mensaje del usuario
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Focus input on mount
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Rate limit countdown timer
+  useEffect(() => {
+    if (rateLimitCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setRateLimitCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [rateLimitCountdown]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const handleSend = useCallback(async (query?: string) => {
+    const text = query || inputValue;
+    if (!text.trim()) return;
+
+    // Check rate limit
+    if (rateLimitCountdown > 0) {
+      console.log('Rate limited, countdown:', rateLimitCountdown);
+      return;
+    }
+
+    // Request lock - prevent concurrent requests
+    if (isRequestPending.current) {
+      console.log('Request already pending, ignoring');
+      return;
+    }
+
+    // Payload deduplication - prevent identical requests within short time
+    const currentHash = hashPayload(text, paymentContext);
+    if (currentHash === lastPayloadHashRef.current && messages.length > 0) {
+      console.log('Duplicate payload detected, ignoring');
+      return;
+    }
+
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController
+    abortControllerRef.current = new AbortController();
+
+    // Set lock and update hash
+    isRequestPending.current = true;
+    lastPayloadHashRef.current = currentHash;
+
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: questionText,
+      content: text,
       timestamp: new Date(),
     };
+
     setMessages(prev => [...prev, userMessage]);
-    setProblem('');
+    setInputValue('');
     setIsAnalyzing(true);
     setFeedback(null);
 
     try {
-      const analysis = await analyzeWithAI(questionText, paymentContext);
+      // Generate idempotency key for this request
+      const idempotencyKey = generateIdempotencyKey();
+
+      const analysis = await analyzeWithAI(
+        text,
+        paymentContext,
+        idempotencyKey,
+        abortControllerRef.current.signal
+      );
+
+      // Check if request was aborted
+      if (abortControllerRef.current?.signal.aborted) {
+        console.log('Request was aborted');
+        return;
+      }
+
       setLastAnalysis(analysis);
 
-      // Agregar respuesta de la IA
+      // Handle rate limit in response
+      const analysisWithRateLimit = analysis as AnalysisResult & { isRateLimited?: boolean; retryAfter?: number };
+      if (analysisWithRateLimit.isRateLimited && analysisWithRateLimit.retryAfter) {
+        setRateLimitCountdown(analysisWithRateLimit.retryAfter);
+      }
+
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
@@ -141,11 +355,15 @@ export function AIAssistant({
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error analyzing:', error);
+      // Only log if not aborted
+      if (!(error instanceof Error && error.name === 'AbortError')) {
+        console.error('Error in handleSend:', error);
+      }
     } finally {
+      isRequestPending.current = false;
       setIsAnalyzing(false);
     }
-  };
+  }, [inputValue, paymentContext, rateLimitCountdown, messages.length]);
 
   const handleCreateTicketWithContext = () => {
     if (lastAnalysis) {
@@ -153,7 +371,7 @@ export function AIAssistant({
       onCreateTicket({
         id: `ai-${Date.now()}`,
         timestamp: new Date(),
-        problem: lastUserMessage?.content || problem,
+        problem: lastUserMessage?.content || inputValue,
         diagnosis: lastAnalysis.diagnosis,
         explanation: lastAnalysis.explanation,
         recommendation: lastAnalysis.recommendation,
@@ -165,49 +383,51 @@ export function AIAssistant({
     }
   };
 
-  const handleNewConversation = () => {
+  const handleReset = () => {
     setMessages([]);
     setLastAnalysis(null);
     setFeedback(null);
-    setProblem('');
+    setInputValue('');
   };
 
-  const getCategoryLabel = (category?: string) => {
-    const labels: Record<string, { label: string; color: string }> = {
-      payment: { label: 'Pagos', color: 'bg-blue-500/20 text-blue-400' },
-      whatsapp: { label: 'WhatsApp', color: 'bg-green-500/20 text-green-400' },
-      account: { label: 'Cuenta', color: 'bg-purple-500/20 text-purple-400' },
-      technical: { label: 'Técnico', color: 'bg-orange-500/20 text-orange-400' },
-      other: { label: 'General', color: 'bg-slate-500/20 text-slate-400' },
+  const getCategoryColor = (category?: string) => {
+    const colors: Record<string, string> = {
+      payment: 'bg-blue-500/20 text-blue-400',
+      whatsapp: 'bg-green-500/20 text-green-400',
+      account: 'bg-purple-500/20 text-purple-400',
+      technical: 'bg-orange-500/20 text-orange-400',
+      other: 'bg-slate-500/20 text-slate-400',
     };
-    return labels[category || 'other'] || labels.other;
+    return colors[category || 'other'] || colors.other;
   };
+
+  const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-200px)]">
+    <div className="flex flex-col h-[calc(100vh-180px)] min-h-[500px]">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 pb-4 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-4 border-b border-slate-800 flex-shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            className="p-2 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-              Asistente IA
-            </h1>
-            <p className="text-xs text-slate-500">Powered by Gemini</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-white">Asistente IA</h1>
+              <p className="text-xs text-slate-500">Desarrollado por Gemini</p>
+            </div>
           </div>
         </div>
-        {messages.length > 0 && (
+        {hasMessages && (
           <button
-            onClick={handleNewConversation}
-            className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            onClick={handleReset}
+            className="p-2 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
             title="Nueva conversación"
           >
             <RefreshCw className="w-4 h-4" />
@@ -215,63 +435,45 @@ export function AIAssistant({
         )}
       </div>
 
-      {/* Payment Context Banner */}
-      {paymentContext && (
-        <div className="mt-4 p-3 rounded-xl bg-slate-800/30 border border-slate-700/50">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Contexto del pago</p>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-              <Image className="w-5 h-5 text-emerald-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-white">{paymentContext.contactName || 'Comprobante'}</p>
-              <p className="text-xs text-slate-400">
-                {paymentContext.amount && `$${paymentContext.amount.toLocaleString()}`}
-                {paymentContext.date && ` • ${paymentContext.date}`}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-4 min-h-[200px]">
-        {messages.length === 0 ? (
-          // Estado inicial - Bienvenida y preguntas rápidas
-          <div className="space-y-6">
-            {/* Welcome Card */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
-                  <Sparkles className="w-5 h-5 text-white" />
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto py-4">
+        {!hasMessages ? (
+          // Welcome Screen
+          <div className="h-full flex flex-col">
+            {/* Welcome Message */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-emerald-500/20 flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
                   <p className="font-semibold text-white">¡Hola! Soy tu asistente de soporte</p>
-                  <p className="text-xs text-emerald-400/80">Disponible 24/7</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Puedo ayudarte con problemas de pagos, conexión de WhatsApp y más. ¿En qué puedo ayudarte hoy?
+                  </p>
+                  <p className="text-xs text-emerald-400/70 mt-2">Disponible 24/7</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                Puedo ayudarte con problemas de pagos, conexión de WhatsApp, configuración de tu cuenta y más.
-                Describe tu problema o elige una opción rápida.
-              </p>
             </div>
 
-            {/* Quick Questions */}
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5" />
+            {/* Quick Actions Grid */}
+            <div className="flex-1">
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-medium">
                 Preguntas frecuentes
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                {quickQuestions.map((q, idx) => (
+              <div className="grid grid-cols-2 gap-3">
+                {quickActions.map((action) => (
                   <button
-                    key={idx}
-                    onClick={() => handleAnalyze(q.query)}
-                    disabled={isAnalyzing}
-                    className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-left hover:bg-slate-800 hover:border-emerald-500/30 transition-all group disabled:opacity-50"
+                    key={action.id}
+                    onClick={() => handleSend(action.query)}
+                    disabled={isAnalyzing || rateLimitCountdown > 0}
+                    className={cn(
+                      'p-4 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed',
+                      action.color
+                    )}
                   >
-                    <span className="text-lg mb-1 block">{q.icon}</span>
-                    <p className="text-sm text-slate-300 group-hover:text-white transition-colors">{q.text}</p>
+                    <action.icon className="w-6 h-6 mb-2" />
+                    <p className="text-sm font-medium text-white">{action.label}</p>
                   </button>
                 ))}
               </div>
@@ -289,7 +491,7 @@ export function AIAssistant({
                 )}
               >
                 {msg.role === 'assistant' && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
                     <Bot className="w-4 h-4 text-white" />
                   </div>
                 )}
@@ -301,13 +503,16 @@ export function AIAssistant({
                     : 'bg-slate-800/70 border border-slate-700/50 rounded-bl-md'
                 )}>
                   {msg.role === 'assistant' && msg.analysis && (
-                    <div className="mb-3">
+                    <div className="mb-3 pb-3 border-b border-slate-700/50">
                       <div className="flex items-center gap-2 mb-2">
                         <span className={cn(
                           'px-2 py-0.5 rounded-full text-xs font-medium',
-                          getCategoryLabel(msg.analysis.category).color
+                          getCategoryColor(msg.analysis.category)
                         )}>
-                          {getCategoryLabel(msg.analysis.category).label}
+                          {msg.analysis.category === 'payment' ? 'Pagos' :
+                           msg.analysis.category === 'whatsapp' ? 'WhatsApp' :
+                           msg.analysis.category === 'account' ? 'Cuenta' :
+                           msg.analysis.category === 'technical' ? 'Técnico' : 'General'}
                         </span>
                         <span className={cn(
                           'flex items-center gap-1 text-xs',
@@ -320,7 +525,7 @@ export function AIAssistant({
                           )}
                         </span>
                       </div>
-                      <p className="font-medium text-white text-sm mb-2">{msg.analysis.diagnosis}</p>
+                      <p className="font-medium text-white text-sm">{msg.analysis.diagnosis}</p>
                     </div>
                   )}
 
@@ -331,77 +536,54 @@ export function AIAssistant({
                     {msg.content}
                   </p>
 
-                  {msg.role === 'assistant' && msg.analysis && (
-                    <>
-                      {/* Recommendation */}
-                      <div className="mt-3 pt-3 border-t border-slate-700/50">
-                        <p className="text-xs text-emerald-400 font-medium mb-1">💡 Recomendación:</p>
-                        <p className="text-sm text-slate-300">{msg.analysis.recommendation}</p>
-                      </div>
-
-                      {/* Suggested Actions */}
-                      {msg.analysis.suggestedActions && msg.analysis.suggestedActions.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {msg.analysis.suggestedActions.map((action, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-700/50 text-xs text-slate-300"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              {action}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </>
+                  {msg.role === 'assistant' && msg.analysis?.recommendation && (
+                    <div className="mt-3 pt-3 border-t border-slate-700/50">
+                      <p className="text-xs text-emerald-400 font-medium mb-1">💡 Recomendación:</p>
+                      <p className="text-sm text-slate-300">{msg.analysis.recommendation}</p>
+                    </div>
                   )}
-
-                  <p className={cn(
-                    'text-xs mt-2',
-                    msg.role === 'user' ? 'text-emerald-200/70' : 'text-slate-500'
-                  )}>
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
                 </div>
 
                 {msg.role === 'user' && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-slate-700 flex items-center justify-center">
                     <User className="w-4 h-4 text-slate-300" />
                   </div>
                 )}
               </div>
             ))}
 
-            {/* Loading indicator */}
+            {/* Loading */}
             {isAnalyzing && (
-              <div className="flex gap-3 justify-start">
-                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
                 <div className="bg-slate-800/70 border border-slate-700/50 rounded-2xl rounded-bl-md p-4">
                   <div className="flex items-center gap-2 text-slate-400">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Analizando tu consulta...</span>
+                    <span className="text-sm">Analizando...</span>
                   </div>
                 </div>
               </div>
             )}
+
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
 
-      {/* Feedback Section */}
-      {messages.length > 0 && lastAnalysis && !isAnalyzing && (
-        <div className="py-3 border-t border-slate-800">
+      {/* Feedback (only show after response) */}
+      {hasMessages && lastAnalysis && !isAnalyzing && (
+        <div className="py-3 border-t border-slate-800 flex-shrink-0">
           {feedback ? (
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-400">
-                {feedback === 'helpful' ? '✨ ¡Gracias por tu feedback!' : '📝 Entendido, lo tendremos en cuenta'}
+                {feedback === 'helpful' ? '✨ ¡Gracias!' : '📝 Lo tendremos en cuenta'}
               </p>
               {feedback === 'not_helpful' && (
                 <button
                   onClick={handleCreateTicketWithContext}
-                  className="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm font-medium hover:bg-slate-600 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-slate-700 text-white text-sm font-medium hover:bg-slate-600 transition-colors"
                 >
                   Crear ticket
                 </button>
@@ -413,13 +595,13 @@ export function AIAssistant({
               <div className="flex gap-2">
                 <button
                   onClick={() => setFeedback('helpful')}
-                  className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+                  className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
                 >
                   <ThumbsUp className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setFeedback('not_helpful')}
-                  className="p-2 rounded-lg bg-slate-700/50 text-slate-400 hover:bg-slate-700 transition-colors"
+                  className="p-2 rounded-xl bg-slate-700/50 text-slate-400 hover:bg-slate-700 transition-colors"
                 >
                   <ThumbsDown className="w-4 h-4" />
                 </button>
@@ -430,29 +612,32 @@ export function AIAssistant({
       )}
 
       {/* Input Area */}
-      <div className="pt-3 border-t border-slate-800">
-        <div className="flex gap-2">
+      <div className="pt-3 border-t border-slate-800 flex-shrink-0">
+        <div className="flex gap-3">
           <div className="flex-1 relative">
-            <Textarea
+            <textarea
+              ref={inputRef}
               placeholder="Escribe tu pregunta..."
-              value={problem}
-              onChange={(e) => setProblem(e.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleAnalyze();
+                  handleSend();
                 }
               }}
-              className="min-h-[50px] max-h-[120px] pr-12 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 resize-none"
+              className="w-full px-4 py-3 pr-12 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none resize-none text-sm"
               rows={1}
             />
             <button
-              onClick={() => handleAnalyze()}
-              disabled={!problem.trim() || isAnalyzing}
-              className="absolute right-2 bottom-2 p-2 rounded-lg bg-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 transition-colors"
+              onClick={() => handleSend()}
+              disabled={!inputValue.trim() || isAnalyzing || rateLimitCountdown > 0}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 transition-colors"
             >
               {isAnalyzing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
+              ) : rateLimitCountdown > 0 ? (
+                <Clock className="w-4 h-4" />
               ) : (
                 <Send className="w-4 h-4" />
               )}
@@ -460,8 +645,14 @@ export function AIAssistant({
           </div>
         </div>
         <p className="text-xs text-slate-600 mt-2 text-center">
-          <MessageSquare className="w-3 h-3 inline mr-1" />
-          Presiona Enter para enviar
+          {rateLimitCountdown > 0 ? (
+            <span className="text-amber-400 flex items-center justify-center gap-1">
+              <Clock className="w-3 h-3" />
+              Espera {rateLimitCountdown}s antes de enviar
+            </span>
+          ) : (
+            'Presiona Enter para enviar'
+          )}
         </p>
       </div>
     </div>
