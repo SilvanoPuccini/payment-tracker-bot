@@ -35,6 +35,90 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false }
 });
 
+// ============================================================================
+// RATE LIMITING & DEDUPLICATION CONFIGURATION
+// ============================================================================
+
+// Rate limit: requests per window
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 5;  // 5 requests per minute per user/IP
+const RATE_LIMIT_ANONYMOUS_MAX = 3; // 3 requests per minute for anonymous
+
+// Idempotency cache TTL
+const IDEMPOTENCY_TTL_MS = 300000; // 5 minutes
+
+// Payload deduplication TTL
+const DEDUP_TTL_MS = 30000; // 30 seconds - don't process same query within 30s
+
+// In-memory caches (will reset on cold start, which is acceptable for rate limiting)
+const rateLimitCache = new Map<string, { count: number; windowStart: number }>();
+const idempotencyCache = new Map<string, { response: unknown; timestamp: number }>();
+const payloadDeduplicationCache = new Map<string, { response: unknown; timestamp: number }>();
+
+// Cleanup old entries periodically
+function cleanupCaches() {
+  const now = Date.now();
+
+  // Cleanup rate limit entries older than window
+  for (const [key, value] of rateLimitCache.entries()) {
+    if (now - value.windowStart > RATE_LIMIT_WINDOW_MS) {
+      rateLimitCache.delete(key);
+    }
+  }
+
+  // Cleanup idempotency entries older than TTL
+  for (const [key, value] of idempotencyCache.entries()) {
+    if (now - value.timestamp > IDEMPOTENCY_TTL_MS) {
+      idempotencyCache.delete(key);
+    }
+  }
+
+  // Cleanup dedup entries older than TTL
+  for (const [key, value] of payloadDeduplicationCache.entries()) {
+    if (now - value.timestamp > DEDUP_TTL_MS) {
+      payloadDeduplicationCache.delete(key);
+    }
+  }
+}
+
+// Run cleanup every minute
+setInterval(cleanupCaches, 60000);
+
+// ============================================================================
+// RATE LIMITER
+// ============================================================================
+
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  retryAfter?: number;
+}
+
+function checkRateLimit(identifier: string, isAuthenticated: boolean): RateLimitResult {
+  const now = Date.now();
+  const maxRequests = isAuthenticated ? RATE_LIMIT_MAX_REQUESTS : RATE_LIMIT_ANONYMOUS_MAX;
+
+  const entry = rateLimitCache.get(identifier);
+
+  if (!entry || (now - entry.windowStart > RATE_LIMIT_WINDOW_MS)) {
+    // New window
+    rateLimitCache.set(identifier, { count: 1, windowStart: now });
+    return { allowed: true, remaining: maxRequests - 1 };
+  }
+
+  if (entry.count >= maxRequests) {
+    const retryAfter = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - entry.windowStart)) / 1000);
+    return { allowed: false, remaining: 0, retryAfter };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: maxRequests - entry.count };
+}
+
+// ============================================================================
+// INTERFACES
+// ============================================================================
+
 interface SupportRequest {
   problem: string;
   context?: {
@@ -44,6 +128,8 @@ interface SupportRequest {
     paymentId?: string;
   };
   userEmail?: string;
+  idempotencyKey?: string;
+  payloadHash?: string;
 }
 
 interface SupportAnalysis {
@@ -64,6 +150,10 @@ interface LogPayload {
   status: string;
   error: string | null;
 }
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
 // Insert log asynchronously (fire and forget)
 async function insertLog(payload: LogPayload): Promise<void> {
@@ -97,6 +187,52 @@ async function verifyToken(token: string): Promise<{ id: string; email?: string 
     return null;
   }
 }
+
+// Get client IP for rate limiting anonymous users
+function getClientIP(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+         req.headers.get('x-real-ip') ||
+         'unknown';
+}
+
+// Create error response with proper typing
+function errorResponse(
+  message: string,
+  status: number,
+  corsHeaders: Record<string, string>,
+  extra?: Record<string, unknown>
+): Response {
+  return new Response(
+    JSON.stringify({ error: message, ...extra }),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+// Create rate limit response
+function rateLimitResponse(
+  retryAfter: number,
+  corsHeaders: Record<string, string>
+): Response {
+  return new Response(
+    JSON.stringify({
+      error: 'rate_limit',
+      message: `Demasiadas solicitudes. Por favor espera ${retryAfter} segundos.`,
+      retryAfter,
+    }),
+    {
+      status: 429,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'Retry-After': retryAfter.toString(),
+      }
+    }
+  );
+}
+
+// ============================================================================
+// SYSTEM PROMPT
+// ============================================================================
 
 const systemPrompt = `Eres el Asistente de Soporte IA de PayTrack, una aplicación para gestionar y rastrear pagos recibidos por WhatsApp.
 
@@ -160,6 +296,10 @@ Responde ÚNICAMENTE con JSON válido:
   "suggestedActions": ["Acción 1", "Acción 2"]
 }`;
 
+// ============================================================================
+// MAIN HANDLER
+// ============================================================================
+
 serve(async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
@@ -171,9 +311,13 @@ serve(async (req) => {
 
   let userId: string | null = null;
   let userEmail: string | null = null;
+  let rateLimitIdentifier: string;
+  let isAuthenticated = false;
 
   try {
-    // Intentar obtener autenticación (opcional pero recomendada)
+    // ========================================================================
+    // AUTHENTICATION (optional but recommended)
+    // ========================================================================
     const authHeader = req.headers.get('authorization') || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
@@ -182,31 +326,84 @@ serve(async (req) => {
       if (user) {
         userId = user.id;
         userEmail = user.email || null;
+        rateLimitIdentifier = `user:${userId}`;
+        isAuthenticated = true;
         console.log('Usuario autenticado:', userId);
       } else {
         console.log('Token inválido, continuando sin autenticación');
+        rateLimitIdentifier = `ip:${getClientIP(req)}`;
       }
     } else {
       console.log('Sin token de autenticación, continuando como anónimo');
+      rateLimitIdentifier = `ip:${getClientIP(req)}`;
     }
 
-    const { problem, context, userEmail: bodyEmail }: SupportRequest = await req.json();
+    // ========================================================================
+    // RATE LIMITING
+    // ========================================================================
+    const rateLimitResult = checkRateLimit(rateLimitIdentifier, isAuthenticated);
+
+    if (!rateLimitResult.allowed) {
+      console.log('Rate limit exceeded for:', rateLimitIdentifier);
+
+      // Log rate limit hit
+      insertLog({
+        user_id: userId,
+        user_email: userEmail,
+        request: { problem: 'rate_limited' },
+        response: null,
+        status: 'rate_limited',
+        error: `Rate limit exceeded. Retry after ${rateLimitResult.retryAfter}s`,
+      });
+
+      return rateLimitResponse(rateLimitResult.retryAfter || 60, corsHeaders);
+    }
+
+    // ========================================================================
+    // PARSE REQUEST
+    // ========================================================================
+    const { problem, context, userEmail: bodyEmail, idempotencyKey, payloadHash }: SupportRequest = await req.json();
 
     if (!problem) {
-      return new Response(
-        JSON.stringify({ error: 'Se requiere describir el problema' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Se requiere describir el problema', 400, corsHeaders);
     }
 
-    // Usar API key dedicada para soporte
+    // ========================================================================
+    // IDEMPOTENCY CHECK
+    // ========================================================================
+    if (idempotencyKey) {
+      const cachedResponse = idempotencyCache.get(idempotencyKey);
+      if (cachedResponse) {
+        console.log('Returning cached response for idempotency key:', idempotencyKey);
+        return new Response(
+          JSON.stringify(cachedResponse.response),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Idempotent': 'true' } }
+        );
+      }
+    }
+
+    // ========================================================================
+    // PAYLOAD DEDUPLICATION
+    // ========================================================================
+    if (payloadHash) {
+      const dedupKey = `${rateLimitIdentifier}:${payloadHash}`;
+      const cachedDedup = payloadDeduplicationCache.get(dedupKey);
+      if (cachedDedup) {
+        console.log('Returning cached response for duplicate payload');
+        return new Response(
+          JSON.stringify(cachedDedup.response),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Deduplicated': 'true' } }
+        );
+      }
+    }
+
+    // ========================================================================
+    // GEMINI API CALL
+    // ========================================================================
     const GEMINI_SUPPORT_KEY = Deno.env.get('GEMINI_SUPPORT_API_KEY');
     if (!GEMINI_SUPPORT_KEY) {
       console.error('GEMINI_SUPPORT_API_KEY no está configurada');
-      return new Response(
-        JSON.stringify({ error: 'Error de configuración del servidor' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Error de configuración del servidor', 500, corsHeaders);
     }
 
     // Build context message
@@ -223,9 +420,9 @@ serve(async (req) => {
       }
     }
 
-    console.log('Procesando solicitud de soporte IA para usuario:', userId);
+    console.log('Procesando solicitud de soporte IA para usuario:', userId || rateLimitIdentifier);
 
-    // Llamar a la API de Gemini
+    // Call Gemini API
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_SUPPORT_KEY}`, {
       method: 'POST',
       headers: {
@@ -253,6 +450,9 @@ serve(async (req) => {
       }),
     });
 
+    // ========================================================================
+    // HANDLE GEMINI ERRORS
+    // ========================================================================
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error de Gemini API:', response.status, errorText);
@@ -267,17 +467,18 @@ serve(async (req) => {
         error: `${response.status}: ${errorText.substring(0, 500)}`,
       });
 
+      // Gemini rate limit
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Límite de solicitudes excedido. Intente más tarde.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            error: 'external_rate_limit',
+            message: 'El servicio de IA está temporalmente sobrecargado. Intente más tarde.',
+          }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      return new Response(
-        JSON.stringify({ error: 'Error al procesar la consulta con IA' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Error al procesar la consulta con IA', 500, corsHeaders);
     }
 
     const data = await response.json();
@@ -295,13 +496,12 @@ serve(async (req) => {
         error: 'No AI response content',
       });
 
-      return new Response(
-        JSON.stringify({ error: 'No se recibió respuesta del modelo' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('No se recibió respuesta del modelo', 500, corsHeaders);
     }
 
-    // Parse the JSON response
+    // ========================================================================
+    // PARSE AI RESPONSE
+    // ========================================================================
     let analysis: SupportAnalysis;
     try {
       let cleanedResponse = aiResponse.trim();
@@ -342,6 +542,27 @@ serve(async (req) => {
       };
     }
 
+    // ========================================================================
+    // BUILD SUCCESS RESPONSE
+    // ========================================================================
+    const successResponse = {
+      success: true,
+      analysis,
+      timestamp: new Date().toISOString(),
+      rateLimitRemaining: rateLimitResult.remaining,
+    };
+
+    // Cache for idempotency
+    if (idempotencyKey) {
+      idempotencyCache.set(idempotencyKey, { response: successResponse, timestamp: Date.now() });
+    }
+
+    // Cache for deduplication
+    if (payloadHash) {
+      const dedupKey = `${rateLimitIdentifier}:${payloadHash}`;
+      payloadDeduplicationCache.set(dedupKey, { response: successResponse, timestamp: Date.now() });
+    }
+
     // Log successful request
     insertLog({
       user_id: userId,
@@ -352,14 +573,10 @@ serve(async (req) => {
       error: null,
     });
 
-    console.log('Análisis de soporte completado para usuario:', userId);
+    console.log('Análisis de soporte completado para usuario:', userId || rateLimitIdentifier);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        analysis,
-        timestamp: new Date().toISOString(),
-      }),
+      JSON.stringify(successResponse),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -378,9 +595,13 @@ serve(async (req) => {
       });
     }
 
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Error desconocido' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Differentiate error types
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+
+    if (errorMessage.includes('JSON')) {
+      return errorResponse('Error al procesar la solicitud. Verifica el formato.', 400, corsHeaders);
+    }
+
+    return errorResponse(errorMessage, 500, corsHeaders);
   }
 });

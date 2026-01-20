@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   Sparkles,
@@ -15,10 +15,28 @@ import {
   Smartphone,
   Settings,
   MessageCircle,
+  Clock,
 } from 'lucide-react';
 import { PaymentContext, AIAnalysis } from './types';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+
+// Generate unique idempotency key
+const generateIdempotencyKey = (): string => {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+};
+
+// Hash function for payload deduplication
+const hashPayload = (problem: string, context?: PaymentContext): string => {
+  const payload = JSON.stringify({ problem: problem.trim().toLowerCase(), context });
+  let hash = 0;
+  for (let i = 0; i < payload.length; i++) {
+    const char = payload.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(36);
+};
 
 interface AIAssistantProps {
   initialQuestion?: string;
@@ -77,9 +95,35 @@ const quickActions = [
   },
 ];
 
-// Call Edge Function
-const analyzeWithAI = async (problem: string, context?: PaymentContext): Promise<AnalysisResult> => {
+// Error types for differentiated handling
+type AIErrorType = 'rate_limit' | 'network' | 'server' | 'timeout' | 'unknown';
+
+interface AIError extends Error {
+  type: AIErrorType;
+  retryAfter?: number;
+}
+
+// Call Edge Function with idempotency and abort support
+const analyzeWithAI = async (
+  problem: string,
+  context?: PaymentContext,
+  idempotencyKey?: string,
+  signal?: AbortSignal
+): Promise<AnalysisResult> => {
   try {
+    // Create fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+    // Combine abort signals
+    const combinedSignal = signal
+      ? { signal: signal.aborted ? signal : controller.signal }
+      : { signal: controller.signal };
+
+    if (signal) {
+      signal.addEventListener('abort', () => controller.abort());
+    }
+
     const { data, error } = await supabase.functions.invoke('ai-support', {
       body: {
         problem,
@@ -89,21 +133,77 @@ const analyzeWithAI = async (problem: string, context?: PaymentContext): Promise
           date: context.date,
           paymentId: context.paymentId,
         } : undefined,
+        idempotencyKey,
+        payloadHash: hashPayload(problem, context),
       },
+      ...combinedSignal,
     });
+
+    clearTimeout(timeoutId);
 
     if (error) {
       console.error('Error calling AI support:', error);
-      throw new Error(error.message);
+      const aiError = new Error(error.message) as AIError;
+
+      // Detect error type from message
+      if (error.message?.includes('429') || error.message?.toLowerCase().includes('rate')) {
+        aiError.type = 'rate_limit';
+        aiError.retryAfter = 30;
+      } else if (error.message?.includes('timeout') || error.message?.includes('aborted')) {
+        aiError.type = 'timeout';
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        aiError.type = 'network';
+      } else if (error.message?.includes('500') || error.message?.includes('server')) {
+        aiError.type = 'server';
+      } else {
+        aiError.type = 'unknown';
+      }
+
+      throw aiError;
     }
 
     if (data?.success && data?.analysis) {
       return data.analysis;
     }
 
+    // Handle rate limit response from backend
+    if (data?.error === 'rate_limit') {
+      const aiError = new Error(data.message || 'Límite de solicitudes excedido') as AIError;
+      aiError.type = 'rate_limit';
+      aiError.retryAfter = data.retryAfter || 30;
+      throw aiError;
+    }
+
     throw new Error('Respuesta inválida del servidor');
   } catch (error) {
     console.error('Error en análisis IA:', error);
+
+    const aiError = error as AIError;
+
+    // Return specific error messages based on type
+    if (aiError.type === 'rate_limit') {
+      return {
+        diagnosis: 'Límite de solicitudes alcanzado',
+        explanation: `Has realizado demasiadas consultas en poco tiempo. Por favor espera ${aiError.retryAfter || 30} segundos antes de intentar nuevamente.`,
+        recommendation: 'Utiliza el sistema de tickets si necesitas ayuda urgente mientras esperas.',
+        resolved: false,
+        confidence: 0,
+        category: 'technical',
+        isRateLimited: true,
+        retryAfter: aiError.retryAfter,
+      } as AnalysisResult & { isRateLimited?: boolean; retryAfter?: number };
+    }
+
+    if (aiError.name === 'AbortError' || aiError.type === 'timeout') {
+      return {
+        diagnosis: 'Tiempo de espera agotado',
+        explanation: 'La consulta tardó demasiado en procesarse. Esto puede deberse a alta demanda del servicio.',
+        recommendation: 'Intenta nuevamente en unos momentos o simplifica tu consulta.',
+        resolved: false,
+        confidence: 0,
+      };
+    }
+
     return {
       diagnosis: 'No se pudo conectar con el asistente IA',
       explanation: 'Hubo un problema al procesar tu consulta. Esto puede deberse a una conexión lenta o un error temporal.',
@@ -125,8 +225,16 @@ export function AIAssistant({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [feedback, setFeedback] = useState<'helpful' | 'not_helpful' | null>(null);
   const [lastAnalysis, setLastAnalysis] = useState<AnalysisResult | null>(null);
+  const [rateLimitCountdown, setRateLimitCountdown] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Request lock (mutex) to prevent concurrent requests
+  const isRequestPending = useRef(false);
+  // AbortController ref for canceling previous requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+  // Last processed payload hash to prevent duplicate submissions
+  const lastPayloadHashRef = useRef<string>('');
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -140,9 +248,66 @@ export function AIAssistant({
     inputRef.current?.focus();
   }, []);
 
-  const handleSend = async (query?: string) => {
+  // Rate limit countdown timer
+  useEffect(() => {
+    if (rateLimitCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setRateLimitCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [rateLimitCountdown]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const handleSend = useCallback(async (query?: string) => {
     const text = query || inputValue;
-    if (!text.trim() || isAnalyzing) return;
+    if (!text.trim()) return;
+
+    // Check rate limit
+    if (rateLimitCountdown > 0) {
+      console.log('Rate limited, countdown:', rateLimitCountdown);
+      return;
+    }
+
+    // Request lock - prevent concurrent requests
+    if (isRequestPending.current) {
+      console.log('Request already pending, ignoring');
+      return;
+    }
+
+    // Payload deduplication - prevent identical requests within short time
+    const currentHash = hashPayload(text, paymentContext);
+    if (currentHash === lastPayloadHashRef.current && messages.length > 0) {
+      console.log('Duplicate payload detected, ignoring');
+      return;
+    }
+
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController
+    abortControllerRef.current = new AbortController();
+
+    // Set lock and update hash
+    isRequestPending.current = true;
+    lastPayloadHashRef.current = currentHash;
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -157,8 +322,29 @@ export function AIAssistant({
     setFeedback(null);
 
     try {
-      const analysis = await analyzeWithAI(text, paymentContext);
+      // Generate idempotency key for this request
+      const idempotencyKey = generateIdempotencyKey();
+
+      const analysis = await analyzeWithAI(
+        text,
+        paymentContext,
+        idempotencyKey,
+        abortControllerRef.current.signal
+      );
+
+      // Check if request was aborted
+      if (abortControllerRef.current?.signal.aborted) {
+        console.log('Request was aborted');
+        return;
+      }
+
       setLastAnalysis(analysis);
+
+      // Handle rate limit in response
+      const analysisWithRateLimit = analysis as AnalysisResult & { isRateLimited?: boolean; retryAfter?: number };
+      if (analysisWithRateLimit.isRateLimited && analysisWithRateLimit.retryAfter) {
+        setRateLimitCountdown(analysisWithRateLimit.retryAfter);
+      }
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -168,10 +354,16 @@ export function AIAssistant({
         analysis,
       };
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      // Only log if not aborted
+      if (!(error instanceof Error && error.name === 'AbortError')) {
+        console.error('Error in handleSend:', error);
+      }
     } finally {
+      isRequestPending.current = false;
       setIsAnalyzing(false);
     }
-  };
+  }, [inputValue, paymentContext, rateLimitCountdown, messages.length]);
 
   const handleCreateTicketWithContext = () => {
     if (lastAnalysis) {
@@ -274,9 +466,9 @@ export function AIAssistant({
                   <button
                     key={action.id}
                     onClick={() => handleSend(action.query)}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || rateLimitCountdown > 0}
                     className={cn(
-                      'p-4 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50',
+                      'p-4 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed',
                       action.color
                     )}
                   >
@@ -439,11 +631,13 @@ export function AIAssistant({
             />
             <button
               onClick={() => handleSend()}
-              disabled={!inputValue.trim() || isAnalyzing}
+              disabled={!inputValue.trim() || isAnalyzing || rateLimitCountdown > 0}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 transition-colors"
             >
               {isAnalyzing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
+              ) : rateLimitCountdown > 0 ? (
+                <Clock className="w-4 h-4" />
               ) : (
                 <Send className="w-4 h-4" />
               )}
@@ -451,7 +645,14 @@ export function AIAssistant({
           </div>
         </div>
         <p className="text-xs text-slate-600 mt-2 text-center">
-          Presiona Enter para enviar
+          {rateLimitCountdown > 0 ? (
+            <span className="text-amber-400 flex items-center justify-center gap-1">
+              <Clock className="w-3 h-3" />
+              Espera {rateLimitCountdown}s antes de enviar
+            </span>
+          ) : (
+            'Presiona Enter para enviar'
+          )}
         </p>
       </div>
     </div>
