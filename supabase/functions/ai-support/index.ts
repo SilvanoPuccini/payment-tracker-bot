@@ -422,8 +422,8 @@ serve(async (req) => {
 
     console.log('Procesando solicitud de soporte IA para usuario:', userId || rateLimitIdentifier);
 
-    // Call Gemini API - usando gemini-1.5-flash (estable y rápido)
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_SUPPORT_KEY}`, {
+    // Call Gemini API - usando gemini-2.5-flash
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_SUPPORT_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
