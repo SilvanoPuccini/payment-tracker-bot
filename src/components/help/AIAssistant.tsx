@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { PaymentContext, AIAnalysis } from './types';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 // Generate unique idempotency key
 const generateIdempotencyKey = (): string => {
@@ -123,13 +124,23 @@ const analyzeWithAI = async (
       signal.addEventListener('abort', () => controller.abort());
     }
 
-    // Use direct fetch to bypass Supabase client JWT verification
+    // Get session token if user is logged in (optional but recommended for better rate limits)
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    // Build headers - include Authorization if we have a token
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+    };
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    // Use direct fetch - auth is optional, function handles both cases
     const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-support`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-      },
+      headers,
       body: JSON.stringify({
         problem,
         context: context ? {
