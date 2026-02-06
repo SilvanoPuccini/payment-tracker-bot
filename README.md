@@ -109,7 +109,7 @@ VITE_WHATSAPP_TOKEN=tu-token
 
 ## Estructura del Proyecto
 
-\`\`\`
+```
 src/
 ├── components/
 │   ├── auth/           # Componentes de autenticación
@@ -138,7 +138,7 @@ src/
 │   └── Settings.tsx    # Configuración
 └── types/
     └── database.ts     # Tipos de TypeScript
-\`\`\`
+```
 
 ---
 
